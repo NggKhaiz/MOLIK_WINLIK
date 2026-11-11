@@ -105,6 +105,27 @@ href="https://trendshift.io/repositories/17603"><img src="https://trendshift.io/
 
 </div>
 
+## 👑 Sophia Ultra Optimizer (Fork Add-on — Tick-Select CLI)
+
+> 🇻🇳 Tool tối ưu sâu do fork này bổ sung, nằm ngoài module Sophia gốc (`src/` giữ nguyên 100%): **176 tweak cực mạnh**, **6 mode riêng** cho từng nhu cầu và giao diện **tick-chọn CLI** `[✓]/[ ]`.
+
+```powershell
+# DÙNG ONLINE NHƯ WINUTIL — không cần tải tool, không cài đặt, chạy ngay trong bộ nhớ:
+irm "https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/win.ps1" | iex
+# Offline: double-click Sophia-1Click.bat, hoặc .\Sophia-Optimizer.ps1 trong repo
+```
+
+| Mode | Nhu cầu |
+|---|---|
+| 🖥️ `EmulatorFarm` | Treo giả lập Android multi-instance 24/7 (LDPlayer/MuMu/Nox/BlueStacks): tắt VBS/Hyper-V, auto dọn RAM, pagefile cố định |
+| 🎮 `HardcoreGaming` | Gaming low-latency/FPS: HAGS, MPO off, Nagle off, timer/BCD latency, chuột 1:1 |
+| 🎬 `Workstation` | Render/stream/compile ổn định |
+| 🥔 `LowSpec` | Máy yếu/Potato PC |
+| 🛡️ `SophiaStandard` | Privacy & gọn gàng an toàn chuẩn Sophia |
+| 👑 `GodMode` | Toàn bộ tweak kể cả Extreme |
+
+Tích hợp sẵn **winutil của Chris Titus Tech** (25 tweak + 239 app winget, vendor offline, MIT) — nhóm `10. WINUTIL` trong CLI và `-ListApps`/`-InstallApps`. Chi tiết: [Optimizer/README.md](Optimizer/README.md) · Chạy `.\Sophia-Optimizer.ps1 -ListTweaks` để xem toàn bộ catalog. Tool tự tạo System Restore Point + backup Registry/BCD trước khi áp dụng và khôi phục được bằng phím `R`.
+
 ## Key features
 
 * `Sophia Script for Windows` takes care of your Windows stability and warns you if it detects a problem
