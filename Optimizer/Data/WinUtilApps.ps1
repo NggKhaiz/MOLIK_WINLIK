@@ -1,5 +1,5 @@
 ﻿<#
-	Sophia Ultra Optimizer - Applications Catalog (VENDORED from ChrisTitusTech/winutil config/applications.json, MIT)
+	MOLIK WINLIK - Applications Catalog (VENDORED from ChrisTitusTech/winutil config/applications.json, MIT)
 	239 applications with winget/choco IDs - install via built-in winget, no winutil download needed.
 #>
 function Get-SophiaAppsCatalog

@@ -1,8 +1,8 @@
-# 👑 MOLIK_WINLIK — Sophia Ultra Optimizer by @nggkhaiz
+# 👑 MOLIK_WINLIK — MOLIK WINLIK by @nggkhaiz
 
 > **Credit:** Phát triển bởi **@nggkhaiz** (repo [MOLIK_WINLIK](https://github.com/NggKhaiz/MOLIK_WINLIK)) — dựa trên [Sophia Script](https://github.com/farag2/Sophia-Script-for-Windows) của farag2 và tích hợp data [winutil](https://github.com/ChrisTitusTech/winutil) của Chris Titus Tech (đều MIT).
 
-Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **187 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
+Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **185 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
 
 ## 🌐 Dùng ONLINE như winutil — KHÔNG cần tải tool, KHÔNG cài đặt
 
@@ -12,7 +12,7 @@ Mở PowerShell và gõ đúng 1 lệnh (như `christitus.com/win` của winutil
 irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1" | iex
 ```
 
-Tool tự nâng quyền Admin (mở cửa sổ mới, không đóng shell của bạn), nạp toàn bộ engine + 187 tweak vào bộ nhớ và mở giao diện tick-chọn — **không tải file, không cài đặt, không để lại file tool** trên máy.
+Tool tự nâng quyền Admin (mở cửa sổ mới, không đóng shell của bạn), nạp toàn bộ engine + 185 tweak vào bộ nhớ và mở giao diện tick-chọn — **không tải file, không cài đặt, không để lại file tool** trên máy.
 
 > Link ngắn kiểu `christitus.com/win`: bật **Settings → Pages → Source: Deploy from branch `main` / folder `/docs`** (2 click, file `docs/win.ps1` đã chuẩn bị sẵn) là dùng được `irm "nggkhaiz.github.io/MOLIK_WINLIK/win.ps1" | iex`. Không bật cũng không sao — link raw ở trên hoạt động ngay sau khi Merge.
 
@@ -53,7 +53,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Po
 | `3` | 🎬 **WORKSTATION / STREAM** | Render/OBS/compile: mạnh nhưng giữ ổn định & mitigations, ưu tiên GPU encode/foreground |
 | `4` | 🥔 **LOW-SPEC / POTATO PC** | Máy yếu RAM ≤8GB: tắt visual effects, services/background apps/telemetry thừa |
 | `5` | 🛡️ **SOPHIA STANDARD** | Privacy + gọn gàng an toàn chuẩn Sophia gốc, không đụng kernel/BCD |
-| `6` | 👑 **GOD MODE** | Toàn bộ 187 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
+| `6` | 👑 **GOD MODE** | Toàn bộ 185 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
 
 ## ⌨️ Điều khiển trong CLI
 
@@ -77,7 +77,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Po
 .\Sophia-Optimizer.ps1 -Mode EmulatorFarm -Apply -Yes   # áp dụng thẳng 1 mode
 .\Sophia-Optimizer.ps1 -Mode HardcoreGaming              # mở CLI đã tick sẵn mode Gaming
 .\Sophia-Optimizer.ps1 -ListModes                        # xem 6 mode
-.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 187 tweak
+.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 185 tweak
 .\Sophia-Optimizer.ps1 -PurgeRAM                         # dọn RAM ngay
 .\Sophia-Optimizer.ps1 -BoostEmulators                   # boost process giả lập
 .\Sophia-Optimizer.ps1 -ExportReport                     # xuất JSON báo cáo phần cứng + catalog
@@ -106,7 +106,7 @@ Optimizer/
   Data/WinUtilApps.ps1          # 239 ứng dụng winget/choco
   Core/SophiaBridge.ps1         # Bridge vào Sophia.psm1 gốc theo đúng edition Win10/11/LTSC/ARM/PS7
                                 # (bỏ qua chặn cứng LGPO/UBR của InitialActions.ps1)
-  Catalog/TweaksCatalog.ps1     # 187 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
+  Catalog/TweaksCatalog.ps1     # 185 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
   UI/InteractiveCLI.ps1         # TUI tick-chọn [✓]/[ ], tìm kiếm, thực thi & log
 ```
 
@@ -139,6 +139,16 @@ Optimizer/
 **Smart Advisor** (`Optimizer/Core/SmartAdvisor.ps1`) đọc phần cứng thật: thấy giả lập → Farm, GPU AMD → thêm tắt ULPS, NVIDIA → thêm ép Power Limit, NVMe → thêm NTFS/Interrupt sâu, laptop → chặn tweak gây nóng.
 
 **EXTREME LAB mở rộng EXT34–EXT50:** WMI Autologger off, NetBIOS off, TCP CUBIC, Interrupt Priority GPU/NVMe, Pagefile ổ nhanh nhất, NIC buffers 2048, ưu tiên IPv4, NVIDIA Power Limit max, tắt HWP Autonomous, Boot Legacy, DEP off (God Mode), Unhide Power Settings, IFEO I/O Priority, Print Spooler off...
+
+## 🛡️ Antivirus/AMSI chặn chạy trong bộ nhớ? Đã có fallback minh bạch
+
+`irm ... | iex` nạp toàn bộ script vào RAM nên Windows Defender (AMSI) quét toàn văn bản 1 lần — các tool tối ưu chứa lệnh BCD/service/registry mạnh dễ bị gắn cờ oan (winutil cũng từng bị). MOLIK WINLIK xử lý như sau:
+
+1. `win.ps1` thử chạy trong bộ nhớ trước; nếu bị chặn, **tự động** tải file lõi vào `%TEMP%\MOLIK_WINLIK\MolikWinlik-Core.ps1`, **đối chiếu SHA256** với `Sophia-Ultra-Portable.ps1.sha256` trên repo (sai hash = dừng ngay), `Unblock-File` rồi chạy file — tương đương bạn tự tải file và double-click.
+2. Đã gỡ 2 tweak bị AV gắn cờ mạnh nhất khỏi catalog: tắt DEP/NX toàn hệ thống và tắt Scheduled Task của Defender (hiệu quả hiệu năng rất nhỏ so với rủi ro), bỏ luôn đặc quyền `SeDebugPrivilege` trong RAM cleaner.
+3. Nếu vẫn bị chặn: dùng `Sophia-1Click.bat` (cơ chế file tạm tương tự) hoặc tải `Sophia-Ultra-Portable.ps1` chạy trực tiếp — đó là cách chạy file script thông thường, không qua `iex`.
+
+Tool không dùng bất kỳ kỹ thuật che giấu/mã hoá nào để qua mặt Antivirus — toàn bộ code đều đọc được công khai trong repo này.
 
 ## 🧩 Tích hợp WinUtil (Chris Titus Tech) — OFFLINE 100%, không cần tải
 
@@ -175,10 +185,10 @@ Trong CLI: phím `V` = kiểm tra tweak nào đã áp dụng (●), `T` = chạy
 
 ## 🛟 An toàn & khôi phục
 
-- Trước khi áp dụng, tool tự tạo **System Restore Point** + export các nhánh Registry quan trọng + BCD store vào `C:\Sophia_Backups\`.
+- Trước khi áp dụng, tool tự tạo **System Restore Point** + export các nhánh Registry quan trọng + BCD store vào `C:\MOLIK_WINLIK_Backups\`.
 - Mọi tweak đều có `RestoreScript` đảo ngược; phím `R` hoặc `-RestoreDefaults` khôi phục mặc định toàn bộ.
 - Tweak rủi ro cao được gắn nhãn `[Extreme]` (đỏ) — đọc kỹ mô tả tiếng Việt dưới mỗi mục trước khi tick.
-- Log từng lần chạy lưu tại `C:\Sophia_Backups\Logs\`.
+- Log từng lần chạy lưu tại `C:\MOLIK_WINLIK_Backups\Logs\`.
 - Nhiều tweak (HAGS, VBS, BCD, pagefile) cần **restart** mới có hiệu lực.
 
 > ⚠️ Tắt VBS/Hyper-V/Spectre mitigations làm giảm lớp bảo mật — chỉ phù hợp máy farm/game chuyên dụng. Hãy để tool tạo backup và cân nhắc dùng mode `Sophia Standard` cho máy làm việc chính.

@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - System Backup, Restore Point & Rollback Engine
+	MOLIK WINLIK - System Backup, Restore Point & Rollback Engine
 
 	.DESCRIPTION
 	Creates Windows System Restore Points, exports critical Registry branches, BCD store,
@@ -12,11 +12,11 @@ function New-SophiaSystemBackup
 	[CmdletBinding()]
 	param
 	(
-		[string]$Label = "Sophia Ultra Optimizer Backup"
+		[string]$Label = "MOLIK WINLIK Backup"
 	)
 
 	$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-	$BackupRoot = "$env:SystemDrive\Sophia_Backups\Backup_$Timestamp"
+	$BackupRoot = "$env:SystemDrive\MOLIK_WINLIK_Backups\Backup_$Timestamp"
 	New-Item -Path $BackupRoot -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 
 	Write-Host ""
@@ -24,7 +24,7 @@ function New-SophiaSystemBackup
 	Write-Host "  ║  ĐANG TẠO BẢN SAO LƯU HỆ THỐNG AN TOÀN (RESTORE POINT + REGISTRY)   ║" -ForegroundColor Cyan
 	Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 
-	# 1. Create Windows System Restore Point (Sophia Script official method)
+	# 1. Create Windows System Restore Point (official upstream method)
 	try
 	{
 		Enable-ComputerRestore -Drive $env:SystemDrive -ErrorAction SilentlyContinue
@@ -93,7 +93,8 @@ function Restore-SophiaLatestBackup
 	[CmdletBinding()]
 	param()
 
-	$BackupsDir = "$env:SystemDrive\Sophia_Backups"
+	$BackupsDir = "$env:SystemDrive\MOLIK_WINLIK_Backups"
+	if (-not (Test-Path $BackupsDir) -and (Test-Path "$env:SystemDrive\Sophia_Backups")) { $BackupsDir = "$env:SystemDrive\Sophia_Backups" }
 	if (-not (Test-Path $BackupsDir))
 	{
 		Write-Host "  [!] Chưa tìm thấy thư mục sao lưu tại $BackupsDir. Đang chạy khôi phục mặc định qua Catalog..." -ForegroundColor Yellow

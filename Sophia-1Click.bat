@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title Sophia Ultra Optimizer - 1 Click (Khong Can Cai Dat)
+title MOLIK WINLIK - 1 Click (Khong Can Cai Dat)
 echo.
 echo  ================================================================
-echo   MOLIK_WINLIK by @nggkhaiz - SOPHIA ULTRA OPTIMIZER - 1 CLICK
+echo   MOLIK_WINLIK by @nggkhaiz - MOLIK WINLIK - 1 CLICK
 echo   Chi tai 1 file Portable vao TEMP roi chay ngay. Bam phim bat ky
 echo  ================================================================
 echo.

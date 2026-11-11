@@ -1,11 +1,11 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Interactive Tick-Select CLI ([✓]/[ ])
+	MOLIK WINLIK - Interactive Tick-Select CLI ([✓]/[ ])
 
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 187 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 185 tweaks.
 #>
 
 function Get-SophiaModeTweakIds
@@ -57,21 +57,21 @@ function Invoke-SophiaSelectedTweaks
 		}
 	}
 
-	$logDir = "$env:SystemDrive\Sophia_Backups\Logs"
+	$logDir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Logs"
 	New-Item -Path $logDir -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
-	$logFile = Join-Path $logDir ("SophiaUltra_{0}.log" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
+	$logFile = Join-Path $logDir ("MOLIK_{0}.log" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
 
 	if (-not $SkipBackup)
 	{
 		if (Get-Command New-SophiaSystemBackup -ErrorAction SilentlyContinue)
 		{
-			try { New-SophiaSystemBackup -Label "Before Sophia Ultra Optimizer ($($selected.Count) tweaks)" | Out-Null } catch {}
+			try { New-SophiaSystemBackup -Label "Before MOLIK WINLIK ($($selected.Count) tweaks)" | Out-Null } catch {}
 		}
 	}
 
 	Write-Host ""
 	Write-Host "  ══════════ ĐANG ÁP DỤNG $($selected.Count) TWEAK ══════════" -ForegroundColor Cyan
-	"=== Sophia Ultra Optimizer $(Get-Date) - $($selected.Count) tweaks ===" | Set-Content $logFile -Encoding UTF8
+	"=== MOLIK WINLIK $(Get-Date) - $($selected.Count) tweaks ===" | Set-Content $logFile -Encoding UTF8
 
 	$ok = 0; $fail = 0
 	foreach ($tweak in $selected)
@@ -140,7 +140,7 @@ function Save-SophiaSelectionProfile
 	param([string]$ModeKey, [string[]]$SelectedIds, [string]$Path)
 	if (-not $Path)
 	{
-		$dir = "$env:SystemDrive\Sophia_Backups\Profiles"
+		$dir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Profiles"
 		New-Item -Path $dir -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 		$Path = Join-Path $dir ("profile_{0}_{1}.json" -f $ModeKey, (Get-Date -Format "yyyyMMdd_HHmmss"))
 	}
@@ -233,7 +233,7 @@ function Show-SophiaSimpleMenu
 			{
 				if (-not $LauncherPath) { $LauncherPath = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`"" }
 				$desktop = [Environment]::GetFolderPath("Desktop")
-				$lnkPath = Join-Path $desktop "Sophia Ultra Optimizer.lnk"
+				$lnkPath = Join-Path $desktop "MOLIK WINLIK.lnk"
 				$shell = New-Object -ComObject WScript.Shell
 				$lnk = $shell.CreateShortcut($lnkPath)
 				if ($LauncherPath -match '\.ps1"?$')
@@ -246,7 +246,7 @@ function Show-SophiaSimpleMenu
 					$lnk.TargetPath = "powershell.exe"
 					$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`""
 				}
-				$lnk.Description = "Sophia Ultra Optimizer - Tick-Select CLI (Portable, khong can cai)"
+				$lnk.Description = "MOLIK WINLIK - Tick-Select CLI (Portable, khong can cai)"
 				$lnk.Save()
 				Write-Host "  [✓] Đã tạo shortcut Desktop: $lnkPath (từ nay double-click là chạy, không cần cài)" -ForegroundColor Green
 			}
@@ -293,7 +293,7 @@ function Show-SophiaOptimizerUI
 
 		# Header
 		Write-Host "  ╔══════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-		Write-Host "  ║  👑 MOLIK_WINLIK — SOPHIA ULTRA OPTIMIZER by @nggkhaiz: Giả Lập 24/7 • Game • FPS  ║" -ForegroundColor Magenta
+		Write-Host "  ║  👑 MOLIK_WINLIK — MOLIK WINLIK by @nggkhaiz: Giả Lập 24/7 • Game • FPS  ║" -ForegroundColor Magenta
 		Write-Host "  ╚══════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
 		if ($Snapshot)
 		{
@@ -452,7 +452,7 @@ function Show-SophiaOptimizerUI
 		}
 		elseif ($ch -eq 'l' -or $ch -eq 'L') {
 			try { [Console]::CursorVisible = $true } catch {}
-			$dir = "$env:SystemDrive\Sophia_Backups\Profiles"
+			$dir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Profiles"
 			$latest = Get-ChildItem -Path $dir -Filter "*.json" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 			if ($latest)
 			{

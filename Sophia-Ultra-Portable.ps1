@@ -1,16 +1,16 @@
 <#
-	MOLIK_WINLIK by @nggkhaiz — Sophia Ultra Optimizer PORTABLE (1 file duy nhất, KHÔNG CẦN CÀI ĐẶT, offline: đã gộp cả data winutil)
-	Dùng ONLINE như winutil: irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1" | iex
-	File này được sinh tự động bởi Optimizer\Build-Portable.ps1 — đừng sửa tay, hãy sửa nguồn trong Optimizer/ rồi build lại.
+	MOLIK WINLIK by @nggkhaiz - PORTABLE (1 file duy nhat, KHONG CAN CAI DAT, offline: da gop ca data winutil)
+	Dung ONLINE nhu winutil: irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1" | iex
+	File nay duoc sinh tu dong boi Optimizer\Build-Portable.ps1 - dung sua tay, hay sua nguon trong Optimizer/ roi build lai.
 #>
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer — Interactive Tick-Select CLI (Tối ưu sâu Windows)
+	MOLIK WINLIK — Interactive Tick-Select CLI (Tối ưu sâu Windows)
 
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
-	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 187 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	Workstation/Streaming, Low-Spec và MOLIK Standard/Privacy. Xây trên bản gốc upstream
+	(src/Sophia_Script_for_Windows_*) + 185 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -104,14 +104,14 @@ try
 $RepoRoot = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
 
 # ── Load engine ───────────────────────────────────────────────────────────────
-# [PORTABLE] Toàn bộ engine đã được nhúng trực tiếp bên dưới — không cần file phụ, không cần cài đặt.
+# [PORTABLE] Toan bo engine da duoc nhung truc tiep ben duoi - khong can file phu, khong can cai dat.
 
 # ====================================================================
 # [PORTABLE-INLINE] Optimizer\Core\HardwareDetector.ps1
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Hardware, OS, Virtualization & Emulator Detection Engine
+	MOLIK WINLIK - Hardware, OS, Virtualization & Emulator Detection Engine
 
 	.DESCRIPTION
 	Scans CPU, RAM, GPU, Storage (SSD/NVMe/HDD), Windows Build, VBS/HVCI/Hyper-V status,
@@ -459,7 +459,7 @@ function Find-InstalledEmulators
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Native Kernel Standby List & Working Set RAM Cleaner Engine
+	MOLIK WINLIK - Native Kernel Standby List & Working Set RAM Cleaner Engine
 
 	.DESCRIPTION
 	Uses native Win32 & NTAPI P/Invoke (ntdll.dll NtSetSystemInformation & psapi.dll EmptyWorkingSet)
@@ -551,7 +551,6 @@ namespace SophiaMemory
 
 		public static int TrimAllWorkingSets()
 		{
-			EnablePrivilege("SeDebugPrivilege");
 			EnablePrivilege("SeProfileSingleProcessPrivilege");
 			int trimmed = 0;
 
@@ -700,16 +699,16 @@ function Register-SophiaAutoRamCleanerTask
 		[int]$ThresholdPercent = 70
 	)
 
-	$CleanerScriptDir = "$env:ProgramData\SophiaUltraOptimizer"
+	$CleanerScriptDir = "$env:ProgramData\MOLIK_WINLIK"
 	if (-not (Test-Path -Path $CleanerScriptDir))
 	{
 		New-Item -Path $CleanerScriptDir -ItemType Directory -Force | Out-Null
 	}
 
-	$DaemonScriptPath = Join-Path -Path $CleanerScriptDir -ChildPath "SophiaAutoRamCleaner.ps1"
+	$DaemonScriptPath = Join-Path -Path $CleanerScriptDir -ChildPath "MolikRamCleaner.ps1"
 
 	$DaemonScriptContent = @"
-# Sophia Ultra Optimizer - 24/7 Smart RAM & Standby List Auto-Cleaner Daemon
+# MOLIK WINLIK - 24/7 Smart RAM & Standby List Auto-Cleaner Daemon
 `$OS = Get-CimInstance -Namespace root/CIMV2 -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
 if (`$OS) {
 	`$Total = [double]`$OS.TotalVisibleMemorySize
@@ -757,7 +756,7 @@ Add-Type -TypeDefinition `$Code -ErrorAction SilentlyContinue
 	$Settings = New-ScheduledTaskSettingsSet -Compatibility Win8 -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 2)
 	$Principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -RunLevel Highest -LogonType ServiceAccount
 
-	Register-ScheduledTask -TaskName "Sophia_Auto_RAM_Cleaner" -TaskPath "\Sophia\" -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal -Description "Auto-purges Windows Standby List & Working Set RAM every $IntervalMinutes minutes when RAM > $ThresholdPercent% (Ideal for 24/7 Emulator Farming & Gaming)" -Force | Out-Null
+	Register-ScheduledTask -TaskName "MOLIK_WINLIK_RAM_Cleaner" -TaskPath "\MOLIK_WINLIK\" -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal -Description "Auto-purges Windows Standby List & Working Set RAM every $IntervalMinutes minutes when RAM > $ThresholdPercent% (Ideal for 24/7 Emulator Farming & Gaming)" -Force | Out-Null
 }
 
 function Unregister-SophiaAutoRamCleanerTask
@@ -765,8 +764,9 @@ function Unregister-SophiaAutoRamCleanerTask
 	[CmdletBinding()]
 	param()
 
+	Unregister-ScheduledTask -TaskName "MOLIK_WINLIK_RAM_Cleaner" -TaskPath "\MOLIK_WINLIK\" -Confirm:$false -ErrorAction SilentlyContinue
 	Unregister-ScheduledTask -TaskName "Sophia_Auto_RAM_Cleaner" -TaskPath "\Sophia\" -Confirm:$false -ErrorAction SilentlyContinue
-	Remove-Item -Path "$env:ProgramData\SophiaUltraOptimizer\SophiaAutoRamCleaner.ps1" -Force -ErrorAction SilentlyContinue
+	Remove-Item -Path "$env:ProgramData\MOLIK_WINLIK\MolikRamCleaner.ps1" -Force -ErrorAction SilentlyContinue
 }
 
 
@@ -775,7 +775,7 @@ function Unregister-SophiaAutoRamCleanerTask
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Extreme Engine (MSI interrupts, timer daemon, process affinity, per-exe priority)
+	MOLIK WINLIK - Extreme Engine (MSI interrupts, timer daemon, process affinity, per-exe priority)
 
 	.DESCRIPTION
 	Low-level helpers used by the EXTREME LAB catalog section:
@@ -786,7 +786,7 @@ function Unregister-SophiaAutoRamCleanerTask
 	Every setter has a matching remover/restore and is safe to run when hardware is absent.
 #>
 
-$script:SophiaDataDir = "$env:ProgramData\SophiaUltraOptimizer"
+$script:SophiaDataDir = "$env:ProgramData\MOLIK_WINLIK"
 
 function Get-SophiaDataDir
 {
@@ -1047,7 +1047,7 @@ function Invoke-SophiaProcessBoostNow
 function Register-SophiaProcessBoosterTask
 {
 	$dir = Get-SophiaDataDir
-	$scriptPath = Join-Path $dir "SophiaProcessBooster.ps1"
+	$scriptPath = Join-Path $dir "MolikBooster.ps1"
 	$script = @'
 $names = @("dnplayer","LdVBoxHeadless","Ld9BoxHeadless","LdBoxHeadless","HD-Player","Nox","NoxVMHandle","MuMuPlayer","NemuPlayer","NemuHeadless","MEmu","MEmuHeadless","VBoxHeadless")
 $cores = [Environment]::ProcessorCount
@@ -1064,19 +1064,20 @@ foreach ($n in $names) {
 	$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
 	$settings = New-ScheduledTaskSettingsSet -Compatibility Win8 -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 2)
 	$principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -RunLevel Highest -LogonType ServiceAccount
-	Register-ScheduledTask -TaskName "Sophia_Process_Booster" -TaskPath "\Sophia\" -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "Every 5 min: AboveNormal priority + affinity off Core 0 for Android emulator processes" -Force | Out-Null
+	Register-ScheduledTask -TaskName "MOLIK_WINLIK_Booster" -TaskPath "\MOLIK_WINLIK\" -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "Every 5 min: AboveNormal priority + affinity off Core 0 for Android emulator processes" -Force | Out-Null
 	Invoke-SophiaProcessBoostNow | Out-Null
 }
 
 function Unregister-SophiaProcessBoosterTask
 {
+	Unregister-ScheduledTask -TaskName "MOLIK_WINLIK_Booster" -TaskPath "\MOLIK_WINLIK\" -Confirm:$false -ErrorAction SilentlyContinue
 	Unregister-ScheduledTask -TaskName "Sophia_Process_Booster" -TaskPath "\Sophia\" -Confirm:$false -ErrorAction SilentlyContinue
 }
 
-function Start-SophiaTimerResolutionDaemon
+function Start-MolikTimerDaemon
 {
 	$dir = Get-SophiaDataDir
-	$scriptPath = Join-Path $dir "SophiaTimerResolution.ps1"
+	$scriptPath = Join-Path $dir "MolikTimer.ps1"
 	$script = @'
 $code = @"
 using System;
@@ -1095,18 +1096,19 @@ while ($true) { Start-Sleep -Seconds 3600 }
 	$trigger = New-ScheduledTaskTrigger -AtLogOn
 	$settings = New-ScheduledTaskSettingsSet -Compatibility Win8 -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Days 3650)
 	$principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -RunLevel Highest -LogonType Interactive
-	Register-ScheduledTask -TaskName "Sophia_Timer_Resolution" -TaskPath "\Sophia\" -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "Holds Windows timer resolution at 0.5ms (NtSetTimerResolution 5000) for minimum game/emulator latency" -Force | Out-Null
-	Start-ScheduledTask -TaskName "Sophia_Timer_Resolution" -TaskPath "\Sophia\" -ErrorAction SilentlyContinue
+	Register-ScheduledTask -TaskName "MOLIK_WINLIK_Timer" -TaskPath "\MOLIK_WINLIK\" -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "Holds Windows timer resolution at 0.5ms (NtSetTimerResolution 5000) for minimum game/emulator latency" -Force | Out-Null
+	Start-ScheduledTask -TaskName "MOLIK_WINLIK_Timer" -TaskPath "\MOLIK_WINLIK\" -ErrorAction SilentlyContinue
 }
 
-function Stop-SophiaTimerResolutionDaemon
+function Stop-MolikTimerDaemon
 {
-	Stop-ScheduledTask -TaskName "Sophia_Timer_Resolution" -TaskPath "\Sophia\" -ErrorAction SilentlyContinue
+	Stop-ScheduledTask -TaskName "MOLIK_WINLIK_Timer" -TaskPath "\MOLIK_WINLIK\" -ErrorAction SilentlyContinue
+	Unregister-ScheduledTask -TaskName "MOLIK_WINLIK_Timer" -TaskPath "\MOLIK_WINLIK\" -Confirm:$false -ErrorAction SilentlyContinue
 	Unregister-ScheduledTask -TaskName "Sophia_Timer_Resolution" -TaskPath "\Sophia\" -Confirm:$false -ErrorAction SilentlyContinue
 	try
 	{
 		Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
-			Where-Object { $_.CommandLine -match 'SophiaTimerResolution' } |
+			Where-Object { $_.CommandLine -match 'MolikTimer' } |
 			ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 	} catch {}
 }
@@ -1270,12 +1272,12 @@ function Set-SophiaNicWakeOff
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Before/After Performance Benchmark
+	MOLIK WINLIK - Before/After Performance Benchmark
 
 	.DESCRIPTION
 	Lightweight repeatable benchmark (CPU single + multi via Jobs, disk 128MB sequential,
 	RAM/process snapshot) saved as JSON so users can measure the real gain after optimizing.
-	Results: $env:SystemDrive\Sophia_Backups\Benchmarks\bench_<label>_<time>.json
+	Results: $env:SystemDrive\MOLIK_WINLIK_Backups\Benchmarks\bench_<label>_<time>.json
 #>
 
 function Invoke-SophiaBenchmark
@@ -1368,7 +1370,7 @@ function Invoke-SophiaBenchmark
 	Write-Host ("  RAM trống  : {0}/{1} MB | Tiến trình đang chạy: {2}" -f $freeMB, $totalMB, $procCount) -ForegroundColor Green
 	Write-Host ("  ★ ĐIỂM CPU TỔNG: {0}" -f $result.CpuScore) -ForegroundColor Yellow
 
-	$dir = "$env:SystemDrive\Sophia_Backups\Benchmarks"
+	$dir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Benchmarks"
 	New-Item -Path $dir -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 	$file = Join-Path $dir ("bench_{0}_{1}.json" -f ($Label -replace '\W', '_'), (Get-Date -Format "yyyyMMdd_HHmmss"))
 	$result | ConvertTo-Json | Set-Content -Path $file -Encoding UTF8 -Force
@@ -1380,7 +1382,7 @@ function Invoke-SophiaBenchmark
 
 function Compare-SophiaBenchmarks
 {
-	$dir = "$env:SystemDrive\Sophia_Backups\Benchmarks"
+	$dir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Benchmarks"
 	if (-not (Test-Path $dir)) { Write-Host "  [!] Chưa có benchmark nào trong $dir" -ForegroundColor Yellow; return }
 	$files = Get-ChildItem -Path $dir -Filter "bench_*.json" | Sort-Object LastWriteTime
 	if ($files.Count -lt 2) { Write-Host "  [!] Cần ít nhất 2 benchmark (Before/After) để so sánh. Hiện có: $($files.Count)" -ForegroundColor Yellow; return }
@@ -1413,7 +1415,7 @@ function Compare-SophiaBenchmarks
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Optimization Plan Engine (phân tích siêu sâu trước khi áp dụng)
+	MOLIK WINLIK - Optimization Plan Engine (phân tích siêu sâu trước khi áp dụng)
 
 	.DESCRIPTION
 	Nhận danh sách tweak đã chọn và trả về KẾ HOẠCH thực thi tối ưu:
@@ -1428,7 +1430,7 @@ function Get-SophiaRebootTweakIds
 {
 	return @(
 		"EMU01","EMU02","EMU03","EMU04","EMU06","CPU01","CPU04","CPU05","RAM01","RAM02","RAM03","RAM09",
-		"GPU01","GPU03","GPU04","GPU05","NET01","NET08","NET09","SYS04","EXT01","EXT21","EXT22","EXT38","EXT39","EXT46","EXT51","EXT54"
+		"GPU01","GPU03","GPU04","GPU05","NET01","NET08","NET09","SYS04","EXT01","EXT21","EXT22","EXT38","EXT39","EXT51","EXT54"
 	)
 }
 
@@ -1436,7 +1438,7 @@ function Get-SophiaTweakPhase
 {
 	param($Tweak)
 	$id = $Tweak.Id
-	if ($id -in @("EMU07","SYS02","SYS01","EXT13","EXT14","EXT15","EXT27")) { return 2 }
+	if ($id -in @("EMU07","SYS02","SYS01","EXT14","EXT15","EXT27")) { return 2 }
 	if ($id -match '^EXT3[89]$|^EMU06$') { return 7 }
 	if ($id -match '^CPU0[145]$|^EMU0[1234]$|^EXT(01|22|23|46|48)$|^RAM09$') { return 8 }
 	if ($Tweak.Category -match 'PRIVACY|SYSTEM') { return 3 }
@@ -1584,7 +1586,7 @@ function Show-SophiaOptimizationPlan
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Smart Advisor (tự phân tích phần cứng -> khuyên Mode + tweak)
+	MOLIK WINLIK - Smart Advisor (tự phân tích phần cứng -> khuyên Mode + tweak)
 
 	.DESCRIPTION
 	Dựa trên Snapshot thật của máy (giả lập đã cài, GPU vendor, RAM, NVMe, VBS, laptop/desktop)
@@ -1667,7 +1669,7 @@ function Get-SophiaSmartRecommendation
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - WinUtil Bridge (ChrisTitusTech/winutil integration, 100% OFFLINE)
+	MOLIK WINLIK - WinUtil Bridge (ChrisTitusTech/winutil integration, 100% OFFLINE)
 
 	.DESCRIPTION
 	Converts vendored winutil tweaks data (Optimizer/Data/WinUtilTweaks.ps1, converted from
@@ -1754,7 +1756,7 @@ function Get-WinUtilConvertedTweaks
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Application Installer (winutil-style, via built-in winget)
+	MOLIK WINLIK - Application Installer (winutil-style, via built-in winget)
 
 	.DESCRIPTION
 	Install popular applications by ticking names/numbers, using the winget package manager
@@ -1834,7 +1836,7 @@ function Show-SophiaAppInstallerMenu
 # [PORTABLE-INLINE] Optimizer\Data\WinUtilTweaks.ps1
 # ====================================================================
 <#
-	Sophia Ultra Optimizer - WinUtil Tweaks Data (VENDORED, works OFFLINE - no download needed)
+	MOLIK WINLIK - WinUtil Tweaks Data (VENDORED, works OFFLINE - no download needed)
 	Converted from ChrisTitusTech/winutil config/tweaks.json (commit 2ef5e5d), MIT License - see LICENSE-winutil.txt
 	Only pure-registry Toggle tweaks were converted; tweaks duplicating/conflicting with the native 137-tweak catalog were excluded.
 #>
@@ -2059,7 +2061,7 @@ function Get-WinUtilRawTweaks
 # [PORTABLE-INLINE] Optimizer\Data\WinUtilApps.ps1
 # ====================================================================
 <#
-	Sophia Ultra Optimizer - Applications Catalog (VENDORED from ChrisTitusTech/winutil config/applications.json, MIT)
+	MOLIK WINLIK - Applications Catalog (VENDORED from ChrisTitusTech/winutil config/applications.json, MIT)
 	239 applications with winget/choco IDs - install via built-in winget, no winutil download needed.
 #>
 function Get-SophiaAppsCatalog
@@ -2313,7 +2315,7 @@ function Get-SophiaAppsCatalog
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Self-Test / Debug toàn diện (không thay đổi hệ thống)
+	MOLIK WINLIK - Self-Test / Debug toàn diện (không thay đổi hệ thống)
 
 	.DESCRIPTION
 	1) Parse cú pháp mọi file .ps1 của tool bằng PowerShell Parser chính chủ
@@ -2340,7 +2342,7 @@ function Test-SophiaOptimizerHealth
 
 	Write-Host ""
 	Write-Host "  ╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-	Write-Host "  ║  🩺 SOPHIA ULTRA OPTIMIZER — SELF-TEST / DEBUG TOÀN DIỆN           ║" -ForegroundColor Cyan
+	Write-Host "  ║  🩺 MOLIK WINLIK — SELF-TEST / DEBUG TOÀN DIỆN           ║" -ForegroundColor Cyan
 	Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 
 	# 1) Syntax parse
@@ -2442,7 +2444,7 @@ function Test-SophiaOptimizerHealth
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - System Backup, Restore Point & Rollback Engine
+	MOLIK WINLIK - System Backup, Restore Point & Rollback Engine
 
 	.DESCRIPTION
 	Creates Windows System Restore Points, exports critical Registry branches, BCD store,
@@ -2454,11 +2456,11 @@ function New-SophiaSystemBackup
 	[CmdletBinding()]
 	param
 	(
-		[string]$Label = "Sophia Ultra Optimizer Backup"
+		[string]$Label = "MOLIK WINLIK Backup"
 	)
 
 	$Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-	$BackupRoot = "$env:SystemDrive\Sophia_Backups\Backup_$Timestamp"
+	$BackupRoot = "$env:SystemDrive\MOLIK_WINLIK_Backups\Backup_$Timestamp"
 	New-Item -Path $BackupRoot -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 
 	Write-Host ""
@@ -2466,7 +2468,7 @@ function New-SophiaSystemBackup
 	Write-Host "  ║  ĐANG TẠO BẢN SAO LƯU HỆ THỐNG AN TOÀN (RESTORE POINT + REGISTRY)   ║" -ForegroundColor Cyan
 	Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 
-	# 1. Create Windows System Restore Point (Sophia Script official method)
+	# 1. Create Windows System Restore Point (official upstream method)
 	try
 	{
 		Enable-ComputerRestore -Drive $env:SystemDrive -ErrorAction SilentlyContinue
@@ -2535,7 +2537,8 @@ function Restore-SophiaLatestBackup
 	[CmdletBinding()]
 	param()
 
-	$BackupsDir = "$env:SystemDrive\Sophia_Backups"
+	$BackupsDir = "$env:SystemDrive\MOLIK_WINLIK_Backups"
+	if (-not (Test-Path $BackupsDir) -and (Test-Path "$env:SystemDrive\Sophia_Backups")) { $BackupsDir = "$env:SystemDrive\Sophia_Backups" }
 	if (-not (Test-Path $BackupsDir))
 	{
 		Write-Host "  [!] Chưa tìm thấy thư mục sao lưu tại $BackupsDir. Đang chạy khôi phục mặc định qua Catalog..." -ForegroundColor Yellow
@@ -2566,7 +2569,7 @@ function Restore-SophiaLatestBackup
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Bridge to Native Sophia Script Modules (src/Sophia_Script_for_Windows_*)
+	MOLIK WINLIK - Bridge to Native Sophia Script Modules (src/Sophia_Script_for_Windows_*)
 
 	.DESCRIPTION
 	Automatically resolves the correct Sophia Script edition for the host OS (Windows 10 / 11 / LTSC / ARM / PS5.1 / PS7),
@@ -2743,7 +2746,7 @@ function Invoke-SophiaNativeSafe
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Deep Tweaks Catalog (137 tweaks, 9 categories incl. EXTREME LAB, 6 modes)
+	MOLIK WINLIK - Deep Tweaks Catalog (137 tweaks, 9 categories incl. EXTREME LAB, 6 modes)
 
 	.DESCRIPTION
 	Every tweak: Id, Name, Category, Description, Risk, Modes, ApplyScript, RestoreScript, CheckScript.
@@ -2752,7 +2755,7 @@ function Invoke-SophiaNativeSafe
 	All tweaks are reversible via RestoreScript or the backup in BackupRestore.ps1.
 
 	.NOTES
-	Risk: Safe = cosmetic/standard Sophia, Moderate = performance, Extreme = kernel/security trade-off.
+	Risk: Safe = cosmetic/standard, Moderate = performance, Extreme = kernel/security trade-off.
 #>
 
 #Requires -Version 5.1
@@ -2843,7 +2846,7 @@ function Get-SophiaOptimizationModes
 		[PSCustomObject]@{ Key = "HardcoreGaming";   Icon = "🎮"; Name = "HARDCORE GAMING";         Sub = "Low-Latency FPS / Esports"; Description = "HAGS, tắt MPO/Game DVR, timer & BCD latency, Nagle off, NetworkThrottlingIndex=0, SystemResponsiveness=0, mouse 1:1, Ultimate Performance — giảm input lag & frame-time spike tối đa." }
 		[PSCustomObject]@{ Key = "Workstation";      Icon = "🎬"; Name = "WORKSTATION / STREAM";    Sub = "Render, OBS, Compile, Đa nhiệm nặng"; Description = "Giữ ổn định & bảo mật hợp lý, ưu tiên foreground + GPU encode, RAM cache lớn, không tắt mitigations — mạnh nhưng không đánh đổi độ tin cậy khi render/stream dài." }
 		[PSCustomObject]@{ Key = "LowSpec";          Icon = "🥔"; Name = "LOW-SPEC / POTATO PC";     Sub = "Máy yếu, RAM <=8GB, HDD/SSD chậm"; Description = "Tắt visual effects, services & background apps thừa, giảm telemetry/startup, tối ưu RAM/pagefile cho máy yếu chạy mượt, ít nóng, ít disk 100%." }
-		[PSCustomObject]@{ Key = "SophiaStandard";   Icon = "🛡️"; Name = "SOPHIA STANDARD";         Sub = "Privacy + Gọn gàng chuẩn Sophia Script gốc"; Description = "Tập tweak an toàn của Sophia Script upstream: telemetry, quảng cáo, Copilot/Recall, GameBar tips, hiển thị đuôi file... Không đụng kernel/BCD." }
+		[PSCustomObject]@{ Key = "SophiaStandard";   Icon = "🛡️"; Name = "MOLIK STANDARD";         Sub = "Privacy + Gọn gàng chuẩn bản gốc"; Description = "Tập tweak an toàn của bản upstream gốc: telemetry, quảng cáo, Copilot/Recall, GameBar tips, hiển thị đuôi file... Không đụng kernel/BCD." }
 		[PSCustomObject]@{ Key = "GodMode";          Icon = "👑"; Name = "GOD MODE — CỰC HẠN";       Sub = "Tất cả tweak (kể cả Extreme)"; Description = "Bật TOÀN BỘ catalog kể cả tweak Extreme (tắt Spectre/Meltdown mitigations, Defender scan exclusions...). Chỉ dùng khi đã có backup/restore point và hiểu rõ đánh đổi bảo mật." }
 	)
 }
@@ -2857,7 +2860,7 @@ function Get-SophiaTweaksCatalog
 	$GPU = "5. 🎨 GPU & DISPLAY"
 	$NET = "6. 🌐 NETWORK & INTERNET"
 	$SYS = "7. 🧹 SYSTEM / SERVICES / DEBLOAT"
-	$PRI = "8. 🔒 PRIVACY (SOPHIA NATIVE)"
+	$PRI = "8. 🔒 PRIVACY (MOLIK WINLIK NATIVE)"
 	$EXT = "9. 🚀 EXTREME LAB (CỰC HẠN)"
 
 	$FARM = @("EmulatorFarm"); $GAME = @("HardcoreGaming"); $WORK = @("Workstation")
@@ -2906,7 +2909,7 @@ function Get-SophiaTweaksCatalog
 		if (Get-Command Register-SophiaAutoRamCleanerTask -ErrorAction SilentlyContinue) { Register-SophiaAutoRamCleanerTask -IntervalMinutes 15 -ThresholdPercent 70 }
 	} {
 		if (Get-Command Unregister-SophiaAutoRamCleanerTask -ErrorAction SilentlyContinue) { Unregister-SophiaAutoRamCleanerTask }
-	} { return [bool](Get-ScheduledTask -TaskName "Sophia_Auto_RAM_Cleaner" -TaskPath "\Sophia\" -ErrorAction SilentlyContinue) } "Register-ScheduledTask Sophia_Auto_RAM_Cleaner"
+	} { return [bool](Get-ScheduledTask -TaskName "MOLIK_WINLIK_RAM_Cleaner" -TaskPath "\MOLIK_WINLIK\" -ErrorAction SilentlyContinue) } "Register-ScheduledTask MOLIK_WINLIK_RAM_Cleaner"
 	Add-Cmd "EMU08" "Purge RAM NGAY (EmptyWorkingSet + Standby List qua NTAPI)" $EMU "Dọn tức thì Working Set mọi process + Standby/Modified List bằng NtSetSystemInformation — giải phóng vài GB RAM trước khi mở thêm instance." "Safe" ($FARM+$GAME+$LOW) {
 		if (Get-Command Invoke-SophiaRamPurge -ErrorAction SilentlyContinue) { Invoke-SophiaRamPurge -Silent | Out-Null }
 	} { return } { return $false } "NtSetSystemInformation(80) + EmptyWorkingSet"
@@ -2933,7 +2936,7 @@ function Get-SophiaTweaksCatalog
 		if ($ultimate -match '([0-9a-f]{8}-[0-9a-f-]+)') { & powercfg /setactive $Matches[1] 2>$null | Out-Null }
 	} { & powercfg /setactive SCHEME_BALANCED 2>$null | Out-Null } { return ((& powercfg /getactivescheme 2>$null) -match 'Ultimate') } "powercfg Ultimate Performance"
 	Add-Reg "GAM02" "Tắt Game DVR / Background Recording (giảm stutter & FPS drop)" $GAM "Game DVR ghi hình nền ăn GPU/CPU và gây frame-time spike. Tắt AppCapture + GameDVR_Enabled chuẩn Sophia." "Safe" ($GAME+$WORK+$STD) "HKCU:\System\GameConfigStore" "GameDVR_Enabled" 0 1
-	Add-Reg "GAM03" "Tắt Game Bar & Game Mode tips (Sophia: XBOXGameBar/XBOXGameTips)" $GAM "Overlay Game Bar + tips gây ngắt quãng khi Alt-Tab/record. AllowAutoGameMode=0, ShowStartupPanel=0." "Safe" ($GAME+$STD) "HKCU:\Software\Microsoft\GameBar" "AllowAutoGameMode" 0 1
+	Add-Reg "GAM03" "Tắt Game Bar & Game Mode tips (XBOXGameBar/XBOXGameTips)" $GAM "Overlay Game Bar + tips gây ngắt quãng khi Alt-Tab/record. AllowAutoGameMode=0, ShowStartupPanel=0." "Safe" ($GAME+$STD) "HKCU:\Software\Microsoft\GameBar" "AllowAutoGameMode" 0 1
 	Add-Reg "GAM04" "Tắt Fullscreen Optimizations toàn cục" $GAM "FSO gây input lag/stutter trên nhiều game DX11. Disable GameDVR_FSEBehaviorMode=2 cho cảm giác 'exclusive fullscreen' thật." "Moderate" $GAME "HKCU:\System\GameConfigStore" "GameDVR_FSEBehaviorMode" 2 0
 	Add-Reg "GAM05" "Mouse 1:1 — Tắt Enhance Pointer Precision (gia tốc chuột)" $GAM "Tắt mouse acceleration để aim 1:1 trong FPS. MouseSpeed=0, MouseThreshold1/2=0 (chuẩn esports)." "Safe" $GAME "HKCU:\Control Panel\Mouse" "MouseSpeed" "0" "1" "String"
 	Add-Reg "GAM06" "Keyboard response nhanh (KeyboardDelay=0, Speed=31)" $GAM "Giảm độ trễ phím: delay trước khi lặp phím = 0, tốc độ lặp tối đa — phản hồi nhanh cho game/ gõ phím." "Safe" ($GAME+$LOW) "HKCU:\Control Panel\Keyboard" "KeyboardDelay" "0" "1" "String"
@@ -3027,7 +3030,7 @@ function Get-SophiaTweaksCatalog
 	Add-Cmd "NET04" "DNS Cloudflare 1.1.1.1 / Google 8.8.8.8 cho mọi NIC up" $NET "DNS nhanh & ổn định giảm độ trễ phân giải khi mở game/launcher/giả lập (chỉ đặt trên adapter đang Up)." "Safe" ($GAME+$LOW) {
 		try { Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ServerAddresses ("1.1.1.1","8.8.8.8") -ErrorAction SilentlyContinue } } catch {}
 	} { try { Get-NetAdapter | Where-Object Status -eq 'Up' | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ResetServerAddresses -ErrorAction SilentlyContinue } } catch {} } { return $false } "Set-DnsClientServerAddress 1.1.1.1"
-	Add-Cmd "NET05" "Tắt Power Saving mọi Network Adapter (Sophia NetworkAdaptersSavePower)" $NET "NIC ngủ gây mất gói/delay khi treo farm & ping spike game. Tắt AllowComputerToTurnOff qua registry PnPCapabilities=24." "Moderate" $FARM_GAME {
+	Add-Cmd "NET05" "Tắt Power Saving mọi Network Adapter (NetworkAdaptersSavePower)" $NET "NIC ngủ gây mất gói/delay khi treo farm & ping spike game. Tắt AllowComputerToTurnOff qua registry PnPCapabilities=24." "Moderate" $FARM_GAME {
 		$class = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
 		if (Test-Path $class) { Get-ChildItem $class -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^\d{4}$' } | ForEach-Object { if (Get-ItemProperty $_.PSPath -Name DriverDesc -ErrorAction SilentlyContinue) { Set-SophiaRegValue $_.PSPath "PnPCapabilities" 24 "DWord" } } }
 	} {
@@ -3053,7 +3056,7 @@ function Get-SophiaTweaksCatalog
 	} { return } { return $false } "Disable-ScheduledTask CEIP/Appraiser"
 	Add-Reg "SYS03" "Tắt Background Apps toàn cục (BackgroundAccessApplications)" $SYS "Ứng dụng UWP chạy nền ăn RAM/pin/mạng. GlobalUserDisabled=1 — app foreground & giả lập không bị ảnh hưởng." "Safe" ($LOW+$FARM) "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" "GlobalUserDisabled" 1 0
 	Add-Reg "SYS04" "Fast Startup = OFF (khởi động sạch, tránh lỗi driver giả lập)" $SYS "HiberbootEnabled=0: shutdown là tắt thật — tránh driver VT-x/GPU kẹt trạng thái sau 'shutdown' lai." "Safe" $FARM_GAME "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power" "HiberbootEnabled" 0 1
-	Add-Reg "SYS05" "Hiện đuôi file + file ẩn (chuẩn Sophia Explorer)" $SYS "HideFileExt=0, Hidden=1 — quản lý file instance/config dễ dàng, tránh nhầm file độc hại đội lốt." "Safe" $STD "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "HideFileExt" 0 1
+	Add-Reg "SYS05" "Hiện đuôi file + file ẩn (chuẩn Explorer)" $SYS "HideFileExt=0, Hidden=1 — quản lý file instance/config dễ dàng, tránh nhầm file độc hại đội lốt." "Safe" $STD "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "HideFileExt" 0 1
 	Add-Reg "SYS06" "Tắt Windows Error Reporting (WerSvc queue)" $SYS "Disabled=1 cho Error Reporting: crash app không treo chờ gửi báo cáo, restart instance nhanh hơn." "Safe" ($FARM+$LOW) "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting" "Disabled" 1 0
 	Add-Reg "SYS07" "Long Paths Enabled (bỏ giới hạn 260 ký tự)" $SYS "LongPathsEnabled=1 cho toolchain/giả lập có path sâu (Android SDK, cache instance) không lỗi path." "Safe" ($WORK+$FARM) "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" "LongPathsEnabled" 1 0
 	Add-Cmd "SYS08" "Dọn Temp & Windows Update Cache (giải phóng ổ C an toàn)" $SYS "Xóa %TEMP%, C:\Windows\Temp, SoftwareDistribution\Download — thường giải phóng 2-20GB cho ổ farm/game chật." "Safe" ($LOW+$FARM) {
@@ -3064,14 +3067,14 @@ function Get-SophiaTweaksCatalog
 	Add-Cmd "SYS11" "Đặt Time Service đồng bộ & High-Res (tránh lệch giờ cert game)" $SYS "W32Time Automatic + resync: lệch giờ gây lỗi đăng nhập/cert HTTPS của launcher & giả lập treo lâu ngày." "Safe" $FARM {
 		Set-Service w32time -StartupType Automatic -ErrorAction SilentlyContinue; Start-Service w32time -ErrorAction SilentlyContinue; & w32tm /resync /force 2>$null | Out-Null
 	} { return } { return $false } "w32time resync"
-	Add-Reg "SYS12" "Verbose Status khi logon (hiện rõ bước khởi động)" $SYS "VerboseStatus=1 chuẩn Sophia: màn hình đăng nhập hiện chi tiết — dễ chẩn đoán treo ở bước nào khi farm restart." "Safe" $STD "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" "VerboseStatus" 1 0
+	Add-Reg "SYS12" "Verbose Status khi logon (hiện rõ bước khởi động)" $SYS "VerboseStatus=1 chuẩn MOLIK WINLIK: màn hình đăng nhập hiện chi tiết — dễ chẩn đoán treo ở bước nào khi farm restart." "Safe" $STD "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" "VerboseStatus" 1 0
 
-	# ═══════════════ 8. PRIVACY (SOPHIA NATIVE) ═══════════════
-	Add-Reg "PRI01" "Telemetry = 0 (AllowTelemetry, chuẩn Sophia/GPO)" $PRI "Chặn thu thập dữ liệu chẩn đoán mức cơ bản qua Policy — giảm tiến trình DiagTrack ghi đĩa nền." "Safe" ($STD+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" "AllowTelemetry" 0 3
+	# ═══════════════ 8. PRIVACY (MOLIK WINLIK NATIVE) ═══════════════
+	Add-Reg "PRI01" "Telemetry = 0 (AllowTelemetry, chuẩn GPO)" $PRI "Chặn thu thập dữ liệu chẩn đoán mức cơ bản qua Policy — giảm tiến trình DiagTrack ghi đĩa nền." "Safe" ($STD+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" "AllowTelemetry" 0 3
 	Add-Reg "PRI02" "Tắt Advertising ID (quảng cáo cá nhân hóa)" $PRI "DisabledByGroupPolicy=1: app không dùng ID quảng cáo theo dõi hành vi." "Safe" $STD "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo" "DisabledByGroupPolicy" 1 0
 	Add-Reg "PRI03" "Tắt Activity History / Timeline thu thập" $PRI "EnableActivityFeed=0 + PublishUserActivities=0: Windows không ghi dòng thời gian hoạt động." "Safe" $STD "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" "EnableActivityFeed" 0 1
 	Add-Reg "PRI04" "Tắt Location Tracking toàn cục" $PRI "SensorPermissionState=0: không app nào truy cập vị trí nền (trừ khi user bật lại)." "Safe" $STD "HKCU:\Software\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}" "Value" "Deny" "Allow" "String"
-	Add-Reg "PRI05" "Tắt Cortana (AllowCortana=0 qua Policy)" $PRI "Cortana nền ăn RAM/index — tắt qua GPO chuẩn Sophia cho cả farm/game/workstation." "Safe" ($STD+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" "AllowCortana" 0 1
+	Add-Reg "PRI05" "Tắt Cortana (AllowCortana=0 qua Policy)" $PRI "Cortana nền ăn RAM/index — tắt qua GPO chuẩn MOLIK WINLIK cho cả farm/game/workstation." "Safe" ($STD+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" "AllowCortana" 0 1
 	Add-Reg "PRI06" "Tắt Windows Copilot (TurnOffWindowsCopilot=1)" $PRI "Copilot sidebar/overlay không cần cho farm/game — tắt qua policy, giảm tiến trình WebView nền." "Safe" $STD "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" 1 0
 	Add-Reg "PRI07" "Tắt Windows Recall (DisableAIDataAnalysis, Win11 AI)" $PRI "Recall chụp màn hình định kỳ ăn disk/GPU & rủi ro riêng tư — tắt trên Windows 11 nếu có." "Safe" $STD "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" 1 0
 	Add-Reg "PRI08" "Tắt Tailored Experiences & Content Delivery (gợi ý quảng cáo)" $PRI "TailoredExperiencesWithDiagnosticDataEnabled=0 + ContentDeliveryManager tắt: Start Menu không tải app quảng cáo nền." "Safe" ($STD+$LOW) "HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy" "TailoredExperiencesWithDiagnosticDataEnabled" 0 1
@@ -3083,11 +3086,11 @@ function Get-SophiaTweaksCatalog
 		Enable-SophiaMsiMode | Out-Null
 	} { Disable-SophiaMsiMode } { return (Test-SophiaMsiMode) } "Enum\PCI\...\MessageSignaledInterruptProperties MSISupported=1"
 	Add-Cmd "EXT02" "Timer Resolution Daemon 0.5ms TOÀN HỆ THỐNG (NtSetTimerResolution)" $EXT "Tiến trình nền giữ timer Windows ở 0.5ms (5000x100ns) 24/7: mọi game/giả lập đều hưởng frame-pacing & sleep chính xác mà không cần tự request. Task tự chạy khi logon." "Extreme" $FARM_GAME {
-		Start-SophiaTimerResolutionDaemon
-	} { Stop-SophiaTimerResolutionDaemon } { return [bool](Get-ScheduledTask -TaskName "Sophia_Timer_Resolution" -TaskPath "\Sophia\" -ErrorAction SilentlyContinue) } "ScheduledTask Sophia_Timer_Resolution"
+		Start-MolikTimerDaemon
+	} { Stop-MolikTimerDaemon } { return [bool](Get-ScheduledTask -TaskName "MOLIK_WINLIK_Timer" -TaskPath "\MOLIK_WINLIK\" -ErrorAction SilentlyContinue) } "ScheduledTask MOLIK_WINLIK_Timer"
 	Add-Cmd "EXT03" "Process Booster Task mỗi 5 phút (Priority + Affinity TRÁNH Core 0)" $EXT "Task SYSTEM tự nâng AboveNormal + ghim affinity tránh Core 0 (nơi Windows dồn DPC/ngắt) cho mọi instance giả lập mới mở — treo farm cả tuần không cần boost tay." "Moderate" $FARM {
 		Register-SophiaProcessBoosterTask
-	} { Unregister-SophiaProcessBoosterTask } { return [bool](Get-ScheduledTask -TaskName "Sophia_Process_Booster" -TaskPath "\Sophia\" -ErrorAction SilentlyContinue) } "ScheduledTask Sophia_Process_Booster"
+	} { Unregister-SophiaProcessBoosterTask } { return [bool](Get-ScheduledTask -TaskName "MOLIK_WINLIK_Booster" -TaskPath "\MOLIK_WINLIK\" -ErrorAction SilentlyContinue) } "ScheduledTask MOLIK_WINLIK_Booster"
 	Add-Cmd "EXT04" "IFEO CpuPriorityClass = High VĨNH VIỄN cho exe giả lập" $EXT "Ghi PerfOptions vào Image File Execution Options: mỗi lần dnplayer/HD-Player/Nox/MuMu... khởi động đều tự chạy ở High priority, kể cả khi mở bằng launcher." "Moderate" $FARM_GAME {
 		Set-SophiaExeCpuPriority
 	} { Set-SophiaExeCpuPriority -Remove } { return (Test-SophiaExeCpuPriority) } "IFEO\<exe>\PerfOptions CpuPriorityClass=3"
@@ -3117,11 +3120,6 @@ function Get-SophiaTweaksCatalog
 	Add-Cmd "EXT12" "Tắt AMD ULPS (GPU AMD không ngủ xung khi tải nhẹ)" $EXT "EnableUlps=0 trong driver class AMD: GPU không rơi vào Ultra Low Power State gây stutter/FPS drop thất thường. Tự bỏ qua nếu không dùng AMD." "Extreme" $GAME {
 		Set-SophiaAmdUlps
 	} { Set-SophiaAmdUlps -Restore } { return $false } "Class\{4d36e968}\EnableUlps=0"
-	Add-Cmd "EXT13" "Tắt toàn bộ Scheduled Scan của Windows Defender" $EXT "Disable 4 task Defender (Verification, Cleanup, Maintenance, Scheduled Scan): không còn quét định kỳ giành CPU/disk giữa lúc treo farm/chơi game. Vẫn giữ Real-time Protection." "Extreme" $FARM {
-		Get-ScheduledTask -TaskPath "\Microsoft\Windows\Windows Defender\" -ErrorAction SilentlyContinue | Disable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null
-	} {
-		Get-ScheduledTask -TaskPath "\Microsoft\Windows\Windows Defender\" -ErrorAction SilentlyContinue | Enable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null
-	} { return $false } "Disable-ScheduledTask Windows Defender"
 	Add-Cmd "EXT14" "Tắt gói Scheduled Tasks nền mở rộng (Watson, DiskDiag, Power Efficiency...)" $EXT "Vô hiệu các task chẩn đoán/đo đạc chạy nền định kỳ ít người biết: Windows Error Reporting queue, DiskDiagnostic, Power Efficiency Diagnostics, Feedback Siuf..." "Moderate" ($FARM_GAME+$LOW) {
 		$tasks = @(
 			@{ P = "\Microsoft\Windows\Windows Error Reporting\"; N = "QueueReporting" },
@@ -3217,11 +3215,6 @@ function Get-SophiaTweaksCatalog
 	} {
 		& bcdedit /set '{current}' bootmenupolicy Standard 2>$null | Out-Null
 	} { return $false } "bcdedit bootmenupolicy Legacy"
-	Add-Cmd "EXT46" "Tắt DEP/NX (nx AlwaysOff) — CHỈ God Mode" $EXT "Vô hiệu Data Execution Prevention toàn hệ thống cho tương thích giả lập/driver cũ tối đa. Mất một lớp bảo mật quan trọng — Plan Engine chỉ để ở God Mode." "Extreme" @() {
-		& bcdedit /set '{current}' nx AlwaysOff 2>$null | Out-Null
-	} {
-		& bcdedit /set '{current}' nx OptIn 2>$null | Out-Null
-	} { return $false } "bcdedit nx AlwaysOff"
 	Add-Cmd "EXT47" "Hiện toàn bộ Power Settings ẩn (Unhide PERF/IDLE/EPP trong Power Options)" $EXT "Attributes=2 cho 7 thiết lập ẩn quan trọng: từ nay bạn tinh chỉnh tay IDLE/PERFBOOST/CPMINCORES... ngay trong Power Options nâng cao mà không cần lệnh." "Safe" $ALL_PERF {
 		Unhide-SophiaPowerSettings
 	} { Unhide-SophiaPowerSettings -Restore } { return $false } "PowerSettings Attributes=2"
@@ -3307,12 +3300,12 @@ function Get-SophiaTweaksCatalog
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Interactive Tick-Select CLI ([✓]/[ ])
+	MOLIK WINLIK - Interactive Tick-Select CLI ([✓]/[ ])
 
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 187 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 185 tweaks.
 #>
 
 function Get-SophiaModeTweakIds
@@ -3364,21 +3357,21 @@ function Invoke-SophiaSelectedTweaks
 		}
 	}
 
-	$logDir = "$env:SystemDrive\Sophia_Backups\Logs"
+	$logDir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Logs"
 	New-Item -Path $logDir -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
-	$logFile = Join-Path $logDir ("SophiaUltra_{0}.log" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
+	$logFile = Join-Path $logDir ("MOLIK_{0}.log" -f (Get-Date -Format "yyyyMMdd_HHmmss"))
 
 	if (-not $SkipBackup)
 	{
 		if (Get-Command New-SophiaSystemBackup -ErrorAction SilentlyContinue)
 		{
-			try { New-SophiaSystemBackup -Label "Before Sophia Ultra Optimizer ($($selected.Count) tweaks)" | Out-Null } catch {}
+			try { New-SophiaSystemBackup -Label "Before MOLIK WINLIK ($($selected.Count) tweaks)" | Out-Null } catch {}
 		}
 	}
 
 	Write-Host ""
 	Write-Host "  ══════════ ĐANG ÁP DỤNG $($selected.Count) TWEAK ══════════" -ForegroundColor Cyan
-	"=== Sophia Ultra Optimizer $(Get-Date) - $($selected.Count) tweaks ===" | Set-Content $logFile -Encoding UTF8
+	"=== MOLIK WINLIK $(Get-Date) - $($selected.Count) tweaks ===" | Set-Content $logFile -Encoding UTF8
 
 	$ok = 0; $fail = 0
 	foreach ($tweak in $selected)
@@ -3447,7 +3440,7 @@ function Save-SophiaSelectionProfile
 	param([string]$ModeKey, [string[]]$SelectedIds, [string]$Path)
 	if (-not $Path)
 	{
-		$dir = "$env:SystemDrive\Sophia_Backups\Profiles"
+		$dir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Profiles"
 		New-Item -Path $dir -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 		$Path = Join-Path $dir ("profile_{0}_{1}.json" -f $ModeKey, (Get-Date -Format "yyyyMMdd_HHmmss"))
 	}
@@ -3540,7 +3533,7 @@ function Show-SophiaSimpleMenu
 			{
 				if (-not $LauncherPath) { $LauncherPath = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`"" }
 				$desktop = [Environment]::GetFolderPath("Desktop")
-				$lnkPath = Join-Path $desktop "Sophia Ultra Optimizer.lnk"
+				$lnkPath = Join-Path $desktop "MOLIK WINLIK.lnk"
 				$shell = New-Object -ComObject WScript.Shell
 				$lnk = $shell.CreateShortcut($lnkPath)
 				if ($LauncherPath -match '\.ps1"?$')
@@ -3553,7 +3546,7 @@ function Show-SophiaSimpleMenu
 					$lnk.TargetPath = "powershell.exe"
 					$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`""
 				}
-				$lnk.Description = "Sophia Ultra Optimizer - Tick-Select CLI (Portable, khong can cai)"
+				$lnk.Description = "MOLIK WINLIK - Tick-Select CLI (Portable, khong can cai)"
 				$lnk.Save()
 				Write-Host "  [✓] Đã tạo shortcut Desktop: $lnkPath (từ nay double-click là chạy, không cần cài)" -ForegroundColor Green
 			}
@@ -3600,7 +3593,7 @@ function Show-SophiaOptimizerUI
 
 		# Header
 		Write-Host "  ╔══════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-		Write-Host "  ║  👑 MOLIK_WINLIK — SOPHIA ULTRA OPTIMIZER by @nggkhaiz: Giả Lập 24/7 • Game • FPS  ║" -ForegroundColor Magenta
+		Write-Host "  ║  👑 MOLIK_WINLIK — MOLIK WINLIK by @nggkhaiz: Giả Lập 24/7 • Game • FPS  ║" -ForegroundColor Magenta
 		Write-Host "  ╚══════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
 		if ($Snapshot)
 		{
@@ -3759,7 +3752,7 @@ function Show-SophiaOptimizerUI
 		}
 		elseif ($ch -eq 'l' -or $ch -eq 'L') {
 			try { [Console]::CursorVisible = $true } catch {}
-			$dir = "$env:SystemDrive\Sophia_Backups\Profiles"
+			$dir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Profiles"
 			$latest = Get-ChildItem -Path $dir -Filter "*.json" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 			if ($latest)
 			{
@@ -3797,7 +3790,7 @@ $modes = Get-SophiaOptimizationModes
 $snapshot = $null
 try { $snapshot = Get-SophiaSystemSnapshot } catch {}
 
-# Bridge vào module Sophia gốc (không chặn bởi InitialActions/LGPO/UBR)
+# Bridge vào module gốc upstream (không chặn bởi InitialActions/LGPO/UBR)
 try { Initialize-SophiaNativeModule -RepoRoot $RepoRoot | Out-Null } catch {}
 
 $smartRec = $null
@@ -3844,7 +3837,7 @@ if ($ListTweaks)
 }
 if ($ExportReport)
 {
-	$reportPath = Join-Path $RepoRoot ("Sophia-System-Report-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
+	$reportPath = Join-Path $RepoRoot ("MolikWinlik-System-Report-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
 	$reportObj = @{ Snapshot = $snapshot; Modes = $modes; TweakCount = $catalog.Count; Catalog = @($catalog | Select-Object Id, Name, Category, Risk, Modes, Detail) }
 	$reportObj | ConvertTo-Json -Depth 6 | Set-Content $reportPath -Encoding UTF8
 	Write-Host "  [✓] Đã xuất báo cáo: $reportPath" -ForegroundColor Green

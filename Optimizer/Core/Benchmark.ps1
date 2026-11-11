@@ -1,11 +1,11 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Before/After Performance Benchmark
+	MOLIK WINLIK - Before/After Performance Benchmark
 
 	.DESCRIPTION
 	Lightweight repeatable benchmark (CPU single + multi via Jobs, disk 128MB sequential,
 	RAM/process snapshot) saved as JSON so users can measure the real gain after optimizing.
-	Results: $env:SystemDrive\Sophia_Backups\Benchmarks\bench_<label>_<time>.json
+	Results: $env:SystemDrive\MOLIK_WINLIK_Backups\Benchmarks\bench_<label>_<time>.json
 #>
 
 function Invoke-SophiaBenchmark
@@ -98,7 +98,7 @@ function Invoke-SophiaBenchmark
 	Write-Host ("  RAM trống  : {0}/{1} MB | Tiến trình đang chạy: {2}" -f $freeMB, $totalMB, $procCount) -ForegroundColor Green
 	Write-Host ("  ★ ĐIỂM CPU TỔNG: {0}" -f $result.CpuScore) -ForegroundColor Yellow
 
-	$dir = "$env:SystemDrive\Sophia_Backups\Benchmarks"
+	$dir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Benchmarks"
 	New-Item -Path $dir -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
 	$file = Join-Path $dir ("bench_{0}_{1}.json" -f ($Label -replace '\W', '_'), (Get-Date -Format "yyyyMMdd_HHmmss"))
 	$result | ConvertTo-Json | Set-Content -Path $file -Encoding UTF8 -Force
@@ -110,7 +110,7 @@ function Invoke-SophiaBenchmark
 
 function Compare-SophiaBenchmarks
 {
-	$dir = "$env:SystemDrive\Sophia_Backups\Benchmarks"
+	$dir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Benchmarks"
 	if (-not (Test-Path $dir)) { Write-Host "  [!] Chưa có benchmark nào trong $dir" -ForegroundColor Yellow; return }
 	$files = Get-ChildItem -Path $dir -Filter "bench_*.json" | Sort-Object LastWriteTime
 	if ($files.Count -lt 2) { Write-Host "  [!] Cần ít nhất 2 benchmark (Before/After) để so sánh. Hiện có: $($files.Count)" -ForegroundColor Yellow; return }

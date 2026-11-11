@@ -1,6 +1,6 @@
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer — Chạy NGAY không cần cài đặt (tải bản Portable 1 file vào %TEMP% rồi chạy)
+	MOLIK WINLIK — Chạy NGAY không cần cài đặt (tải bản Portable 1 file vào %TEMP% rồi chạy)
 
 	.DESCRIPTION
 	  irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Standalone.ps1 | iex
@@ -40,7 +40,7 @@ foreach ($localName in @("Sophia-Ultra-Portable.ps1", "Sophia-Optimizer.ps1"))
 # 2) Tải đúng 1 file Portable vào TEMP rồi chạy (không cài đặt)
 $portablePath = Join-Path $env:TEMP "Sophia-Ultra-Portable.ps1"
 $portableUrl = "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1"
-Write-Host "  Đang tải Sophia Ultra Optimizer PORTABLE (1 file, không cần cài đặt)..." -ForegroundColor Cyan
+Write-Host "  Đang tải MOLIK WINLIK PORTABLE (1 file, không cần cài đặt)..." -ForegroundColor Cyan
 try
 {
 	[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12

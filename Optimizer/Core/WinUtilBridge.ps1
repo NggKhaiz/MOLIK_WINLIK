@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - WinUtil Bridge (ChrisTitusTech/winutil integration, 100% OFFLINE)
+	MOLIK WINLIK - WinUtil Bridge (ChrisTitusTech/winutil integration, 100% OFFLINE)
 
 	.DESCRIPTION
 	Converts vendored winutil tweaks data (Optimizer/Data/WinUtilTweaks.ps1, converted from

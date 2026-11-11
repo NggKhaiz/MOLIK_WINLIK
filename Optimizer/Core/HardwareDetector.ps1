@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Hardware, OS, Virtualization & Emulator Detection Engine
+	MOLIK WINLIK - Hardware, OS, Virtualization & Emulator Detection Engine
 
 	.DESCRIPTION
 	Scans CPU, RAM, GPU, Storage (SSD/NVMe/HDD), Windows Build, VBS/HVCI/Hyper-V status,

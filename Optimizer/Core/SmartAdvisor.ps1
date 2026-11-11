@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Smart Advisor (tự phân tích phần cứng -> khuyên Mode + tweak)
+	MOLIK WINLIK - Smart Advisor (tự phân tích phần cứng -> khuyên Mode + tweak)
 
 	.DESCRIPTION
 	Dựa trên Snapshot thật của máy (giả lập đã cài, GPU vendor, RAM, NVMe, VBS, laptop/desktop)

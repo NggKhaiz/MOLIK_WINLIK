@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Native Kernel Standby List & Working Set RAM Cleaner Engine
+	MOLIK WINLIK - Native Kernel Standby List & Working Set RAM Cleaner Engine
 
 	.DESCRIPTION
 	Uses native Win32 & NTAPI P/Invoke (ntdll.dll NtSetSystemInformation & psapi.dll EmptyWorkingSet)
@@ -92,7 +92,6 @@ namespace SophiaMemory
 
 		public static int TrimAllWorkingSets()
 		{
-			EnablePrivilege("SeDebugPrivilege");
 			EnablePrivilege("SeProfileSingleProcessPrivilege");
 			int trimmed = 0;
 
@@ -241,16 +240,16 @@ function Register-SophiaAutoRamCleanerTask
 		[int]$ThresholdPercent = 70
 	)
 
-	$CleanerScriptDir = "$env:ProgramData\SophiaUltraOptimizer"
+	$CleanerScriptDir = "$env:ProgramData\MOLIK_WINLIK"
 	if (-not (Test-Path -Path $CleanerScriptDir))
 	{
 		New-Item -Path $CleanerScriptDir -ItemType Directory -Force | Out-Null
 	}
 
-	$DaemonScriptPath = Join-Path -Path $CleanerScriptDir -ChildPath "SophiaAutoRamCleaner.ps1"
+	$DaemonScriptPath = Join-Path -Path $CleanerScriptDir -ChildPath "MolikRamCleaner.ps1"
 
 	$DaemonScriptContent = @"
-# Sophia Ultra Optimizer - 24/7 Smart RAM & Standby List Auto-Cleaner Daemon
+# MOLIK WINLIK - 24/7 Smart RAM & Standby List Auto-Cleaner Daemon
 `$OS = Get-CimInstance -Namespace root/CIMV2 -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
 if (`$OS) {
 	`$Total = [double]`$OS.TotalVisibleMemorySize
@@ -298,7 +297,7 @@ Add-Type -TypeDefinition `$Code -ErrorAction SilentlyContinue
 	$Settings = New-ScheduledTaskSettingsSet -Compatibility Win8 -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 2)
 	$Principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -RunLevel Highest -LogonType ServiceAccount
 
-	Register-ScheduledTask -TaskName "Sophia_Auto_RAM_Cleaner" -TaskPath "\Sophia\" -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal -Description "Auto-purges Windows Standby List & Working Set RAM every $IntervalMinutes minutes when RAM > $ThresholdPercent% (Ideal for 24/7 Emulator Farming & Gaming)" -Force | Out-Null
+	Register-ScheduledTask -TaskName "MOLIK_WINLIK_RAM_Cleaner" -TaskPath "\MOLIK_WINLIK\" -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal -Description "Auto-purges Windows Standby List & Working Set RAM every $IntervalMinutes minutes when RAM > $ThresholdPercent% (Ideal for 24/7 Emulator Farming & Gaming)" -Force | Out-Null
 }
 
 function Unregister-SophiaAutoRamCleanerTask
@@ -306,6 +305,7 @@ function Unregister-SophiaAutoRamCleanerTask
 	[CmdletBinding()]
 	param()
 
+	Unregister-ScheduledTask -TaskName "MOLIK_WINLIK_RAM_Cleaner" -TaskPath "\MOLIK_WINLIK\" -Confirm:$false -ErrorAction SilentlyContinue
 	Unregister-ScheduledTask -TaskName "Sophia_Auto_RAM_Cleaner" -TaskPath "\Sophia\" -Confirm:$false -ErrorAction SilentlyContinue
-	Remove-Item -Path "$env:ProgramData\SophiaUltraOptimizer\SophiaAutoRamCleaner.ps1" -Force -ErrorAction SilentlyContinue
+	Remove-Item -Path "$env:ProgramData\MOLIK_WINLIK\MolikRamCleaner.ps1" -Force -ErrorAction SilentlyContinue
 }

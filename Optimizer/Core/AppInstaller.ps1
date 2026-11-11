@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Application Installer (winutil-style, via built-in winget)
+	MOLIK WINLIK - Application Installer (winutil-style, via built-in winget)
 
 	.DESCRIPTION
 	Install popular applications by ticking names/numbers, using the winget package manager
