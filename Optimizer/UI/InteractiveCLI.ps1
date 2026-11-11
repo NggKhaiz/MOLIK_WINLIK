@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 87 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 112 tweaks.
 #>
 
 function Get-SophiaModeTweakIds
@@ -18,13 +18,27 @@ function Get-SophiaModeTweakIds
 
 function Invoke-SophiaSelectedTweaks
 {
-	param($Catalog, [string[]]$SelectedIds, [switch]$SkipBackup)
+	param($Catalog, [string[]]$SelectedIds, [switch]$SkipBackup, [switch]$Force)
 
 	$selected = @($Catalog | Where-Object { $SelectedIds -contains $_.Id })
 	if ($selected.Count -eq 0)
 	{
 		Write-Host "  [!] Chưa tick tweak nào. Dùng SPACE để chọn." -ForegroundColor Yellow
 		return
+	}
+
+	$extreme = @($selected | Where-Object { $_.Risk -eq "Extreme" })
+	if ($extreme.Count -gt 0 -and -not $Force)
+	{
+		Write-Host ""
+		Write-Host "  ⚠ CẢNH BÁO: Có $($extreme.Count) tweak mức EXTREME (đánh đổi bảo mật/ổn định lấy hiệu năng):" -ForegroundColor Red
+		$extreme | ForEach-Object { Write-Host "      - [$($_.Id)] $($_.Name)" -ForegroundColor Yellow }
+		$confirmExtreme = Read-Host "  Gõ 'EXTREME' (viết hoa) để xác nhận áp dụng, hoặc ENTER để hủy"
+		if ($confirmExtreme -ne 'EXTREME')
+		{
+			Write-Host "  Đã hủy. Bỏ tick các tweak [Extreme] màu đỏ nếu bạn không chắc chắn." -ForegroundColor Yellow
+			return
+		}
 	}
 
 	$logDir = "$env:SystemDrive\Sophia_Backups\Logs"
@@ -86,16 +100,23 @@ function Invoke-SophiaRestoreTweaks
 
 function Invoke-EmulatorAutoBooster
 {
-	$names = @("LdVBoxHeadless","HD-Player","Nox","NoxVMHandle","MuMuPlayer","NemuHeadless","MEmuHeadless","VBoxHeadless","Ld9BoxHeadless")
 	$found = 0
-	foreach ($n in $names)
+	if (Get-Command Invoke-SophiaProcessBoostNow -ErrorAction SilentlyContinue)
 	{
-		Get-Process -Name $n -ErrorAction SilentlyContinue | ForEach-Object {
-			try { $_.PriorityClass = "AboveNormal"; $found++ } catch {}
+		$found = Invoke-SophiaProcessBoostNow
+	}
+	else
+	{
+		$names = @("LdVBoxHeadless","HD-Player","Nox","NoxVMHandle","MuMuPlayer","NemuHeadless","MEmuHeadless","VBoxHeadless","Ld9BoxHeadless")
+		foreach ($n in $names)
+		{
+			Get-Process -Name $n -ErrorAction SilentlyContinue | ForEach-Object {
+				try { $_.PriorityClass = "AboveNormal"; $found++ } catch {}
+			}
 		}
 	}
 	if (Get-Command Invoke-SophiaRamPurge -ErrorAction SilentlyContinue) { Invoke-SophiaRamPurge | Out-Null }
-	Write-Host "  [✓] Emulator Booster: đã boost $found process giả lập + purge RAM." -ForegroundColor Green
+	Write-Host "  [✓] Emulator Booster: đã boost $found process giả lập (AboveNormal + affinity tránh Core 0) + purge RAM." -ForegroundColor Green
 }
 
 function Show-SophiaOptimizerUI
@@ -172,6 +193,7 @@ function Show-SophiaOptimizerUI
 			}
 			$isOn = ($selected.ContainsKey($t.Id) -and $selected[$t.Id])
 			$box = if ($isOn) { "[✓]" } else { "[ ]" }
+			if ($appliedStatus.ContainsKey($t.Id) -and $appliedStatus[$t.Id]) { $box += "●" }
 			$riskColor = "Green"
 			if ($t.Risk -eq "Extreme") { $riskColor = "Red" } elseif ($t.Risk -eq "Moderate") { $riskColor = "Yellow" }
 			$line = "  {0} {1} {2} [{3}]" -f $box, $t.Id, $t.Name, $t.Risk
@@ -245,6 +267,23 @@ function Show-SophiaOptimizerUI
 		elseif ($ch -eq 'e' -or $ch -eq 'E') {
 			try { [Console]::CursorVisible = $true } catch {}
 			Invoke-EmulatorAutoBooster
+			Read-Host "  Nhấn ENTER để tiếp tục"
+		}
+		elseif ($ch -eq 'v' -or $ch -eq 'V') {
+			try { [Console]::CursorVisible = $true } catch {}
+			Write-Host "  Đang kiểm tra trạng thái đã áp dụng cho $($filtered.Count) tweak..." -ForegroundColor Cyan
+			foreach ($t in $filtered)
+			{
+				try { $appliedStatus[$t.Id] = [bool](& $t.CheckScript) } catch { $appliedStatus[$t.Id] = $false }
+			}
+			$appliedCount = @($appliedStatus.Keys | Where-Object { $appliedStatus[$_] }).Count
+			Write-Host "  [✓] Đã áp dụng: $appliedCount/$($filtered.Count) (đánh dấu ● cạnh ô tick). Nhấn phím bất kỳ..." -ForegroundColor Green
+			[Console]::ReadKey($true) | Out-Null
+		}
+		elseif ($ch -eq 't' -or $ch -eq 'T') {
+			try { [Console]::CursorVisible = $true } catch {}
+			if (Get-Command Invoke-SophiaBenchmark -ErrorAction SilentlyContinue) { Invoke-SophiaBenchmark -Label "Manual" | Out-Null }
+			else { Write-Host "  [!] Không tìm thấy module Benchmark." -ForegroundColor Yellow }
 			Read-Host "  Nhấn ENTER để tiếp tục"
 		}
 		elseif ($ch -eq 'b' -or $ch -eq 'B') {

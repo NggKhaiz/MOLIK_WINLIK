@@ -1,6 +1,6 @@
 # 👑 Sophia Ultra Optimizer — Tick-Select CLI
 
-Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **87 tweak** chia 8 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
+Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **112 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
 
 ## 🚀 Chạy nhanh
 
@@ -24,7 +24,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/So
 | `3` | 🎬 **WORKSTATION / STREAM** | Render/OBS/compile: mạnh nhưng giữ ổn định & mitigations, ưu tiên GPU encode/foreground |
 | `4` | 🥔 **LOW-SPEC / POTATO PC** | Máy yếu RAM ≤8GB: tắt visual effects, services/background apps/telemetry thừa |
 | `5` | 🛡️ **SOPHIA STANDARD** | Privacy + gọn gàng an toàn chuẩn Sophia gốc, không đụng kernel/BCD |
-| `6` | 👑 **GOD MODE** | Toàn bộ 87 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
+| `6` | 👑 **GOD MODE** | Toàn bộ 112 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
 
 ## ⌨️ Điều khiển trong CLI
 
@@ -48,7 +48,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/So
 .\Sophia-Optimizer.ps1 -Mode EmulatorFarm -Apply -Yes   # áp dụng thẳng 1 mode
 .\Sophia-Optimizer.ps1 -Mode HardcoreGaming              # mở CLI đã tick sẵn mode Gaming
 .\Sophia-Optimizer.ps1 -ListModes                        # xem 6 mode
-.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 87 tweak
+.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 112 tweak
 .\Sophia-Optimizer.ps1 -PurgeRAM                         # dọn RAM ngay
 .\Sophia-Optimizer.ps1 -BoostEmulators                   # boost process giả lập
 .\Sophia-Optimizer.ps1 -ExportReport                     # xuất JSON báo cáo phần cứng + catalog
@@ -66,15 +66,42 @@ Optimizer/
   Core/RamCleanerDaemon.ps1     # NTAPI EmptyWorkingSet + NtSetSystemInformation purge Standby List,
                                 # Scheduled Task SYSTEM tự dọn RAM 24/7 khi RAM >70%
   Core/BackupRestore.ps1        # System Restore Point + export Registry/BCD + rollback
+  Core/ExtremeEngine.ps1        # MSI interrupts, Timer 0.5ms daemon, Process Booster affinity,
+                                # IFEO priority, NIC advanced, powercfg cực hạn, NTFS/ULPS
+  Core/Benchmark.ps1            # Benchmark CPU/Disk/RAM Before-After + so sánh %
   Core/SophiaBridge.ps1         # Bridge vào Sophia.psm1 gốc theo đúng edition Win10/11/LTSC/ARM/PS7
                                 # (bỏ qua chặn cứng LGPO/UBR của InitialActions.ps1)
-  Catalog/TweaksCatalog.ps1     # 87 tweak: ApplyScript / RestoreScript / CheckScript, 8 nhóm, 6 mode
+  Catalog/TweaksCatalog.ps1     # 112 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
   UI/InteractiveCLI.ps1         # TUI tick-chọn [✓]/[ ], tìm kiếm, thực thi & log
 ```
 
-### 8 nhóm tweak
+### 9 nhóm tweak
 
-1. 🖥️ Treo Giả Lập 24/7 (13) · 2. 🎮 Gaming & Low-Latency (12) · 3. ⚡ CPU/Kernel/Timer (10) · 4. 🧠 RAM & Memory (10) · 5. 🎨 GPU & Display (10) · 6. 🌐 Network (10) · 7. 🧹 System/Services/Debloat (12) · 8. 🔒 Privacy Sophia Native (10)
+1. 🖥️ Treo Giả Lập 24/7 (13) · 2. 🎮 Gaming & Low-Latency (12) · 3. ⚡ CPU/Kernel/Timer (10) · 4. 🧠 RAM & Memory (10) · 5. 🎨 GPU & Display (10) · 6. 🌐 Network (10) · 7. 🧹 System/Services/Debloat (12) · 8. 🔒 Privacy Sophia Native (10) · 9. 🚀 **EXTREME LAB (25)**
+
+## 🚀 EXTREME LAB — tầng cực hạn (nhóm 9)
+
+25 tweak sâu nhất, do `Optimizer/Core/ExtremeEngine.ps1` thực thi:
+
+- **MSI Mode** cho GPU + NVMe + NIC (giảm DPC latency thật, cần restart)
+- **Timer Resolution Daemon 0.5ms** toàn hệ thống (`NtSetTimerResolution`, Scheduled Task) + `GlobalTimerResolutionRequests` cho Win11
+- **Process Booster Task mỗi 5'**: instance giả lập mới mở tự được AboveNormal + affinity tránh Core 0
+- **IFEO CpuPriorityClass=High vĩnh viễn**, GPU Preference & tắt FSO theo từng exe giả lập phát hiện được
+- **Power Profile cực hạn**: Ultimate + PERFEPP 0, PerfBoost Aggressive, IDLEDISABLE, ASPM off, disk không ngủ
+- **NIC advanced**: RSS đa lõi, Interrupt Moderation/LSO/EEE off · **Storage**: fsutil LastAccess/8dot3 off, TRIM on · **AMD ULPS off** · SvcHost thu gọn theo RAM
+
+## 📊 Benchmark Before/After
+
+```powershell
+.\Sophia-Optimizer.ps1 -Benchmark -BenchmarkLabel Before   # đo TRƯỚC khi tối ưu
+.\Sophia-Optimizer.ps1 -Mode GodMode -Apply -Yes            # áp dụng (đã gồm xác nhận Extreme qua -Yes)
+# restart máy, rồi:
+.\Sophia-Optimizer.ps1 -Benchmark -BenchmarkLabel After
+.\Sophia-Optimizer.ps1 -CompareBenchmarks                   # xem % cải thiện CPU/Disk/RAM
+.\Sophia-Optimizer.ps1 -Mode EmulatorFarm -Apply -DryRun    # xem trước, chưa thực thi
+```
+
+Trong CLI: phím `V` = kiểm tra tweak nào đã áp dụng (●), `T` = chạy benchmark.
 
 ## 🛟 An toàn & khôi phục
 

@@ -1,11 +1,11 @@
-﻿<#
+<#
 	.SYNOPSIS
 	Sophia Ultra Optimizer — Interactive Tick-Select CLI (Tối ưu sâu Windows)
 
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
 	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 87 tweak kernel/BCD/GPU/network riêng (Optimizer/).
+	(src/Sophia_Script_for_Windows_*) + 112 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -37,6 +37,10 @@ param(
 	[switch]$PurgeRAM,
 	[switch]$BoostEmulators,
 	[switch]$RestoreDefaults,
+	[switch]$Benchmark,
+	[string]$BenchmarkLabel = "Manual",
+	[switch]$CompareBenchmarks,
+	[switch]$DryRun,
 	[switch]$ExportReport,
 	[string]$Search = ""
 )
@@ -55,6 +59,8 @@ try
 		if ($Mode) { $argList += @("-Mode", $Mode) }
 		if ($Apply) { $argList += "-Apply" }
 		if ($Yes) { $argList += "-Yes" }
+		if ($Benchmark) { $argList += "-Benchmark" }
+		if ($DryRun) { $argList += "-DryRun" }
 		if ($PurgeRAM) { $argList += "-PurgeRAM" }
 		if ($BoostEmulators) { $argList += "-BoostEmulators" }
 		if ($RestoreDefaults) { $argList += "-RestoreDefaults" }
@@ -69,6 +75,8 @@ $RepoRoot = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
 $engineFiles = @(
 	"Optimizer\Core\HardwareDetector.ps1",
 	"Optimizer\Core\RamCleanerDaemon.ps1",
+	"Optimizer\Core\ExtremeEngine.ps1",
+	"Optimizer\Core\Benchmark.ps1",
 	"Optimizer\Core\BackupRestore.ps1",
 	"Optimizer\Core\SophiaBridge.ps1",
 	"Optimizer\Catalog\TweaksCatalog.ps1",
@@ -113,6 +121,16 @@ if ($ExportReport)
 	Write-Host "  [✓] Đã xuất báo cáo: $reportPath" -ForegroundColor Green
 	return
 }
+if ($Benchmark)
+{
+	Invoke-SophiaBenchmark -Label $BenchmarkLabel | Out-Null
+	return
+}
+if ($CompareBenchmarks)
+{
+	Compare-SophiaBenchmarks
+	return
+}
 if ($PurgeRAM)
 {
 	Invoke-SophiaRamPurge
@@ -143,7 +161,13 @@ if ($Apply)
 		$confirm = Read-Host "  Tiếp tục? (Y/N)"
 		if ($confirm -notmatch '^[Yy]') { Write-Host "  Đã hủy. Chạy không có -Apply để mở giao diện tick-chọn."; return }
 	}
-	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup
+	if ($DryRun)
+	{
+		Write-Host "  [DRY-RUN] $($ids.Count) tweak sẽ được áp dụng (chưa thực thi):" -ForegroundColor Cyan
+		$catalog | Where-Object { $ids -contains $_.Id } | ForEach-Object { Write-Host ("    [{0}] [{1}] {2}" -f $_.Id, $_.Risk, $_.Name) }
+		return
+	}
+	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup -Force:$Yes
 	return
 }
 

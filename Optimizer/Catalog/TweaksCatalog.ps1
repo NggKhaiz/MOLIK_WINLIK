@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Deep Tweaks Catalog (85+ tweaks, 8 categories, 6 modes)
+	Sophia Ultra Optimizer - Deep Tweaks Catalog (112 tweaks, 9 categories incl. EXTREME LAB, 6 modes)
 
 	.DESCRIPTION
 	Every tweak: Id, Name, Category, Description, Risk, Modes, ApplyScript, RestoreScript, CheckScript.
@@ -115,6 +115,7 @@ function Get-SophiaTweaksCatalog
 	$NET = "6. 🌐 NETWORK & INTERNET"
 	$SYS = "7. 🧹 SYSTEM / SERVICES / DEBLOAT"
 	$PRI = "8. 🔒 PRIVACY (SOPHIA NATIVE)"
+	$EXT = "9. 🚀 EXTREME LAB (CỰC HẠN)"
 
 	$FARM = @("EmulatorFarm"); $GAME = @("HardcoreGaming"); $WORK = @("Workstation")
 	$LOW  = @("LowSpec"); $STD = @("SophiaStandard")
@@ -220,7 +221,11 @@ function Get-SophiaTweaksCatalog
 	Add-Reg "CPU05" "DisablePagingExecutive = 1 (giữ kernel trong RAM)" $CPU "Không page-out kernel/drivers ra đĩa — giảm DPC latency, phản hồi hệ thống nhanh hơn khi RAM >=16GB." "Moderate" $ALL_PERF "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "DisablePagingExecutive" 1 0
 	Add-Reg "CPU06" "IRQ Priority cho CMOS/RTC Timer (TimerResolution ưu tiên)" $CPU "Tăng IRQ8Priority=1 cho realtime clock — tweak latency cổ điển, hỗ trợ timer resolution ổn định cho game/DAW." "Moderate" $GAME "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" "IRQ8Priority" 1 $null
 	Add-Reg "CPU07" "ForegroundLockTimeout = 0 (focus cửa sổ tức thì)" $CPU "Ứng dụng mới focus ngay không bị Windows giữ foreground lock 200s — Alt-Tab giữa các instance/game mượt hơn." "Safe" ($FARM_GAME+$STD) "HKCU:\Control Panel\Desktop" "ForegroundLockTimeout" 0 200000
-	Add-Reg "CPU08" "Tắt CPU Idle sâu trên AC (IDLESTATEMAX=1, giảm wake latency)" $CPU "Hạn chế C-state sâu khi cắm điện qua power scheme (registry PERFIDLE) — giảm latency đánh thức lõi khi burst." "Extreme" $GAME "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\5d76a2ca-e8c0-402f-a133-2158492d58ad" "Attributes" 2 1
+	Add-Cmd "CPU08" "Energy Performance Preference = 0 (CPU thiên hiệu năng tuyệt đối)" $CPU "PERFEPP=0 qua powercfg: bộ điều tốc CPU (HWP/Intel Speed Shift, AMD CPPC) luôn chọn hiệu năng thay vì tiết kiệm điện — giảm latency tăng xung khi burst." "Moderate" $ALL_PERF {
+		Set-SophiaPowerSetting "54533251-82be-4824-96c1-47b60b740d00" "36687f9e-e3a5-4dbf-b1dc-15eb381c6863" 0; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
+	} {
+		Set-SophiaPowerSetting "54533251-82be-4824-96c1-47b60b740d00" "36687f9e-e3a5-4dbf-b1dc-15eb381c6863" 33; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
+	} { return $false } "powercfg PERFEPP=0"
 	Add-Reg "CPU09" "LargeSystemCache = 0 (ưu tiên app/game hơn file cache)" $CPU "Đặt cache hệ thống ưu tiên tiến trình người dùng thay vì file-server cache — đúng profile desktop/gaming." "Safe" $ALL_PERF "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "LargeSystemCache" 0 1
 	Add-Reg "CPU10" "Tăng IoPageLockLimit (I/O locking cho NVMe/đa instance)" $CPU "IoPageLockLimit=16777216 (16MB) tăng giới hạn khóa trang I/O — hỗ trợ đọc/ghi đồng thời nhiều disk image giả lập." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "IoPageLockLimit" 16777216 $null
 
@@ -329,6 +334,89 @@ function Get-SophiaTweaksCatalog
 	Add-Reg "PRI08" "Tắt Tailored Experiences & Content Delivery (gợi ý quảng cáo)" $PRI "TailoredExperiencesWithDiagnosticDataEnabled=0 + ContentDeliveryManager tắt: Start Menu không tải app quảng cáo nền." "Safe" ($STD+$LOW) "HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy" "TailoredExperiencesWithDiagnosticDataEnabled" 0 1
 	Add-Reg "PRI09" "Tắt Inking/Typing personalization (gửi dữ liệu gõ phím)" $PRI "RestrictImplicitTextCollection=1: không thu thập mẫu gõ/viết tay gửi Microsoft." "Safe" $STD "HKCU:\Software\Microsoft\InputPersonalization" "RestrictImplicitTextCollection" 1 0
 	Add-Reg "PRI10" "Tắt Delivery Optimization P2P upload (tiết kiệm băng thông farm)" $PRI "DownloadMode=0 (HTTP only, no peering): Windows Update không dùng máy bạn upload cho máy khác ngốn upstream." "Moderate" ($FARM+$STD) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization" "DODownloadMode" 0 1
+
+	# ═══════════════ 9. EXTREME LAB ═══════════════
+	Add-Cmd "EXT01" "MSI Mode cho GPU + NVMe + NIC (Message Signaled Interrupts)" $EXT "Chuyển thiết bị từ legacy IRQ dùng chung sang MSI/MSI-X riêng: giảm DPC latency & xung đột ngắt — một trong những tweak latency thật hiệu quả nhất. Cần RESTART." "Extreme" $GAME {
+		Enable-SophiaMsiMode | Out-Null
+	} { Disable-SophiaMsiMode } { return (Test-SophiaMsiMode) } "Enum\PCI\...\MessageSignaledInterruptProperties MSISupported=1"
+	Add-Cmd "EXT02" "Timer Resolution Daemon 0.5ms TOÀN HỆ THỐNG (NtSetTimerResolution)" $EXT "Tiến trình nền giữ timer Windows ở 0.5ms (5000x100ns) 24/7: mọi game/giả lập đều hưởng frame-pacing & sleep chính xác mà không cần tự request. Task tự chạy khi logon." "Extreme" $FARM_GAME {
+		Start-SophiaTimerResolutionDaemon
+	} { Stop-SophiaTimerResolutionDaemon } { return [bool](Get-ScheduledTask -TaskName "Sophia_Timer_Resolution" -TaskPath "\Sophia\" -ErrorAction SilentlyContinue) } "ScheduledTask Sophia_Timer_Resolution"
+	Add-Cmd "EXT03" "Process Booster Task mỗi 5 phút (Priority + Affinity TRÁNH Core 0)" $EXT "Task SYSTEM tự nâng AboveNormal + ghim affinity tránh Core 0 (nơi Windows dồn DPC/ngắt) cho mọi instance giả lập mới mở — treo farm cả tuần không cần boost tay." "Moderate" $FARM {
+		Register-SophiaProcessBoosterTask
+	} { Unregister-SophiaProcessBoosterTask } { return [bool](Get-ScheduledTask -TaskName "Sophia_Process_Booster" -TaskPath "\Sophia\" -ErrorAction SilentlyContinue) } "ScheduledTask Sophia_Process_Booster"
+	Add-Cmd "EXT04" "IFEO CpuPriorityClass = High VĨNH VIỄN cho exe giả lập" $EXT "Ghi PerfOptions vào Image File Execution Options: mỗi lần dnplayer/HD-Player/Nox/MuMu... khởi động đều tự chạy ở High priority, kể cả khi mở bằng launcher." "Moderate" $FARM_GAME {
+		Set-SophiaExeCpuPriority
+	} { Set-SophiaExeCpuPriority -Remove } { return (Test-SophiaExeCpuPriority) } "IFEO\<exe>\PerfOptions CpuPriorityClass=3"
+	Add-Cmd "EXT05" "GPU Preference = High Performance cho exe giả lập ĐÃ PHÁT HIỆN" $EXT "Ép Windows Graphics dùng GPU mạnh (dGPU) cho từng exe giả lập tìm thấy trên máy — tránh instance chạy nhầm iGPU yếu gây FPS thảm." "Moderate" $FARM {
+		Set-SophiaExeGpuPreference
+	} { Set-SophiaExeGpuPreference -Remove } { return $false } "UserGpuPreferences GpuPreference=2"
+	Add-Cmd "EXT06" "Tắt Fullscreen Optimizations RIÊNG cho exe giả lập/game đã phát hiện" $EXT "AppCompatFlags Layers '~ DISABLEDXMAXIMIZEDWINDOWEDMODE' theo từng exe: fullscreen thật, giảm input lag & stutter Alt-Tab cho BlueStacks/LDPlayer..." "Moderate" $FARM_GAME {
+		Set-SophiaExeDisableFSO
+	} { Set-SophiaExeDisableFSO -Remove } { return $false } "AppCompatFlags\Layers DISABLEDXMAXIMIZEDWINDOWEDMODE"
+	Add-Cmd "EXT07" "Power Profile CỰC HẠN (Ultimate + 10 tinh chỉnh powercfg ẩn)" $EXT "Kích hoạt Ultimate Performance rồi ép: throttle 100/100, unpark 100%, PerfBoost Aggressive, tản nhiệt Active, PERFEPP 0, disk không ngủ, PCIe ASPM off, không standby." "Moderate" $ALL_PERF {
+		Import-SophiaUltimatePowerProfile
+	} { & powercfg /setactive SCHEME_BALANCED 2>$null | Out-Null } { return ((& powercfg /getactivescheme 2>$null) -match 'Ultimate') } "powercfg Ultimate + GUID tuning"
+	Add-Cmd "EXT08" "Vô hiệu CPU Idle States trên AC (IDLEDISABLE=1)" $EXT "Cấm C-state idle khi cắm điện: lõi CPU không bao giờ 'ngủ' — wake latency ~0 cho burst game/farm, đánh đổi điện & nhiệt cao hơn. Chỉ máy bàn/farm cắm điện 24/7." "Extreme" $GAME {
+		Set-SophiaPowerSetting "54533251-82be-4824-96c1-47b60b740d00" "5d76a2ca-e8c0-402f-a133-2158492d58ad" 1; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
+	} {
+		Set-SophiaPowerSetting "54533251-82be-4824-96c1-47b60b740d00" "5d76a2ca-e8c0-402f-a133-2158492d58ad" 0; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
+	} { return $false } "powercfg IDLEDISABLE=1"
+	Add-Cmd "EXT09" "Tắt Power Management: USB Hubs + NIC ở mức driver (PnPCapabilities)" $EXT "Áp PnPCapabilities=24 xuống từng thiết bị USB Hub & NIC trong Device Class registry — Windows không được phép tắt thiết bị để tiết kiệm điện dù ở bất kỳ power plan nào." "Moderate" $FARM {
+		Set-SophiaDeviceClassNoPowerOff
+	} { Set-SophiaDeviceClassNoPowerOff -Restore } { return $false } "Control\Class\{USB,NIC}\PnPCapabilities=24"
+	Add-Cmd "EXT10" "NIC Advanced CỰC HẠN (RSS đa lõi, Interrupt Moderation OFF, LSO OFF, EEE OFF)" $EXT "Đi sâu vào từng card mạng: bật RSS, tắt Interrupt Moderation (giảm delay gói), tắt Large Send Offload & Energy-Efficient Ethernet — ping ổn định, không spike khi farm tải mạng." "Extreme" $FARM_GAME {
+		Set-SophiaNetAdapterExtreme
+	} { Set-SophiaNetAdapterExtreme -Restore } { return $false } "Set-NetAdapterAdvancedProperty *RSS/*InterruptModeration/*LsoV2"
+	Add-Cmd "EXT11" "Storage/NTFS CỰC HẠN (fsutil: LastAccess OFF, 8dot3 OFF, MemoryUsage=2, TRIM ON)" $EXT "Giảm metadata write trên SSD/NVMe khi hàng chục image giả lập I/O liên tục + tăng cache NTFS + đảm bảo TRIM bật. Máy farm chạy tháng không chậm ổ." "Moderate" ($FARM+$WORK) {
+		Set-SophiaStorageExtreme
+	} { Set-SophiaStorageExtreme -Restore } { return (Test-SophiaStorageExtreme) } "fsutil behavior set"
+	Add-Cmd "EXT12" "Tắt AMD ULPS (GPU AMD không ngủ xung khi tải nhẹ)" $EXT "EnableUlps=0 trong driver class AMD: GPU không rơi vào Ultra Low Power State gây stutter/FPS drop thất thường. Tự bỏ qua nếu không dùng AMD." "Extreme" $GAME {
+		Set-SophiaAmdUlps
+	} { Set-SophiaAmdUlps -Restore } { return $false } "Class\{4d36e968}\EnableUlps=0"
+	Add-Cmd "EXT13" "Tắt toàn bộ Scheduled Scan của Windows Defender" $EXT "Disable 4 task Defender (Verification, Cleanup, Maintenance, Scheduled Scan): không còn quét định kỳ giành CPU/disk giữa lúc treo farm/chơi game. Vẫn giữ Real-time Protection." "Extreme" $FARM {
+		Get-ScheduledTask -TaskPath "\Microsoft\Windows\Windows Defender\" -ErrorAction SilentlyContinue | Disable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null
+	} {
+		Get-ScheduledTask -TaskPath "\Microsoft\Windows\Windows Defender\" -ErrorAction SilentlyContinue | Enable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null
+	} { return $false } "Disable-ScheduledTask Windows Defender"
+	Add-Cmd "EXT14" "Tắt gói Scheduled Tasks nền mở rộng (Watson, DiskDiag, Power Efficiency...)" $EXT "Vô hiệu các task chẩn đoán/đo đạc chạy nền định kỳ ít người biết: Windows Error Reporting queue, DiskDiagnostic, Power Efficiency Diagnostics, Feedback Siuf..." "Moderate" ($FARM_GAME+$LOW) {
+		$tasks = @(
+			@{ P = "\Microsoft\Windows\Windows Error Reporting\"; N = "QueueReporting" },
+			@{ P = "\Microsoft\Windows\DiskDiagnostic\"; N = "Microsoft-Windows-DiskDiagnosticDataCollector" },
+			@{ P = "\Microsoft\Windows\Power Efficiency Diagnostics\"; N = "AnalyzeSystem" },
+			@{ P = "\Microsoft\Windows\Feedback\Siuf\"; N = "DmClient" },
+			@{ P = "\Microsoft\Windows\Application Experience\"; N = "StartupAppTask" }
+		)
+		foreach ($t in $tasks) { Disable-ScheduledTask -TaskPath $t.P -TaskName $t.N -ErrorAction SilentlyContinue | Out-Null }
+	} {
+		$tasks = @(
+			@{ P = "\Microsoft\Windows\Windows Error Reporting\"; N = "QueueReporting" },
+			@{ P = "\Microsoft\Windows\Feedback\Siuf\"; N = "DmClient" }
+		)
+		foreach ($t in $tasks) { Enable-ScheduledTask -TaskPath $t.P -TaskName $t.N -ErrorAction SilentlyContinue | Out-Null }
+	} { return $false } "Disable-ScheduledTask bundle"
+	Add-Cmd "EXT15" "Tắt gói Services ngoại vi (SmartCard, Phone, Wallet, Sensor, Insider...)" $EXT "Disabled các service ngoại vi/telemetry không liên quan farm-game: SCardSvr, PhoneSvc, WalletService, SensorService, wisvc (Insider), MapsBroker... giải phóng RAM & tiến trình nền." "Moderate" ($FARM_GAME+$LOW) {
+		@("SCardSvr","ScDeviceEnum","PhoneSvc","WalletService","SensorService","SensrSvc","wisvc","MapsBroker","lfsvc","RetailDemo") | ForEach-Object { Stop-Service $_ -Force -ErrorAction SilentlyContinue; Set-Service $_ -StartupType Disabled -ErrorAction SilentlyContinue }
+	} {
+		@("SCardSvr","PhoneSvc","MapsBroker") | ForEach-Object { Set-Service $_ -StartupType Manual -ErrorAction SilentlyContinue }
+	} { try { return ((Get-Service SCardSvr -ErrorAction SilentlyContinue).StartType -eq 'Disabled') } catch { return $false } } "Disable peripheral services"
+	Add-Reg "EXT16" "MMCSS 'Games': SchedulingCategory = High" $EXT "Hoàn thiện profile Games của Multimedia Scheduler: SchedulingCategory=High đi cùng GPU Priority (GAM09) — luồng game được dispatcher ưu tiên cao nhất." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "SchedulingCategory" "High" "Medium" "String"
+	Add-Reg "EXT17" "MMCSS NoLazyMode = 1 (scheduler không 'lười' khi có tác vụ multimedia)" $EXT "NoLazyMode ngăn MMCSS trì hoãn nâng priority cho luồng game/audio — phản hồi tức thì ngay từ frame đầu tiên." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "NoLazyMode" 1 0
+	Add-Reg "EXT18" "Tắt Crash Dump (không ghi memory.dmp khi crash)" $EXT "CrashDumpEnabled=0: khi app/hệ thống crash, Windows không mất thời gian ghi file dump nhiều GB — farm tự restart instance ngay. Đánh đổi: khó debug BSOD." "Extreme" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl" "CrashDumpEnabled" 0 3
+	Add-Reg "EXT19" "Tắt toàn bộ Animation cửa sổ (MinAnimate = 0)" $EXT "WindowMetrics MinAnimate=0: cửa sổ mở/đóng/maximize không hiệu ứng — 30 instance giả lập thao tác tức thì, giảm tải DWM rõ rệt trên máy yếu." "Safe" ($FARM_GAME+$LOW) "HKCU:\Control Panel\Desktop\WindowMetrics" "MinAnimate" "0" "1" "String"
+	Add-Reg "EXT20" "Tắt Sticky/Filter/Toggle Keys (không popup khi spam Shift)" $EXT "Accessibility Flags chuẩn game thủ: spam Shift/Ctrl khi chơi game không bao giờ bật popup Sticky Keys phá trận." "Safe" $GAME "HKCU:\Control Panel\Accessibility\StickyKeys" "Flags" "506" "510" "String"
+	Add-Cmd "EXT21" "Thu gọn Svchost theo RAM (SvcHostSplitThreshold = tổng RAM KB)" $EXT "Đặt ngưỡng tách svchost bằng đúng RAM vật lý: máy RAM lớn gộp service host hợp lý, giảm hàng chục process svchost.exe tranh RAM/CPU trên farm. Cần RESTART." "Moderate" ($FARM+$WORK) {
+		try {
+			$totalKB = [int]((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1KB)
+			Set-SophiaRegValue -Path "HKLM:\SYSTEM\CurrentControlSet\Control" -Name "SvcHostSplitThresholdInKB" -Value $totalKB -Type "DWord"
+		} catch {}
+	} {
+		Set-SophiaRegValue -Path "HKLM:\SYSTEM\CurrentControlSet\Control" -Name "SvcHostSplitThresholdInKB" -Value 380000 -Type "DWord"
+	} { return ((Get-SophiaRegValue -Path "HKLM:\SYSTEM\CurrentControlSet\Control" -Name "SvcHostSplitThresholdInKB") -gt 380000) } "SvcHostSplitThresholdInKB = RAM"
+	Add-Reg "EXT22" "Spectre/Meltdown: FeatureSettingsOverrideMask = 3 (cặp với CPU04)" $EXT "Hoàn tất vô hiệu mitigations: Override + Mask cùng =3 mới tắt triệt để (CPU04 đặt Override). Mất lớp bảo mật CPU — chỉ God Mode/máy chuyên dụng." "Extreme" @() "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "FeatureSettingsOverrideMask" 3 $null
+	Add-Reg "EXT23" "GlobalTimerResolutionRequests = 1 (Win11: timer 0.5ms áp TOÀN CỤC)" $EXT "Từ Win11 22H2, timer request bị giới hạn trong cửa sổ foreground. Registry kernel này khôi phục hành vi áp toàn hệ thống — bắt buộc để EXT02 phát huy tối đa." "Extreme" $GAME "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" "GlobalTimerResolutionRequests" 1 $null
+	Add-Reg "EXT24" "LanmanServer IRPStackSize = 32 (nhiều kết nối đồng thời)" $EXT "Tăng IRP stack cho Server service: farm mở hàng trăm kết nối/launcher/ADB song song không nghẽn stack mạng nội bộ." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters" "IRPStackSize" 32 15
+	Add-Reg "EXT25" "Tắt Game Presence Writer & GameInput nền" $EXT "GameInputService/Presence writer chạy nền theo dõi tay cầm & trạng thái game — tắt ghi nền thừa cho máy farm/chỉ dùng phím chuột." "Safe" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\GameInputSvc" "Start" 4 3
 
 	return $catalog.ToArray()
 }
