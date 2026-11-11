@@ -1,4 +1,4 @@
-<#
+﻿<#
 	.SYNOPSIS
 	Sophia Ultra Optimizer - Deep Tweaks Catalog (137 tweaks, 9 categories incl. EXTREME LAB, 6 modes)
 
@@ -491,6 +491,12 @@ function Get-SophiaTweaksCatalog
 	} {
 		Set-Service Spooler -StartupType Manual -ErrorAction SilentlyContinue
 	} { try { return ((Get-Service Spooler -ErrorAction SilentlyContinue).StartType -eq 'Disabled') } catch { return $false } } "Spooler Disabled"
+
+	# WinUtil integration (vendored offline from ChrisTitusTech/winutil, MIT): append converted tweaks if bridge is loaded
+	if (Get-Command Get-WinUtilConvertedTweaks -ErrorAction SilentlyContinue)
+	{
+		try { foreach ($winUtilTweak in (Get-WinUtilConvertedTweaks)) { $catalog.Add($winUtilTweak) } } catch {}
+	}
 
 	return $catalog.ToArray()
 }

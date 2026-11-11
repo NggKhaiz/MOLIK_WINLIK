@@ -1,6 +1,6 @@
 # 👑 Sophia Ultra Optimizer — Tick-Select CLI
 
-Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **137 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
+Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **162 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
 
 ## 🚀 Chạy nhanh — KHÔNG CẦN CÀI ĐẶT
 
@@ -32,7 +32,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/So
 | `3` | 🎬 **WORKSTATION / STREAM** | Render/OBS/compile: mạnh nhưng giữ ổn định & mitigations, ưu tiên GPU encode/foreground |
 | `4` | 🥔 **LOW-SPEC / POTATO PC** | Máy yếu RAM ≤8GB: tắt visual effects, services/background apps/telemetry thừa |
 | `5` | 🛡️ **SOPHIA STANDARD** | Privacy + gọn gàng an toàn chuẩn Sophia gốc, không đụng kernel/BCD |
-| `6` | 👑 **GOD MODE** | Toàn bộ 137 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
+| `6` | 👑 **GOD MODE** | Toàn bộ 162 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
 
 ## ⌨️ Điều khiển trong CLI
 
@@ -56,7 +56,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/So
 .\Sophia-Optimizer.ps1 -Mode EmulatorFarm -Apply -Yes   # áp dụng thẳng 1 mode
 .\Sophia-Optimizer.ps1 -Mode HardcoreGaming              # mở CLI đã tick sẵn mode Gaming
 .\Sophia-Optimizer.ps1 -ListModes                        # xem 6 mode
-.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 137 tweak
+.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 162 tweak
 .\Sophia-Optimizer.ps1 -PurgeRAM                         # dọn RAM ngay
 .\Sophia-Optimizer.ps1 -BoostEmulators                   # boost process giả lập
 .\Sophia-Optimizer.ps1 -ExportReport                     # xuất JSON báo cáo phần cứng + catalog
@@ -79,9 +79,13 @@ Optimizer/
   Core/Benchmark.ps1            # Benchmark CPU/Disk/RAM Before-After + so sánh %
   Core/PlanEngine.ps1           # Lập kế hoạch: phụ thuộc/mâu thuẫn/8 pha/Impact Score/cảnh báo
   Core/SmartAdvisor.ps1         # Tự khuyên Mode + tweak theo phần cứng thật của máy
+  Core/WinUtilBridge.ps1        # Cầu nối winutil (Chris Titus Tech, MIT) -> tweak bản địa, offline
+  Core/AppInstaller.ps1         # Cài 239 app qua winget (data vendor từ winutil)
+  Data/WinUtilTweaks.ps1        # 25 tweak winutil đã chuyển đổi + LICENSE-winutil.txt
+  Data/WinUtilApps.ps1          # 239 ứng dụng winget/choco
   Core/SophiaBridge.ps1         # Bridge vào Sophia.psm1 gốc theo đúng edition Win10/11/LTSC/ARM/PS7
                                 # (bỏ qua chặn cứng LGPO/UBR của InitialActions.ps1)
-  Catalog/TweaksCatalog.ps1     # 137 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
+  Catalog/TweaksCatalog.ps1     # 162 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
   UI/InteractiveCLI.ps1         # TUI tick-chọn [✓]/[ ], tìm kiếm, thực thi & log
 ```
 
@@ -114,6 +118,19 @@ Optimizer/
 **Smart Advisor** (`Optimizer/Core/SmartAdvisor.ps1`) đọc phần cứng thật: thấy giả lập → Farm, GPU AMD → thêm tắt ULPS, NVIDIA → thêm ép Power Limit, NVMe → thêm NTFS/Interrupt sâu, laptop → chặn tweak gây nóng.
 
 **EXTREME LAB mở rộng EXT34–EXT50:** WMI Autologger off, NetBIOS off, TCP CUBIC, Interrupt Priority GPU/NVMe, Pagefile ổ nhanh nhất, NIC buffers 2048, ưu tiên IPv4, NVIDIA Power Limit max, tắt HWP Autonomous, Boot Legacy, DEP off (God Mode), Unhide Power Settings, IFEO I/O Priority, Print Spooler off...
+
+## 🧩 Tích hợp WinUtil (Chris Titus Tech) — OFFLINE 100%, không cần tải
+
+Data của [winutil](https://github.com/ChrisTitusTech/winutil) (MIT License, xem `Optimizer/Data/LICENSE-winutil.txt`) đã được **vendor trực tiếp vào repo này** — chạy hoàn toàn offline, không tải thêm bất cứ gì lúc chạy:
+
+- **25 tweak winutil** (nhóm `10. WINUTIL` trong CLI): Brave Debloat, Edge Debloat (17 registry), tắt nhà Home/Gallery Explorer, End Task chuột phải, WPBT, giờ UTC, khóa màn hình, NumLock, Dark/BSoD verbose... Đã loại trừ các tweak trùng/mâu thuẫn với 137 tweak bản địa (GameDVR, telemetry, MPO, chuột 1:1...). Chuyển đổi bởi `Optimizer/Core/WinUtilBridge.ps1`, dữ liệu tại `Optimizer/Data/WinUtilTweaks.ps1`.
+- **239 ứng dụng cài qua winget** (kiểu winutil) tại `Optimizer/Data/WinUtilApps.ps1`:
+
+```powershell
+.\Sophia-Optimizer.ps1 -ListApps                       # xem 239 app / nhóm
+.\Sophia-Optimizer.ps1 -InstallApps "steam, vlc, chrome, discord"
+.\Sophia-Optimizer.ps1 -AppsMenu                       # menu chọn app (hoặc phím A trong Menu đơn giản)
+```
 
 ## 📊 Benchmark Before/After
 

@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 137 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 162 tweaks.
 #>
 
 function Get-SophiaModeTweakIds
@@ -190,8 +190,9 @@ function Show-SophiaSimpleMenu
 		Write-Host "   8. 🧠 Purge RAM ngay          9. 🖥️ Boost giả lập ngay" -ForegroundColor Green
 		Write-Host "   T. 📊 Benchmark (Before/After)   C. 📈 So sánh Benchmark" -ForegroundColor Green
 		Write-Host "   R. ↩️  Restore mặc định        S. 💾 Tạo Shortcut Desktop" -ForegroundColor Green
+		Write-Host "   A. 📦 Cài ứng dụng qua winget (kiểu winutil, 239 app)" -ForegroundColor Green
 		Write-Host "   0. Thoát" -ForegroundColor Yellow
-		$choice = Read-Host "  Chọn (0-9/G/T/C/R/S)"
+		$choice = Read-Host "  Chọn (0-9/G/A/T/C/R/S)"
 		if ($choice -match '^[1-6]$')
 		{
 			$m = $modes[[int]::Parse($choice) - 1]
@@ -215,6 +216,7 @@ function Show-SophiaSimpleMenu
 			}
 		}
 		elseif ($choice -eq '8') { if (Get-Command Invoke-SophiaRamPurge -ErrorAction SilentlyContinue) { Invoke-SophiaRamPurge } }
+		elseif ($choice -eq 'A' -or $choice -eq 'a') { if (Get-Command Show-SophiaAppInstallerMenu -ErrorAction SilentlyContinue) { Show-SophiaAppInstallerMenu } }
 		elseif ($choice -eq '9') { Invoke-EmulatorAutoBooster }
 		elseif ($choice -eq 'T' -or $choice -eq 't') { if (Get-Command Invoke-SophiaBenchmark -ErrorAction SilentlyContinue) { Invoke-SophiaBenchmark -Label "Menu" | Out-Null } }
 		elseif ($choice -eq 'C' -or $choice -eq 'c') { if (Get-Command Compare-SophiaBenchmarks -ErrorAction SilentlyContinue) { Compare-SophiaBenchmarks } }

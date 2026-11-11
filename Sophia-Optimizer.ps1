@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
 	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 137 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	(src/Sophia_Script_for_Windows_*) + 162 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -45,6 +45,9 @@ param(
 	[switch]$Menu,
 	[switch]$Smart,
 	[switch]$Plan,
+	[switch]$ListApps,
+	[string]$InstallApps = "",
+	[switch]$AppsMenu,
 	[switch]$ExportReport,
 	[string]$Search = ""
 )
@@ -96,6 +99,10 @@ $engineFiles = @(
 	"Optimizer\Core\Benchmark.ps1",
 	"Optimizer\Core\PlanEngine.ps1",
 	"Optimizer\Core\SmartAdvisor.ps1",
+	"Optimizer\Core\WinUtilBridge.ps1",
+	"Optimizer\Core\AppInstaller.ps1",
+	"Optimizer\Data\WinUtilTweaks.ps1",
+	"Optimizer\Data\WinUtilApps.ps1",
 	"Optimizer\Core\BackupRestore.ps1",
 	"Optimizer\Core\SophiaBridge.ps1",
 	"Optimizer\Catalog\TweaksCatalog.ps1",
@@ -159,6 +166,25 @@ if ($ExportReport)
 	$reportObj = @{ Snapshot = $snapshot; Modes = $modes; TweakCount = $catalog.Count; Catalog = @($catalog | Select-Object Id, Name, Category, Risk, Modes, Detail) }
 	$reportObj | ConvertTo-Json -Depth 6 | Set-Content $reportPath -Encoding UTF8
 	Write-Host "  [✓] Đã xuất báo cáo: $reportPath" -ForegroundColor Green
+	return
+}
+if ($ListApps)
+{
+	Get-SophiaAppsCatalog | Group-Object Category | Sort-Object Name | ForEach-Object {
+		Write-Host ""; Write-Host "  [$($_.Name)]" -ForegroundColor Magenta
+		$_.Group | Sort-Object Name | ForEach-Object { Write-Host ("    {0} ({1})" -f $_.Name, $_.Winget) }
+	}
+	Write-Host ""; Write-Host "  Tổng: $((Get-SophiaAppsCatalog).Count) ứng dụng (dữ liệu winutil, cài qua winget)" -ForegroundColor Cyan
+	return
+}
+if ($InstallApps)
+{
+	Install-SophiaApps -Queries @($InstallApps -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+	return
+}
+if ($AppsMenu)
+{
+	Show-SophiaAppInstallerMenu
 	return
 }
 if ($Benchmark)

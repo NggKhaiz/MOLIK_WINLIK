@@ -107,7 +107,7 @@ href="https://trendshift.io/repositories/17603"><img src="https://trendshift.io/
 
 ## 👑 Sophia Ultra Optimizer (Fork Add-on — Tick-Select CLI)
 
-> 🇻🇳 Tool tối ưu sâu do fork này bổ sung, nằm ngoài module Sophia gốc (`src/` giữ nguyên 100%): **137 tweak cực mạnh**, **6 mode riêng** cho từng nhu cầu và giao diện **tick-chọn CLI** `[✓]/[ ]`.
+> 🇻🇳 Tool tối ưu sâu do fork này bổ sung, nằm ngoài module Sophia gốc (`src/` giữ nguyên 100%): **162 tweak cực mạnh**, **6 mode riêng** cho từng nhu cầu và giao diện **tick-chọn CLI** `[✓]/[ ]`.
 
 ```powershell
 # KHÔNG CẦN CÀI ĐẶT: double-click Sophia-1Click.bat (tự tải bản Portable vào %TEMP% rồi chạy)
@@ -124,7 +124,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/So
 | 🛡️ `SophiaStandard` | Privacy & gọn gàng an toàn chuẩn Sophia |
 | 👑 `GodMode` | Toàn bộ tweak kể cả Extreme |
 
-Chi tiết: [Optimizer/README.md](Optimizer/README.md) · Chạy `.\Sophia-Optimizer.ps1 -ListTweaks` để xem toàn bộ catalog. Tool tự tạo System Restore Point + backup Registry/BCD trước khi áp dụng và khôi phục được bằng phím `R`.
+Tích hợp sẵn **winutil của Chris Titus Tech** (25 tweak + 239 app winget, vendor offline, MIT) — nhóm `10. WINUTIL` trong CLI và `-ListApps`/`-InstallApps`. Chi tiết: [Optimizer/README.md](Optimizer/README.md) · Chạy `.\Sophia-Optimizer.ps1 -ListTweaks` để xem toàn bộ catalog. Tool tự tạo System Restore Point + backup Registry/BCD trước khi áp dụng và khôi phục được bằng phím `R`.
 
 ## Key features
 
