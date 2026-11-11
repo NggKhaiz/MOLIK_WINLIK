@@ -474,3 +474,17 @@ function Set-SophiaNetAdapterCoalescing
 		}
 	} catch {}
 }
+
+function Set-SophiaNicWakeOff
+{
+	param([switch]$Restore)
+	try
+	{
+		Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -ne 'Disabled' } | ForEach-Object {
+			$val = "0"
+			if ($Restore) { $val = "1" }
+			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*WakeOnMagicPacket" -RegistryValue $val -NoRestart -ErrorAction SilentlyContinue } catch {}
+			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*WakeOnPattern" -RegistryValue $val -NoRestart -ErrorAction SilentlyContinue } catch {}
+		}
+	} catch {}
+}

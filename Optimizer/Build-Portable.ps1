@@ -6,7 +6,7 @@
 	Gộp toàn bộ engine (Core + Catalog + UI) vào launcher Sophia-Optimizer.ps1
 	ngay tại vị trí block nạp module, tạo thành 1 file .ps1 độc lập:
 	  - Tải 1 file về, chạy trực tiếp (kể cả để trong %TEMP%)
-	  - irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex
+	  - irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex
 	Không ghi gì vào máy ngoài backup/log ở C:\Sophia_Backups (chỉ khi bạn áp dụng tweak).
 
 	.EXAMPLE
@@ -62,7 +62,7 @@ $portable = [regex]::Replace($launcher, $pattern, [System.Text.RegularExpression
 
 if ($portable -eq $launcher) { throw "Không tìm thấy block nạp engine trong Sophia-Optimizer.ps1 — build thất bại." }
 
-$banner = "<#`r`n`tSophia Ultra Optimizer — PORTABLE (1 file duy nhất, KHÔNG CẦN CÀI ĐẶT)`r`n`tFile này được sinh tự động bởi Optimizer\Build-Portable.ps1 — đừng sửa tay, hãy sửa nguồn trong Optimizer/ rồi build lại.`r`n`tChạy: .\Sophia-Ultra-Portable.ps1  |  irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex`r`n#>`r`n"
+$banner = "<#`r`n`tMOLIK_WINLIK by @nggkhaiz — Sophia Ultra Optimizer PORTABLE (1 file duy nhat, KHONG CAN CAI DAT)`r`n`tFile này được sinh tự động bởi Optimizer\Build-Portable.ps1 — đừng sửa tay, hãy sửa nguồn trong Optimizer/ rồi build lại.`r`n`tChạy: .\Sophia-Ultra-Portable.ps1  |  irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`r`n#>`r`n"
 $portable = $banner + $portable
 
 $portable | Set-Content -Path $OutputPath -Encoding UTF8 -Force

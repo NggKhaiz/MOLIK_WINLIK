@@ -5,18 +5,19 @@
 	.DESCRIPTION
 	Gõ 1 lệnh trong PowerShell là tool chạy ngay trong bộ nhớ, không tải file về máy:
 
-	  irm "https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/win.ps1" | iex
+	  irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1" | iex
 
 	Hoặc link ngắn qua GitHub Pages (nếu đã bật):
 
-	  irm "nggkhaiz.github.io/Sophia-Script-for-Windows/win.ps1" | iex
+	  irm "nggkhaiz.github.io/MOLIK_WINLIK/win.ps1" | iex
 
+	(C) @nggkhaiz - MOLIK_WINLIK (based on Sophia Script by farag2 & winutil by Chris Titus Tech, MIT)
 	Script siêu nhẹ này chỉ làm 2 việc: tự nâng quyền Admin (mở cửa sổ mới, không đóng shell của bạn),
 	rồi nạp bản Sophia-Ultra-Portable.ps1 mới nhất từ GitHub của bạn vào bộ nhớ và chạy.
 	Không cài đặt, không giải nén, không để lại file tool nào trên máy.
 
 	.EXAMPLE
-	& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/win.ps1"))) -Mode HardcoreGaming
+	& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1"))) -Mode HardcoreGaming
 #>
 #Requires -Version 5.1
 [CmdletBinding()]
@@ -32,8 +33,8 @@ $ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
-$WinUrl = "https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/win.ps1"
-$PortableUrl = "https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1"
+$WinUrl = "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1"
+$PortableUrl = "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1"
 
 # ── Tự nâng quyền Admin (giữ nguyên shell hiện tại như winutil) ───────────────
 try
