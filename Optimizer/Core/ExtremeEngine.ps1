@@ -229,7 +229,8 @@ function Set-SophiaPowerSetting
 function Import-SophiaUltimatePowerProfile
 {
 	& powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null | Out-Null
-	$line = (& powercfg /list 2>$null | Select-String "Ultimate Performance" | Select-Object -First 1).ToString()
+	$lineMatch = & powercfg /list 2>$null | Select-String "Ultimate Performance" | Select-Object -First 1
+	$line = if ($lineMatch) { $lineMatch.ToString() } else { "" }
 	if ($line -match '([0-9a-f]{8}-[0-9a-f-]+)') { & powercfg /setactive $Matches[1] 2>$null | Out-Null }
 	# SUB_PROCESSOR 54533251-82be-4824-96c1-47b60b740d00
 	Set-SophiaPowerSetting "54533251-82be-4824-96c1-47b60b740d00" "893dee8e-2bef-41e0-89c6-b55d0929964c" 100   # PROCTHROTTLEMIN
@@ -458,4 +459,18 @@ function Unhide-SophiaPowerSettings
 	{
 		Set-SophiaRegValue -Path ("HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\" + $s) -Name "Attributes" -Value $attrValue -Type "DWord"
 	}
+}
+
+function Set-SophiaNetAdapterCoalescing
+{
+	param([switch]$Restore)
+	try
+	{
+		Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -ne 'Disabled' } | ForEach-Object {
+			$val = "1"
+			if (-not $Restore) { $val = "0" }
+			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*PacketCoalescing" -RegistryValue $val -NoRestart -ErrorAction SilentlyContinue } catch {}
+			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*DmaCoalescing" -RegistryValue $val -NoRestart -ErrorAction SilentlyContinue } catch {}
+		}
+	} catch {}
 }

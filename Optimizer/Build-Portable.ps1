@@ -34,6 +34,7 @@ $engineFiles = @(
 	"Core\AppInstaller.ps1",
 	"Data\WinUtilTweaks.ps1",
 	"Data\WinUtilApps.ps1",
+	"Core\SelfTest.ps1",
 	"Core\BackupRestore.ps1",
 	"Core\SophiaBridge.ps1",
 	"Catalog\TweaksCatalog.ps1",
@@ -57,7 +58,7 @@ $launcher = (Get-Content -Path (Join-Path $RepoRoot "Sophia-Optimizer.ps1") -Raw
 
 $pattern = '(?ms)^\$engineFiles = @\(.*?^\}$'
 $replacement = "# [PORTABLE] Toàn bộ engine đã được nhúng trực tiếp bên dưới — không cần file phụ, không cần cài đặt.`r`n" + $functionsBundle.ToString()
-$portable = [regex]::Replace($launcher, $pattern, $replacement)
+$portable = [regex]::Replace($launcher, $pattern, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $replacement })
 
 if ($portable -eq $launcher) { throw "Không tìm thấy block nạp engine trong Sophia-Optimizer.ps1 — build thất bại." }
 

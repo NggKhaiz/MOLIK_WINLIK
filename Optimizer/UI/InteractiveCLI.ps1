@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 162 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 170 tweaks.
 #>
 
 function Get-SophiaModeTweakIds
@@ -27,20 +27,6 @@ function Invoke-SophiaSelectedTweaks
 		return
 	}
 
-	$extreme = @($selected | Where-Object { $_.Risk -eq "Extreme" })
-	if ($extreme.Count -gt 0 -and -not $Force)
-	{
-		Write-Host ""
-		Write-Host "  ⚠ CẢNH BÁO: Có $($extreme.Count) tweak mức EXTREME (đánh đổi bảo mật/ổn định lấy hiệu năng):" -ForegroundColor Red
-		$extreme | ForEach-Object { Write-Host "      - [$($_.Id)] $($_.Name)" -ForegroundColor Yellow }
-		$confirmExtreme = Read-Host "  Gõ 'EXTREME' (viết hoa) để xác nhận áp dụng, hoặc ENTER để hủy"
-		if ($confirmExtreme -ne 'EXTREME')
-		{
-			Write-Host "  Đã hủy. Bỏ tick các tweak [Extreme] màu đỏ nếu bạn không chắc chắn." -ForegroundColor Yellow
-			return
-		}
-	}
-
 	# Plan Engine: phân tích phụ thuộc/mâu thuẫn + sắp xếp theo pha an toàn trước khi chạm vào hệ thống
 	if (Get-Command Get-SophiaOptimizationPlan -ErrorAction SilentlyContinue)
 	{
@@ -55,6 +41,20 @@ function Invoke-SophiaSelectedTweaks
 			$selected = @($plan.Items | ForEach-Object { $_.Tweak })
 		}
 		catch { Write-Host "  [!] Plan Engine lỗi ($($_.Exception.Message)) — áp dụng theo thứ tự thường." -ForegroundColor Yellow }
+	}
+
+	$extreme = @($selected | Where-Object { $_.Risk -eq "Extreme" })
+	if ($extreme.Count -gt 0 -and -not $Force)
+	{
+		Write-Host ""
+		Write-Host "  ⚠ CẢNH BÁO: Có $($extreme.Count) tweak mức EXTREME (đánh đổi bảo mật/ổn định lấy hiệu năng):" -ForegroundColor Red
+		$extreme | ForEach-Object { Write-Host "      - [$($_.Id)] $($_.Name)" -ForegroundColor Yellow }
+		$confirmExtreme = Read-Host "  Gõ 'EXTREME' (viết hoa) để xác nhận áp dụng, hoặc ENTER để hủy"
+		if ($confirmExtreme -ne 'EXTREME')
+		{
+			Write-Host "  Đã hủy. Bỏ tick các tweak [Extreme] màu đỏ nếu bạn không chắc chắn." -ForegroundColor Yellow
+			return
+		}
 	}
 
 	$logDir = "$env:SystemDrive\Sophia_Backups\Logs"
@@ -191,6 +191,7 @@ function Show-SophiaSimpleMenu
 		Write-Host "   T. 📊 Benchmark (Before/After)   C. 📈 So sánh Benchmark" -ForegroundColor Green
 		Write-Host "   R. ↩️  Restore mặc định        S. 💾 Tạo Shortcut Desktop" -ForegroundColor Green
 		Write-Host "   A. 📦 Cài ứng dụng qua winget (kiểu winutil, 239 app)" -ForegroundColor Green
+		Write-Host "   D. 🩺 SELF-TEST / DEBUG toàn diện (kiểm tra tool, không đổi hệ thống)" -ForegroundColor Green
 		Write-Host "   0. Thoát" -ForegroundColor Yellow
 		$choice = Read-Host "  Chọn (0-9/G/A/T/C/R/S)"
 		if ($choice -match '^[1-6]$')
@@ -217,6 +218,7 @@ function Show-SophiaSimpleMenu
 		}
 		elseif ($choice -eq '8') { if (Get-Command Invoke-SophiaRamPurge -ErrorAction SilentlyContinue) { Invoke-SophiaRamPurge } }
 		elseif ($choice -eq 'A' -or $choice -eq 'a') { if (Get-Command Show-SophiaAppInstallerMenu -ErrorAction SilentlyContinue) { Show-SophiaAppInstallerMenu } }
+		elseif ($choice -eq 'D' -or $choice -eq 'd') { if (Get-Command Test-SophiaOptimizerHealth -ErrorAction SilentlyContinue) { Test-SophiaOptimizerHealth -Catalog $Catalog | Out-Null; Read-Host '  Nhấn ENTER để quay lại menu' } }
 		elseif ($choice -eq '9') { Invoke-EmulatorAutoBooster }
 		elseif ($choice -eq 'T' -or $choice -eq 't') { if (Get-Command Invoke-SophiaBenchmark -ErrorAction SilentlyContinue) { Invoke-SophiaBenchmark -Label "Menu" | Out-Null } }
 		elseif ($choice -eq 'C' -or $choice -eq 'c') { if (Get-Command Compare-SophiaBenchmarks -ErrorAction SilentlyContinue) { Compare-SophiaBenchmarks } }
@@ -273,7 +275,8 @@ function Show-SophiaOptimizerUI
 
 	$getFiltered = {
 		if ([string]::IsNullOrWhiteSpace($searchTerm)) { return @($Catalog) }
-		return @($Catalog | Where-Object { $_.Name -match $searchTerm -or $_.Id -match $searchTerm -or $_.Category -match $searchTerm -or $_.Description -match $searchTerm })
+		$term = $searchTerm.ToLower()
+		return @($Catalog | Where-Object { $_.Name.ToLower().Contains($term) -or $_.Id.ToLower().Contains($term) -or $_.Category.ToLower().Contains($term) -or $_.Description.ToLower().Contains($term) })
 	}
 
 	while ($true)

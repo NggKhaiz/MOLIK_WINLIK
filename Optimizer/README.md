@@ -1,6 +1,6 @@
 # 👑 Sophia Ultra Optimizer — Tick-Select CLI
 
-Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **162 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
+Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **170 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
 
 ## 🚀 Chạy nhanh — KHÔNG CẦN CÀI ĐẶT
 
@@ -32,7 +32,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/So
 | `3` | 🎬 **WORKSTATION / STREAM** | Render/OBS/compile: mạnh nhưng giữ ổn định & mitigations, ưu tiên GPU encode/foreground |
 | `4` | 🥔 **LOW-SPEC / POTATO PC** | Máy yếu RAM ≤8GB: tắt visual effects, services/background apps/telemetry thừa |
 | `5` | 🛡️ **SOPHIA STANDARD** | Privacy + gọn gàng an toàn chuẩn Sophia gốc, không đụng kernel/BCD |
-| `6` | 👑 **GOD MODE** | Toàn bộ 162 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
+| `6` | 👑 **GOD MODE** | Toàn bộ 170 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
 
 ## ⌨️ Điều khiển trong CLI
 
@@ -56,7 +56,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/So
 .\Sophia-Optimizer.ps1 -Mode EmulatorFarm -Apply -Yes   # áp dụng thẳng 1 mode
 .\Sophia-Optimizer.ps1 -Mode HardcoreGaming              # mở CLI đã tick sẵn mode Gaming
 .\Sophia-Optimizer.ps1 -ListModes                        # xem 6 mode
-.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 162 tweak
+.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 170 tweak
 .\Sophia-Optimizer.ps1 -PurgeRAM                         # dọn RAM ngay
 .\Sophia-Optimizer.ps1 -BoostEmulators                   # boost process giả lập
 .\Sophia-Optimizer.ps1 -ExportReport                     # xuất JSON báo cáo phần cứng + catalog
@@ -85,7 +85,7 @@ Optimizer/
   Data/WinUtilApps.ps1          # 239 ứng dụng winget/choco
   Core/SophiaBridge.ps1         # Bridge vào Sophia.psm1 gốc theo đúng edition Win10/11/LTSC/ARM/PS7
                                 # (bỏ qua chặn cứng LGPO/UBR của InitialActions.ps1)
-  Catalog/TweaksCatalog.ps1     # 162 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
+  Catalog/TweaksCatalog.ps1     # 170 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
   UI/InteractiveCLI.ps1         # TUI tick-chọn [✓]/[ ], tìm kiếm, thực thi & log
 ```
 
@@ -144,6 +144,13 @@ Data của [winutil](https://github.com/ChrisTitusTech/winutil) (MIT License, xe
 ```
 
 Trong CLI: phím `V` = kiểm tra tweak nào đã áp dụng (●), `T` = chạy benchmark, `S`/`L` = lưu/nạp Profile tick chọn (JSON, mang sang máy khác áp y hệt: `-Profile file.json`). Host không hỗ trợ phím trực tiếp sẽ tự chuyển sang **Menu đơn giản** (hoặc cờ `-Menu`), trong menu có sẵn mục tạo **Shortcut Desktop** để lần sau double-click là chạy.
+
+## 🩺 Self-Test / Debug toàn diện
+
+```powershell
+.\Sophia-Optimizer.ps1 -SelfTest     # parse cú pháp, dựng catalog, chạy thử 170 CheckScript (chỉ đọc)
+# hoặc phím D trong Menu đơn giản — không thay đổi gì trên hệ thống
+```
 
 ## 🛟 An toàn & khôi phục
 

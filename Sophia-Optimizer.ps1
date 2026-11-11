@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
 	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 162 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	(src/Sophia_Script_for_Windows_*) + 170 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -48,6 +48,7 @@ param(
 	[switch]$ListApps,
 	[string]$InstallApps = "",
 	[switch]$AppsMenu,
+	[switch]$SelfTest,
 	[switch]$ExportReport,
 	[string]$Search = ""
 )
@@ -82,6 +83,12 @@ try
 		if ($PurgeRAM) { $argList += "-PurgeRAM" }
 		if ($Profile) { $argList += @("-Profile", "`"$Profile`"") }
 		if ($Menu) { $argList += "-Menu" }
+		if ($Smart) { $argList += "-Smart" }
+		if ($Plan) { $argList += "-Plan" }
+		if ($SelfTest) { $argList += "-SelfTest" }
+		if ($ListApps) { $argList += "-ListApps" }
+		if ($AppsMenu) { $argList += "-AppsMenu" }
+		if ($InstallApps) { $argList += @("-InstallApps", "`"$InstallApps`"") }
 		if ($BoostEmulators) { $argList += "-BoostEmulators" }
 		if ($RestoreDefaults) { $argList += "-RestoreDefaults" }
 		Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
@@ -103,6 +110,7 @@ $engineFiles = @(
 	"Optimizer\Core\AppInstaller.ps1",
 	"Optimizer\Data\WinUtilTweaks.ps1",
 	"Optimizer\Data\WinUtilApps.ps1",
+	"Optimizer\Core\SelfTest.ps1",
 	"Optimizer\Core\BackupRestore.ps1",
 	"Optimizer\Core\SophiaBridge.ps1",
 	"Optimizer\Catalog\TweaksCatalog.ps1",
@@ -142,6 +150,11 @@ if ($Plan)
 	$planObj = Get-SophiaOptimizationPlan -Catalog $catalog -SelectedIds $ids -Snapshot $snapshot
 	Show-SophiaOptimizationPlan -Plan $planObj -Title "KẾ HOẠCH SIÊU SÂU - Mode $Mode (chưa áp dụng)"
 	Write-Host "  Để thực thi: chạy lại với -Apply (và -Smart nếu muốn Smart Advisor chọn hộ)." -ForegroundColor Yellow
+	return
+}
+if ($SelfTest)
+{
+	Test-SophiaOptimizerHealth -RepoRoot $RepoRoot -Catalog $catalog | Out-Null
 	return
 }
 if ($ListModes)

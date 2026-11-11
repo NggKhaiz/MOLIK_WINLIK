@@ -186,7 +186,7 @@ function Get-SophiaTweaksCatalog
 	# ═══════════════ 2. GAMING ═══════════════
 	Add-Cmd "GAM01" "Ultimate Performance Power Plan (bỏ giới hạn tiết kiệm điện)" $GAM "Kích hoạt plan Ultimate Performance (duplicated từ GUID e9a42b02...) — CPU/GPU luôn sẵn sàng, giảm latency do power-state transition." "Safe" ($FARM_GAME+$WORK) {
 		& powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null | Out-Null
-		$ultimate = (& powercfg /list 2>$null | Select-String "Ultimate Performance").ToString()
+		$ultimate = (& powercfg /list 2>$null | Select-String "Ultimate Performance" | Select-Object -First 1).ToString()
 		if ($ultimate -match '([0-9a-f]{8}-[0-9a-f-]+)') { & powercfg /setactive $Matches[1] 2>$null | Out-Null }
 	} { & powercfg /setactive SCHEME_BALANCED 2>$null | Out-Null } { return ((& powercfg /getactivescheme 2>$null) -match 'Ultimate') } "powercfg Ultimate Performance"
 	Add-Reg "GAM02" "Tắt Game DVR / Background Recording (giảm stutter & FPS drop)" $GAM "Game DVR ghi hình nền ăn GPU/CPU và gây frame-time spike. Tắt AppCapture + GameDVR_Enabled chuẩn Sophia." "Safe" ($GAME+$WORK+$STD) "HKCU:\System\GameConfigStore" "GameDVR_Enabled" 0 1
@@ -497,6 +497,21 @@ function Get-SophiaTweaksCatalog
 	{
 		try { foreach ($winUtilTweak in (Get-WinUtilConvertedTweaks)) { $catalog.Add($winUtilTweak) } } catch {}
 	}
+
+	Add-Reg "EXT51" "Tắt TDR hoàn toàn (TdrLevel = 0) — GPU load nặng không bị reset driver" $EXT "Bậc cực hạn hơn GPU03: vô hiệu cơ chế Timeout Detection & Recovery — render/farm GPU 100% dài không bị Windows giết driver giữa chừng. Máy treo thì phải reset cứng." "Extreme" @() "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" "TdrLevel" 0 2
+	Add-Cmd "EXT52" "Tắt Packet/DMA Coalescing trên NIC (gói tin không bị gom chờ)" $EXT "Coalescing gom gói để tiết kiệm CPU nhưng cộng thêm độ trễ từng gói. Tắt *PacketCoalescing + *DmaCoalescing cho ping/latency tối thiểu tuyệt đối." "Extreme" $GAME {
+		Set-SophiaNetAdapterCoalescing
+	} { Set-SophiaNetAdapterCoalescing -Restore } { return $false } "Set-NetAdapterAdvancedProperty *PacketCoalescing=0"
+	Add-Cmd "EXT53" "Tắt UpdateOrchestrator Tasks (không quét update nền bất chợt)" $EXT "Disable các task Schedule Scan/UpdateModelTask của Update Orchestrator: hết cảnh CPU/disk spike vì Windows tự quét update giữa lúc treo farm/stream." "Moderate" $FARM {
+		Get-ScheduledTask -TaskPath "\Microsoft\Windows\UpdateOrchestrator\" -ErrorAction SilentlyContinue | Disable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null
+	} {
+		Get-ScheduledTask -TaskPath "\Microsoft\Windows\UpdateOrchestrator\" -ErrorAction SilentlyContinue | Enable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null
+	} { return $false } "Disable-ScheduledTask UpdateOrchestrator"
+	Add-Reg "EXT54" "DistributeTimers = 1 (phân bổ timer interrupts ra mọi CPU)" $EXT "Kernel phân phối bộ định thời ngắt đều khắp các lõi thay vì dồn Core 0 — giảm nghẽn ngắt trên máy nhiều instance/game nặng về timer." "Extreme" $GAME "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" "DistributeTimers" 1 $null
+	Add-Reg "EXT55" "AlwaysUnloadDLL = 1 (giải phóng DLL khỏi RAM ngay khi app đóng)" $EXT "Explorer/loader gỡ DLL khỏi bộ nhớ ngay khi tiến trình cuối cùng nhả ra — farm mở/đóng app liên tục giữ RAM sạch, ít phình theo thời gian." "Moderate" ($FARM+$LOW) "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" "AlwaysUnloadDLL" 1 0
+	Add-Reg "EXT56" "Tắt CEIP (SQMClient CEIPEnable = 0)" $EXT "Tắt nốt kênh Customer Experience Improvement qua registry SQMClient — đi cùng PRI01 thành bộ chặn telemetry hai lớp (Policy + Legacy)." "Safe" ($STD+$LOW) "HKLM:\SOFTWARE\Microsoft\SQMClient\Windows" "CEIPEnable" 0 1
+	Add-Reg "EXT57" "Tắt Program Inventory (TurnOffProgramInventory = 1)" $EXT "AppCompat không còn quét/thống kê ứng dụng đã cài chạy nền định kỳ — bớt một nguồn I/O và telemetry tương thích thừa trên máy farm." "Safe" ($STD+$FARM) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat" "TurnOffProgramInventory" 1 0
+	Add-Reg "EXT58" "TcpFinWait2Delay = 30s (đóng kết nối TCP dứt điểm nhanh)" $EXT "Đi cùng NET09: giảm thời gian chờ FIN_WAIT_2 từ mặc định 100s xuống 30s — launcher/ADB/giả lập đóng-mở nghìn kết nối không bị treo cổng chờ." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "TcpFinWait2Delay" 30000 100000
 
 	return $catalog.ToArray()
 }

@@ -103,11 +103,13 @@ function Initialize-SophiaNativeModule
 		{
 			try
 			{
-				Import-LocalizedData -BindingVariable Global:Localization -UICulture $PSUICulture -BaseDirectory $LocalizationsDir -FileName Sophia -ErrorAction Stop
+				Import-LocalizedData -BindingVariable Localization -UICulture $PSUICulture -BaseDirectory $LocalizationsDir -FileName Sophia -ErrorAction Stop
+				if ($Localization) { $Global:Localization = $Localization }
 			}
 			catch
 			{
-				Import-LocalizedData -BindingVariable Global:Localization -UICulture en-US -BaseDirectory $LocalizationsDir -FileName Sophia -ErrorAction SilentlyContinue
+				Import-LocalizedData -BindingVariable Localization -UICulture en-US -BaseDirectory $LocalizationsDir -FileName Sophia -ErrorAction SilentlyContinue
+				if ($Localization) { $Global:Localization = $Localization }
 			}
 		}
 

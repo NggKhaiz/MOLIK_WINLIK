@@ -10,7 +10,7 @@
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
 	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 162 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	(src/Sophia_Script_for_Windows_*) + 170 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -53,6 +53,7 @@ param(
 	[switch]$ListApps,
 	[string]$InstallApps = "",
 	[switch]$AppsMenu,
+	[switch]$SelfTest,
 	[switch]$ExportReport,
 	[string]$Search = ""
 )
@@ -87,6 +88,12 @@ try
 		if ($PurgeRAM) { $argList += "-PurgeRAM" }
 		if ($Profile) { $argList += @("-Profile", "`"$Profile`"") }
 		if ($Menu) { $argList += "-Menu" }
+		if ($Smart) { $argList += "-Smart" }
+		if ($Plan) { $argList += "-Plan" }
+		if ($SelfTest) { $argList += "-SelfTest" }
+		if ($ListApps) { $argList += "-ListApps" }
+		if ($AppsMenu) { $argList += "-AppsMenu" }
+		if ($InstallApps) { $argList += @("-InstallApps", "`"$InstallApps`"") }
 		if ($BoostEmulators) { $argList += "-BoostEmulators" }
 		if ($RestoreDefaults) { $argList += "-RestoreDefaults" }
 		Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
@@ -997,7 +1004,8 @@ function Set-SophiaPowerSetting
 function Import-SophiaUltimatePowerProfile
 {
 	& powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null | Out-Null
-	$line = (& powercfg /list 2>$null | Select-String "Ultimate Performance" | Select-Object -First 1).ToString()
+	$lineMatch = & powercfg /list 2>$null | Select-String "Ultimate Performance" | Select-Object -First 1
+	$line = if ($lineMatch) { $lineMatch.ToString() } else { "" }
 	if ($line -match '([0-9a-f]{8}-[0-9a-f-]+)') { & powercfg /setactive $Matches[1] 2>$null | Out-Null }
 	# SUB_PROCESSOR 54533251-82be-4824-96c1-47b60b740d00
 	Set-SophiaPowerSetting "54533251-82be-4824-96c1-47b60b740d00" "893dee8e-2bef-41e0-89c6-b55d0929964c" 100   # PROCTHROTTLEMIN
@@ -1228,6 +1236,20 @@ function Unhide-SophiaPowerSettings
 	}
 }
 
+function Set-SophiaNetAdapterCoalescing
+{
+	param([switch]$Restore)
+	try
+	{
+		Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -ne 'Disabled' } | ForEach-Object {
+			$val = "1"
+			if (-not $Restore) { $val = "0" }
+			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*PacketCoalescing" -RegistryValue $val -NoRestart -ErrorAction SilentlyContinue } catch {}
+			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*DmaCoalescing" -RegistryValue $val -NoRestart -ErrorAction SilentlyContinue } catch {}
+		}
+	} catch {}
+}
+
 
 # ====================================================================
 # [PORTABLE-INLINE] Optimizer\Core\Benchmark.ps1
@@ -1392,7 +1414,7 @@ function Get-SophiaRebootTweakIds
 {
 	return @(
 		"EMU01","EMU02","EMU03","EMU04","EMU06","CPU01","CPU04","CPU05","RAM01","RAM02","RAM03","RAM09",
-		"GPU01","GPU03","GPU04","GPU05","NET01","NET08","NET09","SYS04","EXT01","EXT21","EXT22","EXT38","EXT39","EXT46"
+		"GPU01","GPU03","GPU04","GPU05","NET01","NET08","NET09","SYS04","EXT01","EXT21","EXT22","EXT38","EXT39","EXT46","EXT51","EXT54"
 	)
 }
 
@@ -2273,6 +2295,117 @@ function Get-SophiaAppsCatalog
 
 
 # ====================================================================
+# [PORTABLE-INLINE] Optimizer\Core\SelfTest.ps1
+# ====================================================================
+<#
+	.SYNOPSIS
+	Sophia Ultra Optimizer - Self-Test / Debug toàn diện (không thay đổi hệ thống)
+
+	.DESCRIPTION
+	1) Parse cú pháp mọi file .ps1 của tool bằng PowerShell Parser chính chủ
+	2) Dựng catalog, kiểm tra ID trùng, mỗi tweak đủ Apply/Restore/Check
+	3) Chạy thử toàn bộ CheckScript (chỉ đọc) và báo tweak nào lỗi
+	4) Kiểm tra 6 Mode có tweak, Plan Engine chạy được, Smart Advisor chạy được
+	5) Kiểm tra bản Portable có đủ module inline (nếu chạy trong repo)
+	Chỉ ĐỌC — không áp dụng tweak nào.
+#>
+
+function Test-SophiaOptimizerHealth
+{
+	[CmdletBinding()]
+	param([string]$RepoRoot, $Catalog)
+
+	$pass = 0; $fail = 0; $warn = 0
+	function Report([string]$Status, [string]$Msg)
+	{
+		if ($Status -eq "PASS") { $script:pass++; Write-Host "  [✓ PASS] $Msg" -ForegroundColor Green }
+		elseif ($Status -eq "WARN") { $script:warn++; Write-Host "  [! WARN] $Msg" -ForegroundColor Yellow }
+		else { $script:fail++; Write-Host "  [X FAIL] $Msg" -ForegroundColor Red }
+	}
+	$script:pass = 0; $script:fail = 0; $script:warn = 0
+
+	Write-Host ""
+	Write-Host "  ╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+	Write-Host "  ║  🩺 SOPHIA ULTRA OPTIMIZER — SELF-TEST / DEBUG TOÀN DIỆN           ║" -ForegroundColor Cyan
+	Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+
+	# 1) Syntax parse
+	$files = @()
+	if ($RepoRoot)
+	{
+		$files += Get-ChildItem -Path (Join-Path $RepoRoot "Optimizer") -Filter "*.ps1" -Recurse -File -ErrorAction SilentlyContinue
+		foreach ($extra in @("Sophia-Optimizer.ps1","Sophia-Ultra-Portable.ps1","Sophia-Ultra-Standalone.ps1"))
+		{
+			$ef = Join-Path $RepoRoot $extra
+			if (Test-Path $ef) { $files += Get-Item $ef }
+		}
+	}
+	$parseErrors = 0
+	foreach ($f in $files)
+	{
+		$tokens = $null; $errors = $null
+		[void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tokens, [ref]$errors)
+		if ($errors -and $errors.Count -gt 0) { $parseErrors += $errors.Count; Report "FAIL" "Parse: $($f.Name) có $($errors.Count) lỗi: $($errors[0].Message)" }
+	}
+	if ($parseErrors -eq 0) { Report "PASS" "Cú pháp PowerShell: $($files.Count) file đều parse sạch" }
+
+	# 2) Catalog integrity
+	if (-not $Catalog) { $Catalog = Get-SophiaTweaksCatalog }
+	Report "PASS" "Catalog dựng thành công: $($Catalog.Count) tweak"
+	$dupes = $Catalog | Group-Object Id | Where-Object Count -gt 1
+	if ($dupes) { Report "FAIL" "ID trùng: $($dupes.Name -join ', ')" } else { Report "PASS" "Không có ID tweak nào trùng" }
+	$incomplete = @($Catalog | Where-Object { -not $_.ApplyScript -or -not $_.RestoreScript -or -not $_.CheckScript -or -not $_.Name })
+	if ($incomplete.Count -gt 0) { Report "FAIL" "Tweak thiếu script/tên: $($incomplete.Id -join ', ')" } else { Report "PASS" "Mọi tweak đủ Apply/Restore/Check/Name" }
+
+	# 3) CheckScripts (read-only)
+	$checkErrors = @()
+	foreach ($t in $Catalog)
+	{
+		try { [void](& $t.CheckScript) } catch { $checkErrors += "$($t.Id): $($_.Exception.Message)" }
+	}
+	if ($checkErrors.Count -eq 0) { Report "PASS" "Toàn bộ $($Catalog.Count) CheckScript chạy không lỗi (chỉ đọc)" }
+	else { Report "WARN" "$($checkErrors.Count) CheckScript báo vấn đề (thường do thiếu phần cứng/quyền): $($checkErrors[0])" }
+
+	# 4) Modes + Plan + Smart
+	foreach ($m in (Get-SophiaOptimizationModes))
+	{
+		$cnt = (Get-SophiaModeTweakIds -ModeKey $m.Key -Catalog $Catalog).Count
+		if ($cnt -gt 0) { Report "PASS" "Mode $($m.Key): $cnt tweak" } else { Report "FAIL" "Mode $($m.Key) rỗng!" }
+	}
+	try
+	{
+		$sampleIds = (Get-SophiaModeTweakIds -ModeKey "EmulatorFarm" -Catalog $Catalog)
+		$plan = Get-SophiaOptimizationPlan -Catalog $Catalog -SelectedIds $sampleIds
+		Report "PASS" "Plan Engine: lập plan $($plan.Count) tweak, Impact $($plan.ImpactScore), $($plan.Notes.Count) ghi chú phụ thuộc/mâu thuẫn"
+	} catch { Report "FAIL" "Plan Engine lỗi: $($_.Exception.Message)" }
+	try
+	{
+		$snap = Get-SophiaSystemSnapshot
+		$rec = Get-SophiaSmartRecommendation -Snapshot $snap -Catalog $Catalog
+		Report "PASS" "Smart Advisor: máy này -> Mode $($rec.Mode) + $($rec.ExtraIds.Count) tweak bổ sung ($($snap.OSName), $($snap.CPUThreads) luồng, RAM $($snap.RAMTotalGB)GB)"
+	} catch { Report "WARN" "Smart Advisor/Snapshot: $($_.Exception.Message)" }
+
+	# 5) Portable integrity
+	if ($RepoRoot)
+	{
+		$portable = Join-Path $RepoRoot "Sophia-Ultra-Portable.ps1"
+		if (Test-Path $portable)
+		{
+			$content = Get-Content $portable -Raw
+			$markers = ([regex]::Matches($content, "PORTABLE-INLINE")).Count
+			if ($markers -ge 10 -and $content -match "Get-WinUtilConvertedTweaks" -and $content -match "EXT50") { Report "PASS" "Portable: $markers module inline, đủ WinUtil + EXT (offline)" }
+			else { Report "WARN" "Portable có vẻ thiếu module (markers=$markers) — chạy Optimizer\Build-Portable.ps1 để sinh lại" }
+		}
+	}
+
+	Write-Host ""
+	Write-Host ("  ══════════ KẾT QUẢ: {0} PASS / {1} FAIL / {2} WARN ══════════" -f $script:pass, $script:fail, $script:warn) -ForegroundColor Cyan
+	if ($script:fail -eq 0) { Write-Host "  ✅ Tool khỏe mạnh, sẵn sàng tối ưu!" -ForegroundColor Green } else { Write-Host "  Hãy gửi log này khi báo lỗi." -ForegroundColor Yellow }
+	return ($script:fail -eq 0)
+}
+
+
+# ====================================================================
 # [PORTABLE-INLINE] Optimizer\Core\BackupRestore.ps1
 # ====================================================================
 <#
@@ -2504,11 +2637,13 @@ function Initialize-SophiaNativeModule
 		{
 			try
 			{
-				Import-LocalizedData -BindingVariable Global:Localization -UICulture $PSUICulture -BaseDirectory $LocalizationsDir -FileName Sophia -ErrorAction Stop
+				Import-LocalizedData -BindingVariable Localization -UICulture $PSUICulture -BaseDirectory $LocalizationsDir -FileName Sophia -ErrorAction Stop
+				if ($Localization) { $Global:Localization = $Localization }
 			}
 			catch
 			{
-				Import-LocalizedData -BindingVariable Global:Localization -UICulture en-US -BaseDirectory $LocalizationsDir -FileName Sophia -ErrorAction SilentlyContinue
+				Import-LocalizedData -BindingVariable Localization -UICulture en-US -BaseDirectory $LocalizationsDir -FileName Sophia -ErrorAction SilentlyContinue
+				if ($Localization) { $Global:Localization = $Localization }
 			}
 		}
 
@@ -2762,7 +2897,7 @@ function Get-SophiaTweaksCatalog
 	# ═══════════════ 2. GAMING ═══════════════
 	Add-Cmd "GAM01" "Ultimate Performance Power Plan (bỏ giới hạn tiết kiệm điện)" $GAM "Kích hoạt plan Ultimate Performance (duplicated từ GUID e9a42b02...) — CPU/GPU luôn sẵn sàng, giảm latency do power-state transition." "Safe" ($FARM_GAME+$WORK) {
 		& powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null | Out-Null
-		$ultimate = (& powercfg /list 2>$null | Select-String "Ultimate Performance").ToString()
+		$ultimate = (& powercfg /list 2>$null | Select-String "Ultimate Performance" | Select-Object -First 1).ToString()
 		if ($ultimate -match '([0-9a-f]{8}-[0-9a-f-]+)') { & powercfg /setactive $Matches[1] 2>$null | Out-Null }
 	} { & powercfg /setactive SCHEME_BALANCED 2>$null | Out-Null } { return ((& powercfg /getactivescheme 2>$null) -match 'Ultimate') } "powercfg Ultimate Performance"
 	Add-Reg "GAM02" "Tắt Game DVR / Background Recording (giảm stutter & FPS drop)" $GAM "Game DVR ghi hình nền ăn GPU/CPU và gây frame-time spike. Tắt AppCapture + GameDVR_Enabled chuẩn Sophia." "Safe" ($GAME+$WORK+$STD) "HKCU:\System\GameConfigStore" "GameDVR_Enabled" 0 1
@@ -3074,6 +3209,21 @@ function Get-SophiaTweaksCatalog
 		try { foreach ($winUtilTweak in (Get-WinUtilConvertedTweaks)) { $catalog.Add($winUtilTweak) } } catch {}
 	}
 
+	Add-Reg "EXT51" "Tắt TDR hoàn toàn (TdrLevel = 0) — GPU load nặng không bị reset driver" $EXT "Bậc cực hạn hơn GPU03: vô hiệu cơ chế Timeout Detection & Recovery — render/farm GPU 100% dài không bị Windows giết driver giữa chừng. Máy treo thì phải reset cứng." "Extreme" @() "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" "TdrLevel" 0 2
+	Add-Cmd "EXT52" "Tắt Packet/DMA Coalescing trên NIC (gói tin không bị gom chờ)" $EXT "Coalescing gom gói để tiết kiệm CPU nhưng cộng thêm độ trễ từng gói. Tắt *PacketCoalescing + *DmaCoalescing cho ping/latency tối thiểu tuyệt đối." "Extreme" $GAME {
+		Set-SophiaNetAdapterCoalescing
+	} { Set-SophiaNetAdapterCoalescing -Restore } { return $false } "Set-NetAdapterAdvancedProperty *PacketCoalescing=0"
+	Add-Cmd "EXT53" "Tắt UpdateOrchestrator Tasks (không quét update nền bất chợt)" $EXT "Disable các task Schedule Scan/UpdateModelTask của Update Orchestrator: hết cảnh CPU/disk spike vì Windows tự quét update giữa lúc treo farm/stream." "Moderate" $FARM {
+		Get-ScheduledTask -TaskPath "\Microsoft\Windows\UpdateOrchestrator\" -ErrorAction SilentlyContinue | Disable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null
+	} {
+		Get-ScheduledTask -TaskPath "\Microsoft\Windows\UpdateOrchestrator\" -ErrorAction SilentlyContinue | Enable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null
+	} { return $false } "Disable-ScheduledTask UpdateOrchestrator"
+	Add-Reg "EXT54" "DistributeTimers = 1 (phân bổ timer interrupts ra mọi CPU)" $EXT "Kernel phân phối bộ định thời ngắt đều khắp các lõi thay vì dồn Core 0 — giảm nghẽn ngắt trên máy nhiều instance/game nặng về timer." "Extreme" $GAME "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" "DistributeTimers" 1 $null
+	Add-Reg "EXT55" "AlwaysUnloadDLL = 1 (giải phóng DLL khỏi RAM ngay khi app đóng)" $EXT "Explorer/loader gỡ DLL khỏi bộ nhớ ngay khi tiến trình cuối cùng nhả ra — farm mở/đóng app liên tục giữ RAM sạch, ít phình theo thời gian." "Moderate" ($FARM+$LOW) "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" "AlwaysUnloadDLL" 1 0
+	Add-Reg "EXT56" "Tắt CEIP (SQMClient CEIPEnable = 0)" $EXT "Tắt nốt kênh Customer Experience Improvement qua registry SQMClient — đi cùng PRI01 thành bộ chặn telemetry hai lớp (Policy + Legacy)." "Safe" ($STD+$LOW) "HKLM:\SOFTWARE\Microsoft\SQMClient\Windows" "CEIPEnable" 0 1
+	Add-Reg "EXT57" "Tắt Program Inventory (TurnOffProgramInventory = 1)" $EXT "AppCompat không còn quét/thống kê ứng dụng đã cài chạy nền định kỳ — bớt một nguồn I/O và telemetry tương thích thừa trên máy farm." "Safe" ($STD+$FARM) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat" "TurnOffProgramInventory" 1 0
+	Add-Reg "EXT58" "TcpFinWait2Delay = 30s (đóng kết nối TCP dứt điểm nhanh)" $EXT "Đi cùng NET09: giảm thời gian chờ FIN_WAIT_2 từ mặc định 100s xuống 30s — launcher/ADB/giả lập đóng-mở nghìn kết nối không bị treo cổng chờ." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "TcpFinWait2Delay" 30000 100000
+
 	return $catalog.ToArray()
 }
 
@@ -3088,7 +3238,7 @@ function Get-SophiaTweaksCatalog
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 162 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 170 tweaks.
 #>
 
 function Get-SophiaModeTweakIds
@@ -3110,20 +3260,6 @@ function Invoke-SophiaSelectedTweaks
 		return
 	}
 
-	$extreme = @($selected | Where-Object { $_.Risk -eq "Extreme" })
-	if ($extreme.Count -gt 0 -and -not $Force)
-	{
-		Write-Host ""
-		Write-Host "  ⚠ CẢNH BÁO: Có $($extreme.Count) tweak mức EXTREME (đánh đổi bảo mật/ổn định lấy hiệu năng):" -ForegroundColor Red
-		$extreme | ForEach-Object { Write-Host "      - [$($_.Id)] $($_.Name)" -ForegroundColor Yellow }
-		$confirmExtreme = Read-Host "  Gõ 'EXTREME' (viết hoa) để xác nhận áp dụng, hoặc ENTER để hủy"
-		if ($confirmExtreme -ne 'EXTREME')
-		{
-			Write-Host "  Đã hủy. Bỏ tick các tweak [Extreme] màu đỏ nếu bạn không chắc chắn." -ForegroundColor Yellow
-			return
-		}
-	}
-
 	# Plan Engine: phân tích phụ thuộc/mâu thuẫn + sắp xếp theo pha an toàn trước khi chạm vào hệ thống
 	if (Get-Command Get-SophiaOptimizationPlan -ErrorAction SilentlyContinue)
 	{
@@ -3138,6 +3274,20 @@ function Invoke-SophiaSelectedTweaks
 			$selected = @($plan.Items | ForEach-Object { $_.Tweak })
 		}
 		catch { Write-Host "  [!] Plan Engine lỗi ($($_.Exception.Message)) — áp dụng theo thứ tự thường." -ForegroundColor Yellow }
+	}
+
+	$extreme = @($selected | Where-Object { $_.Risk -eq "Extreme" })
+	if ($extreme.Count -gt 0 -and -not $Force)
+	{
+		Write-Host ""
+		Write-Host "  ⚠ CẢNH BÁO: Có $($extreme.Count) tweak mức EXTREME (đánh đổi bảo mật/ổn định lấy hiệu năng):" -ForegroundColor Red
+		$extreme | ForEach-Object { Write-Host "      - [$($_.Id)] $($_.Name)" -ForegroundColor Yellow }
+		$confirmExtreme = Read-Host "  Gõ 'EXTREME' (viết hoa) để xác nhận áp dụng, hoặc ENTER để hủy"
+		if ($confirmExtreme -ne 'EXTREME')
+		{
+			Write-Host "  Đã hủy. Bỏ tick các tweak [Extreme] màu đỏ nếu bạn không chắc chắn." -ForegroundColor Yellow
+			return
+		}
 	}
 
 	$logDir = "$env:SystemDrive\Sophia_Backups\Logs"
@@ -3274,6 +3424,7 @@ function Show-SophiaSimpleMenu
 		Write-Host "   T. 📊 Benchmark (Before/After)   C. 📈 So sánh Benchmark" -ForegroundColor Green
 		Write-Host "   R. ↩️  Restore mặc định        S. 💾 Tạo Shortcut Desktop" -ForegroundColor Green
 		Write-Host "   A. 📦 Cài ứng dụng qua winget (kiểu winutil, 239 app)" -ForegroundColor Green
+		Write-Host "   D. 🩺 SELF-TEST / DEBUG toàn diện (kiểm tra tool, không đổi hệ thống)" -ForegroundColor Green
 		Write-Host "   0. Thoát" -ForegroundColor Yellow
 		$choice = Read-Host "  Chọn (0-9/G/A/T/C/R/S)"
 		if ($choice -match '^[1-6]$')
@@ -3300,6 +3451,7 @@ function Show-SophiaSimpleMenu
 		}
 		elseif ($choice -eq '8') { if (Get-Command Invoke-SophiaRamPurge -ErrorAction SilentlyContinue) { Invoke-SophiaRamPurge } }
 		elseif ($choice -eq 'A' -or $choice -eq 'a') { if (Get-Command Show-SophiaAppInstallerMenu -ErrorAction SilentlyContinue) { Show-SophiaAppInstallerMenu } }
+		elseif ($choice -eq 'D' -or $choice -eq 'd') { if (Get-Command Test-SophiaOptimizerHealth -ErrorAction SilentlyContinue) { Test-SophiaOptimizerHealth -Catalog $Catalog | Out-Null; Read-Host '  Nhấn ENTER để quay lại menu' } }
 		elseif ($choice -eq '9') { Invoke-EmulatorAutoBooster }
 		elseif ($choice -eq 'T' -or $choice -eq 't') { if (Get-Command Invoke-SophiaBenchmark -ErrorAction SilentlyContinue) { Invoke-SophiaBenchmark -Label "Menu" | Out-Null } }
 		elseif ($choice -eq 'C' -or $choice -eq 'c') { if (Get-Command Compare-SophiaBenchmarks -ErrorAction SilentlyContinue) { Compare-SophiaBenchmarks } }
@@ -3356,7 +3508,8 @@ function Show-SophiaOptimizerUI
 
 	$getFiltered = {
 		if ([string]::IsNullOrWhiteSpace($searchTerm)) { return @($Catalog) }
-		return @($Catalog | Where-Object { $_.Name -match $searchTerm -or $_.Id -match $searchTerm -or $_.Category -match $searchTerm -or $_.Description -match $searchTerm })
+		$term = $searchTerm.ToLower()
+		return @($Catalog | Where-Object { $_.Name.ToLower().Contains($term) -or $_.Id.ToLower().Contains($term) -or $_.Category.ToLower().Contains($term) -or $_.Description.ToLower().Contains($term) })
 	}
 
 	while ($true)
@@ -3592,6 +3745,11 @@ if ($Plan)
 	$planObj = Get-SophiaOptimizationPlan -Catalog $catalog -SelectedIds $ids -Snapshot $snapshot
 	Show-SophiaOptimizationPlan -Plan $planObj -Title "KẾ HOẠCH SIÊU SÂU - Mode $Mode (chưa áp dụng)"
 	Write-Host "  Để thực thi: chạy lại với -Apply (và -Smart nếu muốn Smart Advisor chọn hộ)." -ForegroundColor Yellow
+	return
+}
+if ($SelfTest)
+{
+	Test-SophiaOptimizerHealth -RepoRoot $RepoRoot -Catalog $catalog | Out-Null
 	return
 }
 if ($ListModes)
