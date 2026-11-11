@@ -1,0 +1,48 @@
+====================================================================
+ MOLIK WINLIK by @nggkhaiz - HUONG DAN CHAY (BAN OFFLINE 100%)
+====================================================================
+
+CAN LAM (chi 2 buoc):
+
+  1. Giai nen file ZIP vao 1 thu muc bat ky
+     (vi du: Desktop hoac D:\MOLIK_WINLIK).
+
+  2. Double-click file:  MOLIK_WINLIK.bat
+     Bam "Yes" khi Windows hoi quyen Administrator.
+     -> Giao dien tick-chon mo ra. XONG.
+
+Khong can cai dat. Khong can Internet khi chay.
+Khong sua ExecutionPolicy cua may (chi Bypass cho dung tien trinh nay).
+
+--------------------------------------------------------------------
+CAC FILE QUAN TRONG (giu cung 1 thu muc)
+--------------------------------------------------------------------
+  MOLIK_WINLIK.bat            <- file de double-click
+  MolikWinlik-Portable.ps1    <- file loi 1-file (toan bo tool)
+  MolikWinlik-Portable.ps1.sha256  (doi chieu toan ven khi can)
+
+--------------------------------------------------------------------
+CHON CHE DO TOI UU
+--------------------------------------------------------------------
+  Trong giao dien: bam phim 1-6 de chon Mode, SPACE de tick tweak,
+  ENTER de ap dung. Mode mac dinh la treo gia lap 24/7.
+
+  May game: chon HardcoreGaming. May yeu: LowSpec.
+  Muon an toan tuyet doi: MOLIK Standard.
+  God Mode chi danh cho may chuyen dung da hieu ro tweak Extreme.
+
+--------------------------------------------------------------------
+NEU GAP LOI
+--------------------------------------------------------------------
+  - Windows Defender canh bao: day la tool toi uu he thong (doi BCD,
+    service, registry) nen co the bi canh bao. Chay tu file nhu tren
+    la cach it bi chan nhat. Xem muc Security trong Optimizer/README.md.
+  - Muon kiem tra tool truoc khi dung: chay
+        MOLIK_WINLIK.bat -SelfTest
+    (chi kiem tra, khong thay doi he thong, khong can Admin).
+  - Muon khoi phuc mac dinh: mo tool, bam phim R (Restore),
+    hoac restart vao System Restore Point ma tool da tao truoc khi ap dung.
+  - Backup cua tool nam o: C:\MOLIK_WINLIK_Backups\
+
+Chi tiet day du: Optimizer\README.md
+====================================================================

@@ -107,12 +107,11 @@ href="https://trendshift.io/repositories/17603"><img src="https://trendshift.io/
 
 ## 👑 MOLIK_WINLIK — MOLIK WINLIK by @nggkhaiz (Fork Add-on — Tick-Select CLI)
 
-> 🇻🇳 Tool tối ưu sâu do fork này bổ sung, nằm ngoài module Sophia gốc (`src/` giữ nguyên 100%): **185 tweak cực mạnh**, **6 mode riêng** cho từng nhu cầu và giao diện **tick-chọn CLI** `[✓]/[ ]`.
+> 🇻🇳 Tool tối ưu sâu do fork này bổ sung, nằm ngoài module Sophia gốc (`src/` giữ nguyên 100%): **190 tweak cực mạnh**, **6 mode riêng** cho từng nhu cầu và giao diện **tick-chọn CLI** `[✓]/[ ]`.
 
-```powershell
-# DÙNG ONLINE NHƯ WINUTIL — không cần tải tool, không cài đặt, chạy ngay trong bộ nhớ:
-irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1" | iex
-# Offline: double-click Sophia-1Click.bat, hoặc .\Sophia-Optimizer.ps1 trong repo
+```text
+# OFFLINE 100% (khong con ban irm | iex): tai ZIP repo nay 1 lan, giai nen,
+# double-click MOLIK_WINLIK.bat -> bam Yes (UAC) -> dung ngay. Khong can Internet khi chay.
 ```
 
 | Mode | Nhu cầu |
@@ -124,7 +123,7 @@ irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1" | iex
 | 🛡️ `SophiaStandard` | Privacy & gọn gàng an toàn chuẩn Sophia |
 | 👑 `GodMode` | Toàn bộ tweak kể cả Extreme |
 
-Tích hợp sẵn **winutil của Chris Titus Tech** (25 tweak + 239 app winget, vendor offline, MIT) — nhóm `10. WINUTIL` trong CLI và `-ListApps`/`-InstallApps`. Chi tiết: [Optimizer/README.md](Optimizer/README.md) · Chạy `.\Sophia-Optimizer.ps1 -ListTweaks` để xem toàn bộ catalog. Tool tự tạo System Restore Point + backup Registry/BCD trước khi áp dụng và khôi phục được bằng phím `R`.
+Tích hợp sẵn **winutil của Chris Titus Tech** (25 tweak + 239 app winget, vendor offline, MIT) — nhóm `10. WINUTIL` trong CLI và `-ListApps`/`-InstallApps`. Chi tiết: [Optimizer/README.md](Optimizer/README.md) · Chạy `.\MolikWinlik.ps1 -ListTweaks` để xem toàn bộ catalog. Tool tự tạo System Restore Point + backup Registry/BCD trước khi áp dụng và khôi phục được bằng phím `R`.
 
 ## Key features
 

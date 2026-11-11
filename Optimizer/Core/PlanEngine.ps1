@@ -23,7 +23,7 @@ function Get-SophiaTweakPhase
 {
 	param($Tweak)
 	$id = $Tweak.Id
-	if ($id -in @("EMU07","SYS02","SYS01","EXT14","EXT15","EXT27")) { return 2 }
+	if ($id -in @("EMU07","SYS02","SYS01","EXT14","EXT15","EXT27","EXT77","EXT79","EXT80")) { return 2 }
 	if ($id -match '^EXT3[89]$|^EMU06$') { return 7 }
 	if ($id -match '^CPU0[145]$|^EMU0[1234]$|^EXT(01|22|23|46|48)$|^RAM09$') { return 8 }
 	if ($Tweak.Category -match 'PRIVACY|SYSTEM') { return 3 }
@@ -81,6 +81,11 @@ function Get-SophiaOptimizationPlan
 		$ids = @($ids | Where-Object { $_ -ne "EMU06" })
 		$notes += "[Mâu thuẫn] EXT39 (Pagefile ổ nhanh nhất) thay thế EMU06 (Pagefile ổ hệ thống) — đã loại EMU06."
 	}
+	if (($ids -contains "EMU03") -and ($ids -contains "EMU02"))
+	{
+		$ids = @($ids | Where-Object { $_ -ne "EMU02" })
+		$notes += "[Mâu thuẫn] EMU03 (gỡ Hyper-V features) đã bao gồm BCD hypervisorlaunchtype=Off của EMU02 — đã loại EMU02."
+	}
 	if (($ids -contains "EXT03") -and ($ids -contains "EMU13"))
 	{
 		$ids = @($ids | Where-Object { $_ -ne "EMU13" })
@@ -93,6 +98,10 @@ function Get-SophiaOptimizationPlan
 	if ($isLaptop -and ($ids -match 'EXT08|EXT07|CPU03'))
 	{
 		$warnings += "Máy có pin (laptop): nhóm khóa xung/idle (EXT07/EXT08/CPU03) sẽ RẤT NÓNG và hao pin — cân nhắc bỏ tick nếu không cắm điện cố định."
+	}
+	if ($Snapshot -and $Snapshot.RAMTotalGB -gt 0 -and $Snapshot.RAMTotalGB -lt 32 -and ($ids -contains "CPU10"))
+	{
+		$warnings += "RAM < 32GB: CPU10 (tắt Page Combining) sẽ tốn thêm RAM đáng kể — Plan Engine khuyên BỎ tick CPU10 trên máy này."
 	}
 	if ($Snapshot -and $Snapshot.RAMTotalGB -gt 0 -and $Snapshot.RAMTotalGB -le 8 -and ($ids -contains "RAM01"))
 	{

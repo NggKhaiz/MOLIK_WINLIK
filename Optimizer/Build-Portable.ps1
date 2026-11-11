@@ -1,17 +1,19 @@
 ﻿<#
 	.SYNOPSIS
-	Build Sophia-Ultra-Portable.ps1 — bản 1 FILE duy nhất, không cần cài đặt/clone repo.
+	Build MolikWinlik-Portable.ps1 - ban OFFLINE 1 FILE duy nhat cua MOLIK WINLIK.
 
 	.DESCRIPTION
-	Gộp toàn bộ engine (Core + Catalog + UI) vào launcher Sophia-Optimizer.ps1
-	ngay tại vị trí block nạp module, tạo thành 1 file .ps1 độc lập:
-	  - Tải 1 file về, chạy trực tiếp (kể cả để trong %TEMP%)
-	  - irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex
-	Không ghi gì vào máy ngoài backup/log ở C:\MOLIK_WINLIK_Backups (chỉ khi bạn áp dụng tweak).
+	Gop toan bo engine (Core + Catalog + UI) vao launcher MolikWinlik.ps1 ngay
+	tai vi tri block nap module, tao thanh 1 file .ps1 doc lap:
+	  - Nhan ban (copy/USB) thu muc chua MOLIK_WINLIK.bat + file Portable nay,
+	    double-click MOLIK_WINLIK.bat la chay (tu xin quyen Administrator).
+	  - Khong tai code khi chay, khong can clone repo, khong can Internet.
+	File duoc ghi UTF-8 CO BOM de Windows PowerShell 5.1 doc dung tieng Viet
+	khi chay bang -File. Kem file .sha256 de doi chieu toan ven khi nhan ban.
 
 	.EXAMPLE
 	.\Optimizer\Build-Portable.ps1
-	# Sinh ra Sophia-Ultra-Portable.ps1 ở thư mục gốc repo
+	# Sinh ra MolikWinlik-Portable.ps1 + .sha256 o thu muc goc repo
 #>
 #Requires -Version 5.1
 [CmdletBinding()]
@@ -21,7 +23,7 @@ param(
 
 $OptimizerDir = $PSScriptRoot
 $RepoRoot = Split-Path -Path $OptimizerDir -Parent
-if (-not $OutputPath) { $OutputPath = Join-Path $RepoRoot "Sophia-Ultra-Portable.ps1" }
+if (-not $OutputPath) { $OutputPath = Join-Path $RepoRoot "MolikWinlik-Portable.ps1" }
 
 $engineFiles = @(
 	"Core\HardwareDetector.ps1",
@@ -48,25 +50,34 @@ foreach ($rel in $engineFiles)
 	if (-not (Test-Path $full)) { throw "Missing engine file: $full" }
 	$content = (Get-Content -Path $full -Raw -Encoding UTF8).TrimStart([char]0xFEFF)
 	[void]$functionsBundle.AppendLine("")
-	[void]$functionsBundle.AppendLine("# ════════════════════════════════════════════════════════════════════")
+	[void]$functionsBundle.AppendLine("# ============================================================")
 	[void]$functionsBundle.AppendLine("# [PORTABLE-INLINE] Optimizer\$rel")
-	[void]$functionsBundle.AppendLine("# ════════════════════════════════════════════════════════════════════")
+	[void]$functionsBundle.AppendLine("# ============================================================")
 	[void]$functionsBundle.AppendLine($content)
 }
 
-$launcher = (Get-Content -Path (Join-Path $RepoRoot "Sophia-Optimizer.ps1") -Raw -Encoding UTF8).TrimStart([char]0xFEFF)
+$launcherPath = Join-Path $RepoRoot "MolikWinlik.ps1"
+$launcher = (Get-Content -Path $launcherPath -Raw -Encoding UTF8).TrimStart([char]0xFEFF)
 
 $pattern = '(?ms)^\$engineFiles = @\(.*?^\}$'
-$replacement = "# [PORTABLE] Toàn bộ engine đã được nhúng trực tiếp bên dưới — không cần file phụ, không cần cài đặt.`r`n" + $functionsBundle.ToString()
+$replacement = "# [PORTABLE] Toan bo engine da duoc nhung truc tiep ben duoi - khong can file phu, khong tai gi khi chay.`n" + $functionsBundle.ToString()
 $portable = [regex]::Replace($launcher, $pattern, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $replacement })
 
-if ($portable -eq $launcher) { throw "Không tìm thấy block nạp engine trong Sophia-Optimizer.ps1 — build thất bại." }
+if ($portable -eq $launcher) { throw "Khong tim thay block nap engine trong MolikWinlik.ps1 - build that bai." }
 
-$banner = "<#`r`n`tMOLIK_WINLIK by @nggkhaiz — MOLIK WINLIK PORTABLE (1 file duy nhat, KHONG CAN CAI DAT)`r`n`tFile này được sinh tự động bởi Optimizer\Build-Portable.ps1 — đừng sửa tay, hãy sửa nguồn trong Optimizer/ rồi build lại.`r`n`tChạy: .\Sophia-Ultra-Portable.ps1  |  irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`r`n#>`r`n"
+# OFFLINE purity guard: ban Portable khong duoc chua cmdlet tai code tu Internet.
+$scanText = (($portable -split "`n") | Where-Object { $_ -notmatch "OFFLINE guard|-match|-notmatch" }) -join "`n"
+if ($scanText -match "Invoke-RestMethod|Invoke-WebRequest|DownloadString")
+{
+	throw "Portable chua cmdlet tai mang - MOLIK WINLIK phai offline 100%."
+}
+
+$banner = "<#`n`tMOLIK WINLIK by @nggkhaiz - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)`n`tChay: double-click MOLIK_WINLIK.bat (tu xin Admin), hoac powershell -ExecutionPolicy Bypass -File .\\MolikWinlik-Portable.ps1`n`tFile nay duoc sinh tu dong boi Optimizer\\Build-Portable.ps1 - dung sua tay, hay sua nguon trong Optimizer/ roi build lai.`n#>`n"
 $portable = $banner + $portable
 
-[System.IO.File]::WriteAllText($OutputPath, $portable, (New-Object System.Text.UTF8Encoding($false)))
+# UTF-8 CO BOM: Windows PowerShell 5.1 doc dung tieng Viet khi chay -File.
+[System.IO.File]::WriteAllText($OutputPath, $portable, (New-Object System.Text.UTF8Encoding($true)))
 $portableHash = (Get-FileHash -Path $OutputPath -Algorithm SHA256).Hash.ToLower()
 "$portableHash  $(Split-Path $OutputPath -Leaf)" | Set-Content -Path "$OutputPath.sha256" -Encoding ASCII -Force
-Write-Host "[✓] SHA256: $portableHash" -ForegroundColor DarkGray
-Write-Host "[✓] Đã sinh bản Portable: $OutputPath ($([Math]::Round((Get-Item $OutputPath).Length / 1KB, 1)) KB)" -ForegroundColor Green
+Write-Host "[OK] SHA256: $portableHash" -ForegroundColor DarkGray
+Write-Host "[OK] Da sinh ban Portable OFFLINE: $OutputPath ($([Math]::Round((Get-Item $OutputPath).Length / 1KB, 1)) KB)" -ForegroundColor Green

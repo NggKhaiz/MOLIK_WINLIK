@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 185 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group all catalog tweaks.
 #>
 
 function Get-SophiaModeTweakIds
@@ -231,20 +231,27 @@ function Show-SophiaSimpleMenu
 		{
 			try
 			{
-				if (-not $LauncherPath) { $LauncherPath = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`"" }
 				$desktop = [Environment]::GetFolderPath("Desktop")
 				$lnkPath = Join-Path $desktop "MOLIK WINLIK.lnk"
 				$shell = New-Object -ComObject WScript.Shell
 				$lnk = $shell.CreateShortcut($lnkPath)
-				if ($LauncherPath -match '\.ps1"?$')
+				# OFFLINE: shortcut tro thang vao file local (uu tien MOLIK_WINLIK.bat canh launcher)
+				$batPath = Join-Path (Get-Location).Path "MOLIK_WINLIK.bat"
+				if ($LauncherPath -and (Split-Path $LauncherPath -Parent)) { $batPath = Join-Path (Split-Path $LauncherPath -Parent) "MOLIK_WINLIK.bat" }
+				if (Test-Path $batPath)
+				{
+					$lnk.TargetPath = $batPath
+					$lnk.Arguments = ""
+				}
+				elseif ($LauncherPath -match '\.ps1"?$')
 				{
 					$lnk.TargetPath = "powershell.exe"
-					$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -File $LauncherPath"
+					$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$LauncherPath`""
 				}
 				else
 				{
-					$lnk.TargetPath = "powershell.exe"
-					$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`""
+					Write-Host "  [!] Không tìm thấy MOLIK_WINLIK.bat / file launcher local để tạo shortcut." -ForegroundColor Yellow
+					continue
 				}
 				$lnk.Description = "MOLIK WINLIK - Tick-Select CLI (Portable, khong can cai)"
 				$lnk.Save()

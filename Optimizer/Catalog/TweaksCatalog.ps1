@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-	MOLIK WINLIK - Deep Tweaks Catalog (137 tweaks, 9 categories incl. EXTREME LAB, 6 modes)
+	MOLIK WINLIK - Deep Tweaks Catalog (9 categories incl. EXTREME LAB, 6 modes - run -ListTweaks for the live count)
 
 	.DESCRIPTION
 	Every tweak: Id, Name, Category, Description, Risk, Modes, ApplyScript, RestoreScript, CheckScript.
@@ -129,7 +129,11 @@ function Get-SophiaTweaksCatalog
 
 	# ═══════════════ 1. EMULATOR FARM ═══════════════
 	Add-Reg "EMU01" "Tắt VBS / HVCI / Credential Guard (giải phóng VT-x)" $EMU "Virtualization-Based Security + Memory Integrity tranh VT-x với giả lập, gây chậm 20-40% & crash instance. Tắt để giả lập dùng VT-x trực tiếp." "Extreme" ($FARM+$GAME) "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard" "EnableVirtualizationBasedSecurity" 0 1
-	Add-Reg "EMU02" "Tắt Hyper-V Hypervisor khi boot (hypervisorlaunchtype=Off qua BCD)" $EMU "Hyper-V chiếm VT-x khiến LDPlayer/MuMu báo 'VT bị chiếm' / chạy cực chậm. Đặt BCD off (vẫn bật lại được bằng Restore)." "Extreme" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" "Enabled" 0 1
+	Add-Cmd "EMU02" "Tắt Hyper-V Hypervisor KHI BOOT (bcdedit hypervisorlaunchtype=Off)" $EMU "Hyper-V chiếm VT-x khiến LDPlayer/MuMu báo 'VT bị chiếm' / chạy cực chậm. Chỉ đổi BCD launch type (không gỡ feature như EMU03) nên bật lại rất nhanh bằng Restore. Cần RESTART." "Extreme" $FARM {
+		& bcdedit /set hypervisorlaunchtype off 2>$null | Out-Null
+	} {
+		& bcdedit /set hypervisorlaunchtype auto 2>$null | Out-Null
+	} { try { return ((& bcdedit /enum '{current}' 2>$null) -match 'hypervisorlaunchtype\s+Off') } catch { return $false } } "bcdedit hypervisorlaunchtype off"
 	Add-Cmd "EMU03" "Tắt tính năng Hyper-V / VirtualMachinePlatform / WindowsHypervisorPlatform" $EMU "Gỡ lớp hypervisor của Windows để giả lập Android (VirtualBox-based) độc chiếm VT-x. Khôi phục = bật lại feature." "Extreme" $FARM {
 		Disable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -NoRestart -ErrorAction SilentlyContinue | Out-Null
 		Disable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -NoRestart -ErrorAction SilentlyContinue | Out-Null
@@ -139,7 +143,7 @@ function Get-SophiaTweaksCatalog
 		Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -NoRestart -ErrorAction SilentlyContinue | Out-Null
 		& bcdedit /set hypervisorlaunchtype auto 2>$null | Out-Null
 	} { try { return ((& bcdedit /enum '{current}' 2>$null) -match 'hypervisorlaunchtype\s+Off') } catch { return $false } } "bcdedit hypervisorlaunchtype + DISM features"
-	Add-Reg "EMU04" "Tắt Memory Integrity (HVCI) cho driver giả lập" $EMU "HVCI chặn driver cũ của Nox/MEmu/LDPlayer (vd: lỗi load driver, BSOD). Tắt để driver giả lập nạp bình thường." "Extreme" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" "WasEnabledBy" 0 $null
+	Add-Reg "EMU04" "Tắt Memory Integrity (HVCI) cho driver giả lập" $EMU "HVCI chặn driver cũ của Nox/MEmu/LDPlayer (vd: lỗi load driver, BSOD). Tắt để driver giả lập nạp bình thường." "Extreme" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" "Enabled" 0 1
 	Add-Cmd "EMU05" "Thêm thư mục giả lập vào Defender Exclusion (quét realtime)" $EMU "Defender quét realtime .vmdk/.vdi & process giả lập gây disk 100% + giật instance. Thêm exclusion cho LDPlayer/MuMu/Nox/BlueStacks/MEmu nếu tồn tại." "Moderate" $FARM {
 		$dirs = @("$env:SystemDrive\LDPlayer","$env:SystemDrive\Program Files\LDPlayer","$env:SystemDrive\Program Files\MuMuPlayer-12.0","$env:SystemDrive\Program Files\Netease","$env:SystemDrive\Program Files (x86)\Nox","$env:SystemDrive\Program Files\BlueStacks_nxt","$env:SystemDrive\Program Files (x86)\Microvirt")
 		foreach ($d in $dirs) { if (Test-Path $d) { try { Add-MpPreference -ExclusionPath $d -ErrorAction SilentlyContinue } catch {} } }
@@ -174,7 +178,7 @@ function Get-SophiaTweaksCatalog
 	} {
 		& powercfg /change standby-timeout-ac 30 2>$null | Out-Null; & powercfg /hibernate on 2>$null | Out-Null
 	} { try { return ((& powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE 2>$null) -match '0x00000000') } catch { return $false } } "powercfg standby/hibernate/USB/ASPM"
-	Add-Reg "EMU10" "Tăng Desktop Heap & Session View Size (nhiều cửa sổ instance)" $EMU "Mở 10-30 instance dễ hết desktop heap ('failed to create window'). Tăng SharedSection 1024,20480,2048 cho session đồ họa." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\SubSystems" "Windows" "%SystemRoot%\system32\csrss.exe ObjectDirectory=\Windows SharedSection=1024,20480,2048 Windows=On SubSystemType=Windows ServerDll=basesrv,1 ServerDll=winsrv:UserServerDllInitialization,3 ServerDll=sxssrv,4 ProfileControl=Off MaxRequestThreads=16" $null "String"
+	Add-Reg "EMU10" "Tăng Desktop Heap & Session View Size (nhiều cửa sổ instance)" $EMU "Mở 10-30 instance dễ hết desktop heap ('failed to create window'). Tăng SharedSection 1024,20480,2048 cho session đồ họa." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\SubSystems" "Windows" "%SystemRoot%\system32\csrss.exe ObjectDirectory=\Windows SharedSection=1024,20480,2048 Windows=On SubSystemType=Windows ServerDll=basesrv,1 ServerDll=winsrv:UserServerDllInitialization,3 ServerDll=sxssrv,4 ProfileControl=Off MaxRequestThreads=16" "%SystemRoot%\system32\csrss.exe ObjectDirectory=\Windows SharedSection=1024,20480,768 Windows=On SubSystemType=Windows ServerDll=basesrv,1 ServerDll=winsrv:UserServerDllInitialization,3 ServerDll=sxssrv,4 ProfileControl=Off MaxRequestThreads=16" "String"
 	Add-Reg "EMU11" "Ưu tiên foreground cho process giả lập (Win32PrioritySeparation=38)" $EMU "Phân bổ quantum CPU ưu tiên ứng dụng foreground (giả lập đang focus) — giảm giật khi nhiều instance tranh CPU." "Moderate" $FARM_GAME "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" "Win32PrioritySeparation" 38 2
 	Add-Reg "EMU12" "Tắt Windows Search Indexing (chống disk 100% khi farm)" $EMU "Search indexer quét liên tục thư mục instance gây disk/CPU spike ngẫu nhiên. Tắt service WSearch cho máy farm/game." "Moderate" ($FARM+$GAME+$LOW) "HKLM:\SYSTEM\CurrentControlSet\Services\WSearch" "Start" 4 2
 	Add-Cmd "EMU13" "Đặt CPU Priority cao cho process giả lập đang chạy" $EMU "Nâng priority LdVBoxHeadless/HD-Player/Nox/MuMu/Nemu lên AboveNormal để scheduler ưu tiên khi full-load multi-instance." "Moderate" $FARM {
@@ -189,16 +193,36 @@ function Get-SophiaTweaksCatalog
 		$ultimate = (& powercfg /list 2>$null | Select-String "Ultimate Performance" | Select-Object -First 1).ToString()
 		if ($ultimate -match '([0-9a-f]{8}-[0-9a-f-]+)') { & powercfg /setactive $Matches[1] 2>$null | Out-Null }
 	} { & powercfg /setactive SCHEME_BALANCED 2>$null | Out-Null } { return ((& powercfg /getactivescheme 2>$null) -match 'Ultimate') } "powercfg Ultimate Performance"
-	Add-Reg "GAM02" "Tắt Game DVR / Background Recording (giảm stutter & FPS drop)" $GAM "Game DVR ghi hình nền ăn GPU/CPU và gây frame-time spike. Tắt AppCapture + GameDVR_Enabled chuẩn Sophia." "Safe" ($GAME+$WORK+$STD) "HKCU:\System\GameConfigStore" "GameDVR_Enabled" 0 1
-	Add-Reg "GAM03" "Tắt Game Bar & Game Mode tips (XBOXGameBar/XBOXGameTips)" $GAM "Overlay Game Bar + tips gây ngắt quãng khi Alt-Tab/record. AllowAutoGameMode=0, ShowStartupPanel=0." "Safe" ($GAME+$STD) "HKCU:\Software\Microsoft\GameBar" "AllowAutoGameMode" 0 1
+	Add-Reg "GAM02" "Tắt Game DVR / Background Recording (giảm stutter & FPS drop)" $GAM "Game DVR ghi hình nền ăn GPU/CPU và gây frame-time spike. GameDVR_Enabled=0 trong GameConfigStore." "Safe" ($GAME+$WORK+$STD) "HKCU:\System\GameConfigStore" "GameDVR_Enabled" 0 1
+	Add-Cmd "GAM03" "Tắt Game Bar panel/tips khi mở game (GIỮ nguyên Game Mode)" $GAM "ShowStartupPanel=0: Game Bar không tự bật panel/tip khi vào game (bớt hook/overlay phá nhịp Alt-Tab), nhưng AllowAutoGameMode=1 + AutoGameModeEnabled=1 để Game Mode vẫn tự kích hoạt." "Safe" ($GAME+$STD) {
+		Set-SophiaRegValue -Path "HKCU:\Software\Microsoft\GameBar" -Name "ShowStartupPanel" -Value 0 -Type "DWord"
+		Set-SophiaRegValue -Path "HKCU:\Software\Microsoft\GameBar" -Name "AllowAutoGameMode" -Value 1 -Type "DWord"
+		Set-SophiaRegValue -Path "HKCU:\Software\Microsoft\GameBar" -Name "AutoGameModeEnabled" -Value 1 -Type "DWord"
+	} {
+		Set-SophiaRegValue -Path "HKCU:\Software\Microsoft\GameBar" -Name "ShowStartupPanel" -Value 1 -Type "DWord"
+	} { return ((Get-SophiaRegValue -Path "HKCU:\Software\Microsoft\GameBar" -Name "ShowStartupPanel") -eq 0) } "GameBar ShowStartupPanel=0 (Game Mode kept ON)"
 	Add-Reg "GAM04" "Tắt Fullscreen Optimizations toàn cục" $GAM "FSO gây input lag/stutter trên nhiều game DX11. Disable GameDVR_FSEBehaviorMode=2 cho cảm giác 'exclusive fullscreen' thật." "Moderate" $GAME "HKCU:\System\GameConfigStore" "GameDVR_FSEBehaviorMode" 2 0
-	Add-Reg "GAM05" "Mouse 1:1 — Tắt Enhance Pointer Precision (gia tốc chuột)" $GAM "Tắt mouse acceleration để aim 1:1 trong FPS. MouseSpeed=0, MouseThreshold1/2=0 (chuẩn esports)." "Safe" $GAME "HKCU:\Control Panel\Mouse" "MouseSpeed" "0" "1" "String"
-	Add-Reg "GAM06" "Keyboard response nhanh (KeyboardDelay=0, Speed=31)" $GAM "Giảm độ trễ phím: delay trước khi lặp phím = 0, tốc độ lặp tối đa — phản hồi nhanh cho game/ gõ phím." "Safe" ($GAME+$LOW) "HKCU:\Control Panel\Keyboard" "KeyboardDelay" "0" "1" "String"
+	Add-Cmd "GAM05" "Mouse 1:1 — Tắt Enhance Pointer Precision (gia tốc chuột)" $GAM "Tắt mouse acceleration để aim 1:1 trong FPS. MouseSpeed=0, MouseThreshold1=0, MouseThreshold2=0 (bộ 3 chuẩn esports — thiếu 1 giá trị là Windows vẫn cộng gia tốc)." "Safe" $GAME {
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Mouse" -Name "MouseSpeed" -Value "0" -Type "String"
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold1" -Value "0" -Type "String"
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold2" -Value "0" -Type "String"
+	} {
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Mouse" -Name "MouseSpeed" -Value "1" -Type "String"
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold1" -Value "6" -Type "String"
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold2" -Value "10" -Type "String"
+	} { return ((Get-SophiaRegValue -Path "HKCU:\Control Panel\Mouse" -Name "MouseSpeed") -eq "0") } "MouseSpeed/Threshold1/Threshold2 = 0/0/0"
+	Add-Cmd "GAM06" "Keyboard response nhanh (KeyboardDelay=0, KeyboardSpeed=31)" $GAM "Giảm độ trễ phím: delay trước khi lặp phím = 0 (ngắn nhất), tốc độ lặp = 31 (tối đa) — phản hồi nhanh cho game/gõ phím." "Safe" ($GAME+$LOW) {
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Keyboard" -Name "KeyboardDelay" -Value "0" -Type "String"
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Keyboard" -Name "KeyboardSpeed" -Value "31" -Type "String"
+	} {
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Keyboard" -Name "KeyboardDelay" -Value "1" -Type "String"
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Keyboard" -Name "KeyboardSpeed" -Value "31" -Type "String"
+	} { return ((Get-SophiaRegValue -Path "HKCU:\Control Panel\Keyboard" -Name "KeyboardDelay") -eq "0") } "KeyboardDelay=0, KeyboardSpeed=31"
 	Add-Reg "GAM07" "SystemResponsiveness = 0 (ưu tiên game hơn background)" $GAM "Mặc định Windows giữ 20% CPU cho background. Đặt 0 -> game/foreground nhận tối đa tài nguyên multimedia scheduler." "Moderate" $FARM_GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "SystemResponsiveness" 0 20
 	Add-Reg "GAM08" "NetworkThrottlingIndex = OFF (không bóp băng thông game)" $GAM "Windows throttle mạng non-multimedia 10pps mặc định. Đặt 0xffffffff để game/voice không bị bóp gói tin." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "NetworkThrottlingIndex" 4294967295 10
-	Add-Reg "GAM09" "GPU Priority = 8 cho class 'Games' (MMCSS)" $GAM "Nâng GPU Priority + Priority=6 + SchedulingCategory=High cho profile Games của Multimedia Class Scheduler." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "GPU Priority" 8 0
+	Add-Reg "GAM09" "GPU Priority = 8 cho class 'Games' (MMCSS)" $GAM "GPU Priority=8 cho profile Games của MMCSS (đi cặp EXT16 SchedulingCategory=High và EXT74 Priority=6)." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "GPU Priority" 8 0
 	Add-Reg "GAM10" "Tắt Power Throttling (không giảm xung khi chơi game/treo)" $GAM "PowerThrottlingOff=1 ngăn Windows hạ xung CPU cho process 'eco' — giữ FPS & instance ổn định khi load dài." "Moderate" $ALL_PERF "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling" "PowerThrottlingOff" 1 0
-	Add-Reg "GAM11" "Visual Effects = Performance (tắt animation/shadow)" $GAM "VisualFXSetting=2 + tắt animate/shadow: giảm DWM overhead, Alt-Tab nhanh, nhường GPU cho game/giả lập." "Safe" ($GAME+$LOW) "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" 2 0
+	Add-Reg "GAM11" "Visual Effects = Performance (tắt animation/shadow)" $GAM "VisualFXSetting=2 (preset 'Adjust for best performance' của Windows): giảm DWM overhead, Alt-Tab nhanh, nhường GPU cho game/giả lập." "Safe" ($GAME+$LOW) "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" 2 0
 	Add-Reg "GAM12" "MenuShowDelay = 0 & tăng tốc UI (không chờ menu)" $GAM "Menu mở tức thì, giảm cảm giác 'khựng' khi thao tác — tweak kinh điển của Sophia cho Explorer/Desktop." "Safe" ($GAME+$LOW+$STD) "HKCU:\Control Panel\Desktop" "MenuShowDelay" "0" "400" "String"
 
 	# ═══════════════ 3. CPU / KERNEL / TIMER ═══════════════
@@ -227,7 +251,9 @@ function Get-SophiaTweaksCatalog
 		Set-SophiaPowerSetting "54533251-82be-4824-96c1-47b60b740d00" "36687f9e-e3a5-4dbf-b1dc-15eb381c6863" 33; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
 	} { return $false } "powercfg PERFEPP=0"
 	Add-Reg "CPU09" "LargeSystemCache = 0 (ưu tiên app/game hơn file cache)" $CPU "Đặt cache hệ thống ưu tiên tiến trình người dùng thay vì file-server cache — đúng profile desktop/gaming." "Safe" $ALL_PERF "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "LargeSystemCache" 0 1
-	Add-Reg "CPU10" "Tăng IoPageLockLimit (I/O locking cho NVMe/đa instance)" $CPU "IoPageLockLimit=16777216 (16MB) tăng giới hạn khóa trang I/O — hỗ trợ đọc/ghi đồng thời nhiều disk image giả lập." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "IoPageLockLimit" 16777216 $null
+	Add-Cmd "CPU10" "Tắt Page Combining (MMAgent) — đổi RAM lấy CPU cho farm lớn" $CPU "Page Combining quét tìm các trang RAM giống hệt nhau để gộp — rất tốn CPU khi chạy hàng chục instance giả lập giống nhau. Máy RAM >= 32GB tắt đi sẽ giảm CPU nền rõ rệt (tốn thêm RAM). Máy RAM ít TUYỆT ĐỐI không tick — Smart Advisor chỉ tự thêm khi RAM >= 32GB." "Moderate" @() {
+		try { Disable-MMAgent -PageCombining -ErrorAction SilentlyContinue } catch {}
+	} { try { Enable-MMAgent -PageCombining -ErrorAction SilentlyContinue } catch {} } { try { return (-not (Get-MMAgent -ErrorAction SilentlyContinue).PageCombining) } catch { return $false } } "Disable-MMAgent -PageCombining"
 
 	# ═══════════════ 4. RAM & MEMORY ═══════════════
 	Add-Cmd "RAM01" "Tắt Memory Compression (giải phóng CPU, farm nhiều instance)" $RAM "Memory Compression nén page trong RAM ăn CPU liên tục. Máy >=16GB tắt đi giảm CPU & latency (Enable-MMAgent -MemoryCompression off)." "Moderate" ($FARM+$WORK) {
@@ -280,7 +306,7 @@ function Get-SophiaTweaksCatalog
 	} {
 		& netsh interface tcp set global autotuninglevel=normal 2>$null | Out-Null; & netsh interface tcp set heuristics enabled 2>$null | Out-Null
 	} { return $false } "netsh tcp global"
-	Add-Reg "NET03" "QoS: NonBestEffortLimit = 0 (mở khóa 20% băng thông dự trữ)" $NET "Windows giữ 20% băng thông cho QoS. Đặt 0 để game/farm dùng toàn bộ đường truyền." "Safe" $GAME "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" "NonBestEffortLimit" 0 $null
+	Add-Reg "NET03" "QoS: NonBestEffortLimit = 0 (mở khóa 20% băng thông dự trữ)" $NET "Lưu ý trung thực: Windows chỉ dành băng thông khi ứng dụng QoS thật sự đặt chỗ (không phải luôn mất 20%). NonBestEffortLimit=0 bỏ trần giới hạn cho các phiên QoS đó — vô hại và giúp stack nhất quán." "Safe" $GAME "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" "NonBestEffortLimit" 0 $null
 	Add-Cmd "NET04" "DNS Cloudflare 1.1.1.1 / Google 8.8.8.8 cho mọi NIC up" $NET "DNS nhanh & ổn định giảm độ trễ phân giải khi mở game/launcher/giả lập (chỉ đặt trên adapter đang Up)." "Safe" ($GAME+$LOW) {
 		try { Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ServerAddresses ("1.1.1.1","8.8.8.8") -ErrorAction SilentlyContinue } } catch {}
 	} { try { Get-NetAdapter | Where-Object Status -eq 'Up' | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ResetServerAddresses -ErrorAction SilentlyContinue } } catch {} } { return $false } "Set-DnsClientServerAddress 1.1.1.1"
@@ -326,12 +352,30 @@ function Get-SophiaTweaksCatalog
 	# ═══════════════ 8. PRIVACY (MOLIK WINLIK NATIVE) ═══════════════
 	Add-Reg "PRI01" "Telemetry = 0 (AllowTelemetry, chuẩn GPO)" $PRI "Chặn thu thập dữ liệu chẩn đoán mức cơ bản qua Policy — giảm tiến trình DiagTrack ghi đĩa nền." "Safe" ($STD+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" "AllowTelemetry" 0 3
 	Add-Reg "PRI02" "Tắt Advertising ID (quảng cáo cá nhân hóa)" $PRI "DisabledByGroupPolicy=1: app không dùng ID quảng cáo theo dõi hành vi." "Safe" $STD "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo" "DisabledByGroupPolicy" 1 0
-	Add-Reg "PRI03" "Tắt Activity History / Timeline thu thập" $PRI "EnableActivityFeed=0 + PublishUserActivities=0: Windows không ghi dòng thời gian hoạt động." "Safe" $STD "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" "EnableActivityFeed" 0 1
+	Add-Cmd "PRI03" "Tắt Activity History / Timeline thu thập" $PRI "EnableActivityFeed=0 + PublishUserActivities=0 + UploadUserActivities=0: Windows không ghi/tải dòng thời gian hoạt động (Timeline) — bớt ghi đĩa và telemetry nền." "Safe" $STD {
+		Set-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableActivityFeed" -Value 0 -Type "DWord"
+		Set-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "PublishUserActivities" -Value 0 -Type "DWord"
+		Set-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "UploadUserActivities" -Value 0 -Type "DWord"
+	} {
+		Set-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableActivityFeed" -Value 1 -Type "DWord"
+		Set-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "PublishUserActivities" -Value 1 -Type "DWord"
+		Set-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "UploadUserActivities" -Value 1 -Type "DWord"
+	} { return ((Get-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableActivityFeed") -eq 0) } "ActivityFeed/Publish/Upload = 0"
 	Add-Reg "PRI04" "Tắt Location Tracking toàn cục" $PRI "SensorPermissionState=0: không app nào truy cập vị trí nền (trừ khi user bật lại)." "Safe" $STD "HKCU:\Software\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}" "Value" "Deny" "Allow" "String"
 	Add-Reg "PRI05" "Tắt Cortana (AllowCortana=0 qua Policy)" $PRI "Cortana nền ăn RAM/index — tắt qua GPO chuẩn MOLIK WINLIK cho cả farm/game/workstation." "Safe" ($STD+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" "AllowCortana" 0 1
 	Add-Reg "PRI06" "Tắt Windows Copilot (TurnOffWindowsCopilot=1)" $PRI "Copilot sidebar/overlay không cần cho farm/game — tắt qua policy, giảm tiến trình WebView nền." "Safe" $STD "HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" 1 0
 	Add-Reg "PRI07" "Tắt Windows Recall (DisableAIDataAnalysis, Win11 AI)" $PRI "Recall chụp màn hình định kỳ ăn disk/GPU & rủi ro riêng tư — tắt trên Windows 11 nếu có." "Safe" $STD "HKCU:\Software\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" 1 0
-	Add-Reg "PRI08" "Tắt Tailored Experiences & Content Delivery (gợi ý quảng cáo)" $PRI "TailoredExperiencesWithDiagnosticDataEnabled=0 + ContentDeliveryManager tắt: Start Menu không tải app quảng cáo nền." "Safe" ($STD+$LOW) "HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy" "TailoredExperiencesWithDiagnosticDataEnabled" 0 1
+	Add-Cmd "PRI08" "Tắt Tailored Experiences & Content Delivery (gợi ý quảng cáo)" $PRI "TailoredExperiencesWithDiagnosticDataEnabled=0 và ContentDeliveryManager (ContentDeliveryAllowed/SilentInstalledApps/PreInstalledApps/OemPreInstalledApps = 0): Start Menu không tải/cài app quảng cáo trong nền." "Safe" ($STD+$LOW) {
+		Set-SophiaRegValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy" -Name "TailoredExperiencesWithDiagnosticDataEnabled" -Value 0 -Type "DWord"
+		Set-SophiaRegValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "ContentDeliveryAllowed" -Value 0 -Type "DWord"
+		Set-SophiaRegValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "SilentInstalledAppsEnabled" -Value 0 -Type "DWord"
+		Set-SophiaRegValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "PreInstalledAppsEnabled" -Value 0 -Type "DWord"
+		Set-SophiaRegValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "OemPreInstalledAppsEnabled" -Value 0 -Type "DWord"
+	} {
+		Set-SophiaRegValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy" -Name "TailoredExperiencesWithDiagnosticDataEnabled" -Value 1 -Type "DWord"
+		Set-SophiaRegValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "ContentDeliveryAllowed" -Value 1 -Type "DWord"
+		Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" -Name "SilentInstalledAppsEnabled","PreInstalledAppsEnabled","OemPreInstalledAppsEnabled" -Force -ErrorAction SilentlyContinue
+	} { return ((Get-SophiaRegValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy" -Name "TailoredExperiencesWithDiagnosticDataEnabled") -eq 0) } "Tailored + ContentDeliveryManager off"
 	Add-Reg "PRI09" "Tắt Inking/Typing personalization (gửi dữ liệu gõ phím)" $PRI "RestrictImplicitTextCollection=1: không thu thập mẫu gõ/viết tay gửi Microsoft." "Safe" $STD "HKCU:\Software\Microsoft\InputPersonalization" "RestrictImplicitTextCollection" 1 0
 	Add-Reg "PRI10" "Tắt Delivery Optimization P2P upload (tiết kiệm băng thông farm)" $PRI "DownloadMode=0 (HTTP only, no peering): Windows Update không dùng máy bạn upload cho máy khác ngốn upstream." "Moderate" ($FARM+$STD) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization" "DODownloadMode" 0 1
 
@@ -545,5 +589,19 @@ function Get-SophiaTweaksCatalog
 	Add-Reg "EXT74" "MMCSS 'Games': Priority = 6 (cao nhất cho luồng game)" $EXT "Hoàn thiện bộ ba MMCSS Games: SchedulingCategory High (EXT16) + GPU Priority 8 (GAM09) + Priority 6 — dispatcher luôn xếp luồng game trước mọi tác vụ thường." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "Priority" 6 2
 	Add-Reg "EXT75" "Tắt Store Apps tự cập nhật nền (WindowsStore AutoDownload = 2)" $EXT "Microsoft Store không tự tải bản cập nhật app trong nền giành mạng/disk — bạn chủ động update khi rảnh. App đã cài vẫn chạy bình thường." "Safe" ($FARM+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore" "AutoDownload" 2 4
 
+	Add-Reg "EXT76" "Tắt Startup Delay của app khởi động cùng Windows (StartupDelayInMSec = 0)" $EXT "Windows mặc định trì hoãn ~10 giây mới chạy các app Startup sau logon. Đặt 0 để launcher/giả lập/agent mở tức thì ngay khi vào desktop — vào việc nhanh hơn sau mỗi lần restart farm." "Safe" ($FARM_GAME+$LOW) "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize" "StartupDelayInMSec" 0 $null
+	Add-Cmd "EXT77" "Tắt Program Compatibility Assistant (PcaSvc) — bỏ hook tương thích thừa" $EXT "PcaSvc theo dõi mọi app để gợi ý chế độ tương thích (di sản từ thời Vista) và ghi log AppCompat — farm/game toàn app quen thuộc nên tắt để giảm hook/service nền." "Moderate" ($FARM_GAME+$LOW) {
+		Stop-Service PcaSvc -Force -ErrorAction SilentlyContinue; Set-Service PcaSvc -StartupType Disabled -ErrorAction SilentlyContinue
+	} {
+		Set-Service PcaSvc -StartupType Manual -ErrorAction SilentlyContinue
+	} { try { return ((Get-Service PcaSvc -ErrorAction SilentlyContinue).StartType -eq "Disabled") } catch { return $false } } "PcaSvc Disabled"
+	Add-Cmd "EXT78" "Tắt Memory Diagnostic Tasks (không tự quét RAM nền)" $EXT "Hai task MemoryDiagnostic (ProcessMemoryDiagnosticEvents / RunFullMemoryDiagnostic) có thể tự chạy kiểm tra RAM gây CPU/disk spike bất chợt — trên máy farm/game ổn định là thừa. Windows Memory Diagnostic thủ công (mdsched) vẫn dùng được khi bạn chủ động chạy." "Moderate" $FARM {
+		Disable-ScheduledTask -TaskPath "\Microsoft\Windows\MemoryDiagnostic\" -TaskName "ProcessMemoryDiagnosticEvents" -ErrorAction SilentlyContinue | Out-Null
+		Disable-ScheduledTask -TaskPath "\Microsoft\Windows\MemoryDiagnostic\" -TaskName "RunFullMemoryDiagnostic" -ErrorAction SilentlyContinue | Out-Null
+	} {
+		Enable-ScheduledTask -TaskPath "\Microsoft\Windows\MemoryDiagnostic\" -TaskName "ProcessMemoryDiagnosticEvents" -ErrorAction SilentlyContinue | Out-Null
+	} { return $false } "Disable-ScheduledTask MemoryDiagnostic"
+	Add-Reg "EXT79" "Tắt WaaSMedicSvc (Update không tự kích hoạt lại nền)" $EXT "WaaSMedic là service chuyên tự sửa/kích hoạt lại các thành phần Windows Update bị tắt — nguyên nhân farm hay 'tự nhiên' quét update lại. Start=4 cho máy chuyên dụng đã chủ động quản lý update (đi cặp EXT53). Muốn update Windows bình thường thì Restore trước." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\WaaSMedicSvc" "Start" 4 3
+	Add-Reg "EXT80" "Tắt UsoSvc — Update Orchestrator Service (farm chủ động update)" $EXT "UsoSvc điều phối quét/tải update nền. Start=4 cùng EXT53+EXT79 tạo bộ ba khóa update nền triệt để cho máy treo 24/7: không spike CPU/disk, không tự restart (EXT26). Cập nhật thủ công qua Settings vẫn mở được sau khi Restore." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\UsoSvc" "Start" 4 2
 	return $catalog.ToArray()
 }

@@ -56,6 +56,7 @@ function Get-SophiaSmartRecommendation
 
 	if ($Snapshot.GPUVendor -eq "AMD") { $extraIds += "EXT12" ; $reasons += "GPU AMD: bổ sung EXT12 tắt ULPS chống stutter." }
 	if ($Snapshot.GPUVendor -eq "NVIDIA") { $extraIds += "EXT43" ; $reasons += "GPU NVIDIA: bổ sung EXT43 ép Power Limit tối đa qua nvidia-smi." }
+	if ($Snapshot.RAMTotalGB -ge 32) { $extraIds += "CPU10" ; $reasons += "RAM $($Snapshot.RAMTotalGB)GB (>= 32GB): bổ sung CPU10 tắt Page Combining — đổi RAM lấy CPU cho farm nhiều instance giống nhau." }
 	if ($Snapshot.SystemDriveType -match "NVMe") { $extraIds += @("EXT11","EXT38") ; $reasons += "Ổ NVMe: bổ sung EXT11 (NTFS sâu) + EXT38 (Interrupt Priority) để khai thác tối đa." }
 	if ($Snapshot.CPUThreads -ge 8) { $extraIds += "EXT03" ; $reasons += "CPU $($Snapshot.CPUThreads) luồng: EXT03 affinity tránh Core 0 phát huy tốt." }
 	if ($isLaptop)
