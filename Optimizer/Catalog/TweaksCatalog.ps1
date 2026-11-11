@@ -1,6 +1,6 @@
-﻿<#
+<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Deep Tweaks Catalog (120 tweaks, 9 categories incl. EXTREME LAB, 6 modes)
+	Sophia Ultra Optimizer - Deep Tweaks Catalog (137 tweaks, 9 categories incl. EXTREME LAB, 6 modes)
 
 	.DESCRIPTION
 	Every tweak: Id, Name, Category, Description, Risk, Modes, ApplyScript, RestoreScript, CheckScript.
@@ -434,6 +434,63 @@ function Get-SophiaTweaksCatalog
 	} {
 		Set-SophiaPowerSetting "238c9fa8-0aad-41ed-83f4-97be242c8f20" "bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d" 1; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
 	} { return $false } "powercfg RTCWAKE=0"
+
+	Add-Reg "EXT34" "Tắt WMI Autologger DiagLog (bớt ghi log chẩn đoán nền)" $EXT "Autologger\DiagLog Start=0: giảm I/O ghi log ETW liên tục của hệ thống chẩn đoán — ổ farm bớt bị làm phiền bởi ghi nền vô hình." "Moderate" ($FARM_GAME+$LOW) "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger\DiagLog" "Start" 0 1
+	Add-Reg "EXT35" "Tắt WMI Autologger ReadyBoot (boot trace)" $EXT "ReadyBoot trace ghi log mỗi lần khởi động phục vụ ReadyBoost/SysMain — máy SSD/farm không cần, tắt để boot sạch & ít ghi ổ." "Moderate" ($FARM+$LOW) "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger\ReadyBoot" "Start" 0 1
+	Add-Cmd "EXT36" "Tắt NetBIOS over TCP/IP mọi interface (giảm broadcast & delay LAN)" $EXT "TcpipNetbiosOptions=2 trên mọi NIC: ngừng broadcast NetBIOS cổ điển trong LAN — mạng farm/game sạch hơn, giảm tấn công giả mạo tên NetBIOS." "Moderate" $FARM_GAME {
+		$base = "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces"
+		if (Test-Path $base) { Get-ChildItem $base | ForEach-Object { Set-SophiaRegValue $_.PSPath "TcpipNetbiosOptions" 2 "DWord" } }
+	} {
+		$base = "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces"
+		if (Test-Path $base) { Get-ChildItem $base | ForEach-Object { Set-SophiaRegValue $_.PSPath "TcpipNetbiosOptions" 0 "DWord" } }
+	} { return $false } "NetBT TcpipNetbiosOptions=2"
+	Add-Cmd "EXT37" "TCP Supplemental: CUBIC + template Internet tốc độ cao" $EXT "Ép thuật toán điều khiển tắc nghẽn CUBIC và template supplemental cho kết nối Internet — throughput ổn định hơn cho launcher/update/farm tải dữ liệu lớn." "Moderate" $GAME {
+		& netsh interface tcp set supplemental template=internet congestionprovider=cubic 2>$null | Out-Null
+		& netsh interface tcp set global initialRto=1000 2>$null | Out-Null
+	} {
+		& netsh interface tcp set supplemental template=internet congestionprovider=default 2>$null | Out-Null
+	} { return $false } "netsh supplemental cubic"
+	Add-Cmd "EXT38" "Interrupt Priority = HIGH cho GPU + NVMe (DevicePriority=3)" $EXT "Đi cùng EXT01 MSI Mode: nâng mức ưu tiên ngắt của GPU & controller NVMe trong Interrupt Management — GPU/NVMe được CPU phục vụ ngắt trước thiết bị phụ." "Extreme" $FARM_GAME {
+		Set-SophiaInterruptPriority
+	} { Set-SophiaInterruptPriority -Restore } { return $false } "Enum\PCI\...\Interrupt Management DevicePriority=3"
+	Add-Cmd "EXT39" "Pagefile chuyển sang Ổ TRỐNG NHẤT (thường là NVMe phụ) — cố định lớn" $EXT "Bản cực hạn của EMU06: đặt pagefile cố định RAMx1.5 lên volume trống nhất để ổ hệ thống không bị I/O pagefile tranh với image giả lập. Cần RESTART." "Extreme" $FARM {
+		Set-SophiaPagefileFastestDrive
+	} { Set-SophiaPagefileFastestDrive -Restore } { return $false } "Win32_PageFileSetting fastest volume"
+	Add-Reg "EXT40" "MMCSS 'Pro Audio': SchedulingCategory = High (cho Stream/OBS)" $EXT "Profile Pro Audio của Multimedia Scheduler ở mức High — thu âm/stream/encode audio-video không bị luồng nền chen ngang gây xì/xé tiếng." "Moderate" $WORK "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Pro Audio" "SchedulingCategory" "High" "Medium" "String"
+	Add-Cmd "EXT41" "NIC Buffers = 2048/2048 (Receive/Transmit tối đa)" $EXT "Tăng bộ đệm nhận/gửi của card mạng lên tối đa phần cứng cho phép qua Advanced Properties — burst gói tin của nhiều instance/game không bị drop ở tầng driver." "Moderate" $FARM_GAME {
+		Set-SophiaNetAdapterBuffers
+	} { Set-SophiaNetAdapterBuffers -Restore } { return $false } "Set-NetAdapterAdvancedProperty *ReceiveBuffers/*TransmitBuffers"
+	Add-Reg "EXT42" "Ưu tiên IPv4 hơn IPv6 (DisabledComponents = 0x20)" $EXT "Không tắt IPv6 (tránh vỡ kết nối mới) nhưng ưu tiên IPv4 trong prefix policy — launcher/game server IPv4 kết nối nhanh, bớt độ trễ phân giải kép." "Moderate" $GAME "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters" "DisabledComponents" 32 0
+	Add-Cmd "EXT43" "NVIDIA: Ép Power Limit = TỐI ĐA qua nvidia-smi" $EXT "Nếu có nvidia-smi: đặt power limit lên mức max_limit của card — GPU không bị giới hạn điện sớm khi boost dài. Tự bỏ qua nếu không phải NVIDIA." "Extreme" $GAME {
+		Set-SophiaNvidiaPowerLimit | Out-Null
+	} { Set-SophiaNvidiaPowerLimit -Restore | Out-Null } { return $false } "nvidia-smi -pl max_limit"
+	Add-Cmd "EXT44" "Tắt Processor Autonomous Mode (HWP tự trị -> PERFEPP kiểm soát)" $EXT "PERFAUTONOMOUS=0: tắt chế độ CPU tự chọn xung hoàn toàn tự trị để PERFEPP=0 (EXT/CPU08) kiểm soát dứt khoát theo hướng hiệu năng. Cần hiểu rõ CPU của bạn." "Extreme" $GAME {
+		Set-SophiaPowerSetting "54533251-82be-4824-96c1-47b60b740d00" "8baa4a8a-2c72-4c7e-8035-b6cf9943bda7" 0; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
+	} {
+		Set-SophiaPowerSetting "54533251-82be-4824-96c1-47b60b740d00" "8baa4a8a-2c72-4c7e-8035-b6cf9943bda7" 1; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
+	} { return $false } "powercfg PERFAUTONOMOUS=0"
+	Add-Cmd "EXT45" "BCD Boot Menu Policy = Legacy (vào Windows nhanh, F8 truyền thống)" $EXT "bootmenupolicy Legacy: bỏ màn hình boot đồ họa kép, khởi động thẳng & phím F8 khôi phục hoạt động kiểu cũ — farm restart nhanh và dễ cứu hộ." "Safe" $FARM {
+		& bcdedit /set '{current}' bootmenupolicy Legacy 2>$null | Out-Null
+	} {
+		& bcdedit /set '{current}' bootmenupolicy Standard 2>$null | Out-Null
+	} { return $false } "bcdedit bootmenupolicy Legacy"
+	Add-Cmd "EXT46" "Tắt DEP/NX (nx AlwaysOff) — CHỈ God Mode" $EXT "Vô hiệu Data Execution Prevention toàn hệ thống cho tương thích giả lập/driver cũ tối đa. Mất một lớp bảo mật quan trọng — Plan Engine chỉ để ở God Mode." "Extreme" @() {
+		& bcdedit /set '{current}' nx AlwaysOff 2>$null | Out-Null
+	} {
+		& bcdedit /set '{current}' nx OptIn 2>$null | Out-Null
+	} { return $false } "bcdedit nx AlwaysOff"
+	Add-Cmd "EXT47" "Hiện toàn bộ Power Settings ẩn (Unhide PERF/IDLE/EPP trong Power Options)" $EXT "Attributes=2 cho 7 thiết lập ẩn quan trọng: từ nay bạn tinh chỉnh tay IDLE/PERFBOOST/CPMINCORES... ngay trong Power Options nâng cao mà không cần lệnh." "Safe" $ALL_PERF {
+		Unhide-SophiaPowerSettings
+	} { Unhide-SophiaPowerSettings -Restore } { return $false } "PowerSettings Attributes=2"
+	Add-Cmd "EXT48" "IFEO IoPriority=High + PagePriority=5 cho exe giả lập" $EXT "Đi cặp EXT04: ngoài CPU priority, ép cả I/O priority cao & page priority cho exe giả lập — đọc/ghi image .vdi/.vmdk được ưu tiên trên hàng đợi đĩa." "Moderate" $FARM {
+		Set-SophiaExeIoPriority
+	} { Set-SophiaExeIoPriority -Remove } { return $false } "IFEO PerfOptions IoPriority/PagePriority"
+	Add-Reg "EXT49" "Chặn App nền bằng Policy (LetAppsRunInBackground = Deny)" $EXT "Bản Policy cứng của SYS03: AppPrivacy LetAppsRunInBackground=2 (Force Deny) — app Store không chạy ngầm ở mọi user, farm/game không bị giành tài nguyên." "Moderate" ($FARM+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" "LetAppsRunInBackground" 2 0
+	Add-Cmd "EXT50" "Tắt Print Spooler (nếu không in ấn — giảm bề mặt tấn công & process nền)" $EXT "Spooler là service hay bị khai thác (PrintNightmare) và vô dụng trên máy farm/game không máy in. Disabled hẳn; có máy in thì đừng tick." "Moderate" ($FARM_GAME+$LOW) {
+		Stop-Service Spooler -Force -ErrorAction SilentlyContinue; Set-Service Spooler -StartupType Disabled -ErrorAction SilentlyContinue
+	} {
+		Set-Service Spooler -StartupType Manual -ErrorAction SilentlyContinue
+	} { try { return ((Get-Service Spooler -ErrorAction SilentlyContinue).StartType -eq 'Disabled') } catch { return $false } } "Spooler Disabled"
 
 	return $catalog.ToArray()
 }

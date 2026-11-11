@@ -334,3 +334,128 @@ function Stop-SophiaTimerResolutionDaemon
 			ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 	} catch {}
 }
+
+function Set-SophiaInterruptPriority
+{
+	param([switch]$Restore)
+	# Display {4d36e968} + SCSIAdapter/NVMe {4d36e97b}: DevicePriority 3 = High interrupt priority
+	$enumRoot = "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI"
+	if (-not (Test-Path $enumRoot)) { return }
+	$guids = @("{4d36e968-e325-11ce-bfc1-08002be10318}", "{4d36e97b-e325-11ce-bfc1-08002be10318}")
+	Get-ChildItem -Path $enumRoot -ErrorAction SilentlyContinue | ForEach-Object {
+		Get-ChildItem -Path $_.PSPath -ErrorAction SilentlyContinue | ForEach-Object {
+			try
+			{
+				$cg = (Get-ItemProperty -Path $_.PSPath -Name "ClassGUID" -ErrorAction SilentlyContinue).ClassGUID
+				if ($cg -and ($guids -contains $cg))
+				{
+					$intKey = $_.PSPath + "\Device Parameters\Interrupt Management"
+					if ($Restore) { Remove-ItemProperty -Path $intKey -Name "DevicePriority" -Force -ErrorAction SilentlyContinue }
+					else { Set-SophiaRegValue -Path $intKey -Name "DevicePriority" -Value 3 -Type "DWord" }
+				}
+			} catch {}
+		}
+	}
+}
+
+function Set-SophiaNetAdapterBuffers
+{
+	param([switch]$Restore)
+	try
+	{
+		Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -ne 'Disabled' } | ForEach-Object {
+			$rx = if ($Restore) { "512" } else { "2048" }
+			$tx = if ($Restore) { "512" } else { "2048" }
+			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*ReceiveBuffers" -RegistryValue $rx -NoRestart -ErrorAction SilentlyContinue } catch {}
+			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*TransmitBuffers" -RegistryValue $tx -NoRestart -ErrorAction SilentlyContinue } catch {}
+		}
+	} catch {}
+}
+
+function Set-SophiaNvidiaPowerLimit
+{
+	param([switch]$Restore)
+	$smi = $null
+	$cmd = Get-Command "nvidia-smi.exe" -ErrorAction SilentlyContinue
+	if ($cmd) { $smi = $cmd.Source }
+	elseif (Test-Path "$env:ProgramFiles\NVIDIA Corporation\NVSMI\nvidia-smi.exe") { $smi = "$env:ProgramFiles\NVIDIA Corporation\NVSMI\nvidia-smi.exe" }
+	if (-not $smi) { return $false }
+	try
+	{
+		if ($Restore)
+		{
+			$def = (& $smi "--query-gpu=power.default_limit" "--format=csv,noheader" 2>$null | Select-Object -First 1).ToString().Trim() -replace '[^0-9.]', ''
+			if ($def) { & $smi -pl $def 2>$null | Out-Null }
+		}
+		else
+		{
+			$max = (& $smi "--query-gpu=power.max_limit" "--format=csv,noheader" 2>$null | Select-Object -First 1).ToString().Trim() -replace '[^0-9.]', ''
+			if ($max) { & $smi -pl $max 2>$null | Out-Null }
+		}
+		return $true
+	} catch { return $false }
+}
+
+function Set-SophiaPagefileFastestDrive
+{
+	param([switch]$Restore)
+	try
+	{
+		if ($Restore)
+		{
+			$cs = Get-CimInstance Win32_ComputerSystem
+			$cs | Set-CimInstance -Property @{ AutomaticManagedPagefile = $true } -ErrorAction SilentlyContinue
+			Get-CimInstance Win32_PageFileSetting -ErrorAction SilentlyContinue | Remove-CimInstance -ErrorAction SilentlyContinue
+			return
+		}
+		$best = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction SilentlyContinue |
+			Sort-Object FreeSpace -Descending | Select-Object -First 1
+		if (-not $best) { return }
+		$totalGB = [Math]::Ceiling((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
+		$size = [Math]::Max(16384, [int]($totalGB * 1024 * 1.5))
+		$cs = Get-CimInstance Win32_ComputerSystem
+		$cs | Set-CimInstance -Property @{ AutomaticManagedPagefile = $false } -ErrorAction SilentlyContinue
+		Get-CimInstance Win32_PageFileSetting -ErrorAction SilentlyContinue | Remove-CimInstance -ErrorAction SilentlyContinue
+		New-CimInstance -ClassName Win32_PageFileSetting -Property @{ Name = "$($best.DeviceID)\pagefile.sys"; InitialSize = $size; MaximumSize = $size } -ErrorAction SilentlyContinue | Out-Null
+	} catch {}
+}
+
+function Set-SophiaExeIoPriority
+{
+	param([switch]$Remove)
+	$ifeoRoot = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options"
+	foreach ($exe in (Get-SophiaEmulatorExeNames))
+	{
+		$perfKey = Join-Path (Join-Path $ifeoRoot $exe) "PerfOptions"
+		if ($Remove)
+		{
+			Remove-ItemProperty -Path $perfKey -Name "IoPriority" -Force -ErrorAction SilentlyContinue
+			Remove-ItemProperty -Path $perfKey -Name "PagePriority" -Force -ErrorAction SilentlyContinue
+		}
+		else
+		{
+			Set-SophiaRegValue -Path $perfKey -Name "IoPriority" -Value 3 -Type "DWord"
+			Set-SophiaRegValue -Path $perfKey -Name "PagePriority" -Value 5 -Type "DWord"
+		}
+	}
+}
+
+function Unhide-SophiaPowerSettings
+{
+	param([switch]$Restore)
+	$attrValue = 0
+	if (-not $Restore) { $attrValue = 2 }
+	$settings = @(
+		"54533251-82be-4824-96c1-47b60b740d00\5d76a2ca-e8c0-402f-a133-2158492d58ad",
+		"54533251-82be-4824-96c1-47b60b740d00\36687f9e-e3a5-4dbf-b1dc-15eb381c6863",
+		"54533251-82be-4824-96c1-47b60b740d00\be337238-0d82-4146-a960-4f3749d470c7",
+		"54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583",
+		"54533251-82be-4824-96c1-47b60b740d00\ea062031-0e34-4ff1-9b6d-eb1059334028",
+		"54533251-82be-4824-96c1-47b60b740d00\94d3a615-a899-4ac5-ae2b-e4d8f634367f",
+		"54533251-82be-4824-96c1-47b60b740d00\8baa4a8a-2c72-4c7e-8035-b6cf9943bda7"
+	)
+	foreach ($s in $settings)
+	{
+		Set-SophiaRegValue -Path ("HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\" + $s) -Name "Attributes" -Value $attrValue -Type "DWord"
+	}
+}

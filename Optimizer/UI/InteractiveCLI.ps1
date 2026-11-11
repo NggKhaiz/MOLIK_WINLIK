@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 120 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 137 tweaks.
 #>
 
 function Get-SophiaModeTweakIds
@@ -39,6 +39,22 @@ function Invoke-SophiaSelectedTweaks
 			Write-Host "  Đã hủy. Bỏ tick các tweak [Extreme] màu đỏ nếu bạn không chắc chắn." -ForegroundColor Yellow
 			return
 		}
+	}
+
+	# Plan Engine: phân tích phụ thuộc/mâu thuẫn + sắp xếp theo pha an toàn trước khi chạm vào hệ thống
+	if (Get-Command Get-SophiaOptimizationPlan -ErrorAction SilentlyContinue)
+	{
+		try
+		{
+			$plan = Get-SophiaOptimizationPlan -Catalog $Catalog -SelectedIds $SelectedIds
+			if (Get-Command Show-SophiaOptimizationPlan -ErrorAction SilentlyContinue) { Show-SophiaOptimizationPlan -Plan $plan }
+			if ($plan.Count -ne $selected.Count)
+			{
+				Write-Host "  [Plan Engine] Đã điều chỉnh danh sách: $($selected.Count) -> $($plan.Count) tweak (xem ghi chú ở trên)." -ForegroundColor Cyan
+			}
+			$selected = @($plan.Items | ForEach-Object { $_.Tweak })
+		}
+		catch { Write-Host "  [!] Plan Engine lỗi ($($_.Exception.Message)) — áp dụng theo thứ tự thường." -ForegroundColor Yellow }
 	}
 
 	$logDir = "$env:SystemDrive\Sophia_Backups\Logs"
@@ -170,11 +186,12 @@ function Show-SophiaSimpleMenu
 			Write-Host ("      {0}" -f $m.Description) -ForegroundColor Gray
 		}
 		Write-Host "   7. 🎛️  Mở giao diện TICK-CHỌN đầy đủ (phím ↑↓/SPACE)" -ForegroundColor Green
+		Write-Host "   G. 🤖 SMART AUTO — tự chọn Mode + tweak theo phần cứng máy này" -ForegroundColor Green
 		Write-Host "   8. 🧠 Purge RAM ngay          9. 🖥️ Boost giả lập ngay" -ForegroundColor Green
 		Write-Host "   T. 📊 Benchmark (Before/After)   C. 📈 So sánh Benchmark" -ForegroundColor Green
 		Write-Host "   R. ↩️  Restore mặc định        S. 💾 Tạo Shortcut Desktop" -ForegroundColor Green
 		Write-Host "   0. Thoát" -ForegroundColor Yellow
-		$choice = Read-Host "  Chọn (0-9/T/C/R/S)"
+		$choice = Read-Host "  Chọn (0-9/G/T/C/R/S)"
 		if ($choice -match '^[1-6]$')
 		{
 			$m = $modes[[int]::Parse($choice) - 1]
@@ -183,6 +200,20 @@ function Show-SophiaSimpleMenu
 			if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids }
 		}
 		elseif ($choice -eq '7') { Show-SophiaOptimizerUI -Catalog $Catalog -Snapshot $Snapshot }
+		elseif ($choice -eq 'G' -or $choice -eq 'g')
+		{
+			if (Get-Command Get-SophiaSmartRecommendation -ErrorAction SilentlyContinue)
+			{
+				$rec = Get-SophiaSmartRecommendation -Snapshot $Snapshot -Catalog $Catalog
+				Write-Host "  Smart Advisor khuyên: Mode $($rec.Mode) + $($rec.ExtraIds.Count) tweak bổ sung" -ForegroundColor Green
+				$rec.Reasons | ForEach-Object { Write-Host "      - $_" -ForegroundColor Cyan }
+				$rec.Warnings | ForEach-Object { Write-Host "      [!] $_" -ForegroundColor Yellow }
+				$ids = Get-SophiaModeTweakIds -ModeKey $rec.Mode -Catalog $Catalog
+				$ids = @($ids + $rec.ExtraIds | Select-Object -Unique)
+				$go = Read-Host "  Áp dụng $($ids.Count) tweak Smart Auto? (Y/N)"
+				if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids }
+			}
+		}
 		elseif ($choice -eq '8') { if (Get-Command Invoke-SophiaRamPurge -ErrorAction SilentlyContinue) { Invoke-SophiaRamPurge } }
 		elseif ($choice -eq '9') { Invoke-EmulatorAutoBooster }
 		elseif ($choice -eq 'T' -or $choice -eq 't') { if (Get-Command Invoke-SophiaBenchmark -ErrorAction SilentlyContinue) { Invoke-SophiaBenchmark -Label "Menu" | Out-Null } }
@@ -278,10 +309,12 @@ function Show-SophiaOptimizerUI
 		Write-Host $modeLine -ForegroundColor Yellow
 		$modeObj = $modes | Where-Object Key -eq $currentMode | Select-Object -First 1
 		if ($modeObj) { Write-Host "  $($modeObj.Icon) $($modeObj.Description)" -ForegroundColor DarkYellow }
+		if ($smartRec) { Write-Host "  🤖 Smart Advisor (phím G): khuyên dùng Mode $($smartRec.Mode) + $($smartRec.ExtraIds.Count) tweak theo phần cứng máy này" -ForegroundColor Green }
 		Write-Host ("  Đã tick: {0}/{1} tweak | Hiển thị: {2} | Tìm kiếm: '{3}'" -f $selectedCount, $Catalog.Count, $filtered.Count, $searchTerm) -ForegroundColor Cyan
 		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 		Write-Host "  [↑↓/KJ] Chọn  [SPACE] Tick  [1-6] Mode  [A]ll  [N]one  [/] Tìm  [P] Purge RAM  [E] Boost Giả Lập" -ForegroundColor Gray
-		Write-Host "  [V] Check đã áp dụng (●)  [T] Benchmark  [S] Lưu Profile  [L] Nạp Profile  [B] Backup" -ForegroundColor Gray
+		Write-Host "  [G] Smart Auto (AI khuyên dùng)  [V] Check đã áp dụng (●)  [T] Benchmark  [S] Lưu Profile" -ForegroundColor Gray
+		Write-Host "  [L] Nạp Profile  [B] Backup" -ForegroundColor Gray
 		Write-Host "  [R] Restore Mặc Định  [ENTER] ÁP DỤNG  [Q] Thoát" -ForegroundColor Gray
 		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 
@@ -389,6 +422,22 @@ function Show-SophiaOptimizerUI
 			if (Get-Command Invoke-SophiaBenchmark -ErrorAction SilentlyContinue) { Invoke-SophiaBenchmark -Label "Manual" | Out-Null }
 			else { Write-Host "  [!] Không tìm thấy module Benchmark." -ForegroundColor Yellow }
 			Read-Host "  Nhấn ENTER để tiếp tục"
+		}
+		elseif ($ch -eq 'g' -or $ch -eq 'G') {
+			try { [Console]::CursorVisible = $true } catch {}
+			if ($smartRec)
+			{
+				$currentMode = $smartRec.Mode
+				$selected = @{}
+				foreach ($id in (Get-SophiaModeTweakIds -ModeKey $currentMode -Catalog $Catalog)) { $selected[$id] = $true }
+				foreach ($id in $smartRec.ExtraIds) { $selected[$id] = $true }
+				$cursor = 0
+				Write-Host "  🤖 Smart Advisor đã tự tick Mode $currentMode + tweak riêng cho máy này:" -ForegroundColor Green
+				$smartRec.Reasons | ForEach-Object { Write-Host "      - $_" -ForegroundColor Cyan }
+				$smartRec.Warnings | ForEach-Object { Write-Host "      [!] $_" -ForegroundColor Yellow }
+			}
+			else { Write-Host "  [!] Smart Advisor không khả dụng (thiếu dữ liệu phần cứng)." -ForegroundColor Yellow }
+			Read-Host "  Nhấn ENTER để xem danh sách đã tick"
 		}
 		elseif ($ch -eq 's' -or $ch -eq 'S') {
 			try { [Console]::CursorVisible = $true } catch {}

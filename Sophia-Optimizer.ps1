@@ -1,11 +1,11 @@
-<#
+﻿<#
 	.SYNOPSIS
 	Sophia Ultra Optimizer — Interactive Tick-Select CLI (Tối ưu sâu Windows)
 
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
 	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 120 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	(src/Sophia_Script_for_Windows_*) + 137 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -43,6 +43,8 @@ param(
 	[switch]$DryRun,
 	[string]$Profile = "",
 	[switch]$Menu,
+	[switch]$Smart,
+	[switch]$Plan,
 	[switch]$ExportReport,
 	[string]$Search = ""
 )
@@ -92,6 +94,8 @@ $engineFiles = @(
 	"Optimizer\Core\RamCleanerDaemon.ps1",
 	"Optimizer\Core\ExtremeEngine.ps1",
 	"Optimizer\Core\Benchmark.ps1",
+	"Optimizer\Core\PlanEngine.ps1",
+	"Optimizer\Core\SmartAdvisor.ps1",
 	"Optimizer\Core\BackupRestore.ps1",
 	"Optimizer\Core\SophiaBridge.ps1",
 	"Optimizer\Catalog\TweaksCatalog.ps1",
@@ -112,6 +116,27 @@ try { $snapshot = Get-SophiaSystemSnapshot } catch {}
 # Bridge vào module Sophia gốc (không chặn bởi InitialActions/LGPO/UBR)
 try { Initialize-SophiaNativeModule -RepoRoot $RepoRoot | Out-Null } catch {}
 
+$smartRec = $null
+if (Get-Command Get-SophiaSmartRecommendation -ErrorAction SilentlyContinue)
+{
+	try { $smartRec = Get-SophiaSmartRecommendation -Snapshot $snapshot -Catalog $catalog } catch {}
+}
+if ($Smart -and $smartRec)
+{
+	$Mode = $smartRec.Mode
+	Write-Host "  Smart Advisor: Mode $Mode" -ForegroundColor Green
+	$smartRec.Reasons | ForEach-Object { Write-Host "      - $_" -ForegroundColor Cyan }
+	$smartRec.Warnings | ForEach-Object { Write-Host "      [!] $_" -ForegroundColor Yellow }
+}
+if ($Plan)
+{
+	$ids = Get-SophiaModeTweakIds -ModeKey $Mode -Catalog $catalog
+	if ($Smart -and $smartRec) { $ids = @($ids + $smartRec.ExtraIds | Select-Object -Unique) }
+	$planObj = Get-SophiaOptimizationPlan -Catalog $catalog -SelectedIds $ids -Snapshot $snapshot
+	Show-SophiaOptimizationPlan -Plan $planObj -Title "KẾ HOẠCH SIÊU SÂU - Mode $Mode (chưa áp dụng)"
+	Write-Host "  Để thực thi: chạy lại với -Apply (và -Smart nếu muốn Smart Advisor chọn hộ)." -ForegroundColor Yellow
+	return
+}
 if ($ListModes)
 {
 	Write-Host ""
@@ -188,6 +213,7 @@ if ($Profile)
 if ($Apply)
 {
 	$ids = Get-SophiaModeTweakIds -ModeKey $Mode -Catalog $catalog
+	if ($Smart -and $smartRec) { $ids = @($ids + $smartRec.ExtraIds | Select-Object -Unique) }
 	$modeObj = $modes | Where-Object Key -eq $Mode | Select-Object -First 1
 	Write-Host "  Mode: $($modeObj.Icon) $($modeObj.Name) — sẽ áp dụng $($ids.Count) tweak." -ForegroundColor Yellow
 	if (-not $Yes)

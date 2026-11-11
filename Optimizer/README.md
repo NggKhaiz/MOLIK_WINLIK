@@ -1,6 +1,6 @@
 # 👑 Sophia Ultra Optimizer — Tick-Select CLI
 
-Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **120 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
+Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **137 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
 
 ## 🚀 Chạy nhanh — KHÔNG CẦN CÀI ĐẶT
 
@@ -32,7 +32,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/So
 | `3` | 🎬 **WORKSTATION / STREAM** | Render/OBS/compile: mạnh nhưng giữ ổn định & mitigations, ưu tiên GPU encode/foreground |
 | `4` | 🥔 **LOW-SPEC / POTATO PC** | Máy yếu RAM ≤8GB: tắt visual effects, services/background apps/telemetry thừa |
 | `5` | 🛡️ **SOPHIA STANDARD** | Privacy + gọn gàng an toàn chuẩn Sophia gốc, không đụng kernel/BCD |
-| `6` | 👑 **GOD MODE** | Toàn bộ 120 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
+| `6` | 👑 **GOD MODE** | Toàn bộ 137 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
 
 ## ⌨️ Điều khiển trong CLI
 
@@ -56,7 +56,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/So
 .\Sophia-Optimizer.ps1 -Mode EmulatorFarm -Apply -Yes   # áp dụng thẳng 1 mode
 .\Sophia-Optimizer.ps1 -Mode HardcoreGaming              # mở CLI đã tick sẵn mode Gaming
 .\Sophia-Optimizer.ps1 -ListModes                        # xem 6 mode
-.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 120 tweak
+.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 137 tweak
 .\Sophia-Optimizer.ps1 -PurgeRAM                         # dọn RAM ngay
 .\Sophia-Optimizer.ps1 -BoostEmulators                   # boost process giả lập
 .\Sophia-Optimizer.ps1 -ExportReport                     # xuất JSON báo cáo phần cứng + catalog
@@ -77,9 +77,11 @@ Optimizer/
   Core/ExtremeEngine.ps1        # MSI interrupts, Timer 0.5ms daemon, Process Booster affinity,
                                 # IFEO priority, NIC advanced, powercfg cực hạn, NTFS/ULPS
   Core/Benchmark.ps1            # Benchmark CPU/Disk/RAM Before-After + so sánh %
+  Core/PlanEngine.ps1           # Lập kế hoạch: phụ thuộc/mâu thuẫn/8 pha/Impact Score/cảnh báo
+  Core/SmartAdvisor.ps1         # Tự khuyên Mode + tweak theo phần cứng thật của máy
   Core/SophiaBridge.ps1         # Bridge vào Sophia.psm1 gốc theo đúng edition Win10/11/LTSC/ARM/PS7
                                 # (bỏ qua chặn cứng LGPO/UBR của InitialActions.ps1)
-  Catalog/TweaksCatalog.ps1     # 120 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
+  Catalog/TweaksCatalog.ps1     # 137 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
   UI/InteractiveCLI.ps1         # TUI tick-chọn [✓]/[ ], tìm kiếm, thực thi & log
 ```
 
@@ -97,6 +99,21 @@ Optimizer/
 - **IFEO CpuPriorityClass=High vĩnh viễn**, GPU Preference & tắt FSO theo từng exe giả lập phát hiện được
 - **Power Profile cực hạn**: Ultimate + PERFEPP 0, PerfBoost Aggressive, IDLEDISABLE, ASPM off, disk không ngủ
 - **NIC advanced**: RSS đa lõi, Interrupt Moderation/LSO/EEE off · **Storage**: fsutil LastAccess/8dot3 off, TRIM on · **AMD ULPS off** · SvcHost thu gọn theo RAM
+
+## 🧠 Plan Siêu Sâu + Smart Advisor (Tự động hoá tối đa)
+
+```powershell
+.\Sophia-Optimizer.ps1 -Plan                      # xem KẾ HOẠCH chi tiết theo Mode (chưa áp dụng)
+.\Sophia-Optimizer.ps1 -Smart -Plan               # Smart Advisor tự chọn Mode theo phần cứng rồi lập plan
+.\Sophia-Optimizer.ps1 -Smart -Apply -Yes         # Smart Advisor chọn hộ + áp dụng luôn
+# Trong CLI: phím G = Smart Auto, Menu đơn giản: phím G tương tự
+```
+
+**Plan Engine** (`Optimizer/Core/PlanEngine.ps1`) phân tích trước khi chạm vào hệ thống: tự bổ sung phụ thuộc (EXT02→EXT23 trên Win11, CPU04→EXT22), loại mâu thuẫn (EXT07 thay GAM01, EXT39 thay EMU06, EXT03 thay EMU13), sắp xếp theo 8 pha an toàn (Tasks/Services → Registry → GPU → Power → Network → Storage → Kernel/BCD cuối cùng), đánh dấu tweak cần restart, tính **Impact Score** và cảnh báo theo ngữ cảnh (laptop thì không khóa idle, RAM ≤8GB thì không tắt Memory Compression...).
+
+**Smart Advisor** (`Optimizer/Core/SmartAdvisor.ps1`) đọc phần cứng thật: thấy giả lập → Farm, GPU AMD → thêm tắt ULPS, NVIDIA → thêm ép Power Limit, NVMe → thêm NTFS/Interrupt sâu, laptop → chặn tweak gây nóng.
+
+**EXTREME LAB mở rộng EXT34–EXT50:** WMI Autologger off, NetBIOS off, TCP CUBIC, Interrupt Priority GPU/NVMe, Pagefile ổ nhanh nhất, NIC buffers 2048, ưu tiên IPv4, NVIDIA Power Limit max, tắt HWP Autonomous, Boot Legacy, DEP off (God Mode), Unhide Power Settings, IFEO I/O Priority, Print Spooler off...
 
 ## 📊 Benchmark Before/After
 

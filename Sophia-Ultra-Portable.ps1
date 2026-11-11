@@ -10,7 +10,7 @@
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
 	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 120 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	(src/Sophia_Script_for_Windows_*) + 137 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -48,6 +48,8 @@ param(
 	[switch]$DryRun,
 	[string]$Profile = "",
 	[switch]$Menu,
+	[switch]$Smart,
+	[switch]$Plan,
 	[switch]$ExportReport,
 	[string]$Search = ""
 )
@@ -1098,6 +1100,131 @@ function Stop-SophiaTimerResolutionDaemon
 	} catch {}
 }
 
+function Set-SophiaInterruptPriority
+{
+	param([switch]$Restore)
+	# Display {4d36e968} + SCSIAdapter/NVMe {4d36e97b}: DevicePriority 3 = High interrupt priority
+	$enumRoot = "HKLM:\SYSTEM\CurrentControlSet\Enum\PCI"
+	if (-not (Test-Path $enumRoot)) { return }
+	$guids = @("{4d36e968-e325-11ce-bfc1-08002be10318}", "{4d36e97b-e325-11ce-bfc1-08002be10318}")
+	Get-ChildItem -Path $enumRoot -ErrorAction SilentlyContinue | ForEach-Object {
+		Get-ChildItem -Path $_.PSPath -ErrorAction SilentlyContinue | ForEach-Object {
+			try
+			{
+				$cg = (Get-ItemProperty -Path $_.PSPath -Name "ClassGUID" -ErrorAction SilentlyContinue).ClassGUID
+				if ($cg -and ($guids -contains $cg))
+				{
+					$intKey = $_.PSPath + "\Device Parameters\Interrupt Management"
+					if ($Restore) { Remove-ItemProperty -Path $intKey -Name "DevicePriority" -Force -ErrorAction SilentlyContinue }
+					else { Set-SophiaRegValue -Path $intKey -Name "DevicePriority" -Value 3 -Type "DWord" }
+				}
+			} catch {}
+		}
+	}
+}
+
+function Set-SophiaNetAdapterBuffers
+{
+	param([switch]$Restore)
+	try
+	{
+		Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -ne 'Disabled' } | ForEach-Object {
+			$rx = if ($Restore) { "512" } else { "2048" }
+			$tx = if ($Restore) { "512" } else { "2048" }
+			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*ReceiveBuffers" -RegistryValue $rx -NoRestart -ErrorAction SilentlyContinue } catch {}
+			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*TransmitBuffers" -RegistryValue $tx -NoRestart -ErrorAction SilentlyContinue } catch {}
+		}
+	} catch {}
+}
+
+function Set-SophiaNvidiaPowerLimit
+{
+	param([switch]$Restore)
+	$smi = $null
+	$cmd = Get-Command "nvidia-smi.exe" -ErrorAction SilentlyContinue
+	if ($cmd) { $smi = $cmd.Source }
+	elseif (Test-Path "$env:ProgramFiles\NVIDIA Corporation\NVSMI\nvidia-smi.exe") { $smi = "$env:ProgramFiles\NVIDIA Corporation\NVSMI\nvidia-smi.exe" }
+	if (-not $smi) { return $false }
+	try
+	{
+		if ($Restore)
+		{
+			$def = (& $smi "--query-gpu=power.default_limit" "--format=csv,noheader" 2>$null | Select-Object -First 1).ToString().Trim() -replace '[^0-9.]', ''
+			if ($def) { & $smi -pl $def 2>$null | Out-Null }
+		}
+		else
+		{
+			$max = (& $smi "--query-gpu=power.max_limit" "--format=csv,noheader" 2>$null | Select-Object -First 1).ToString().Trim() -replace '[^0-9.]', ''
+			if ($max) { & $smi -pl $max 2>$null | Out-Null }
+		}
+		return $true
+	} catch { return $false }
+}
+
+function Set-SophiaPagefileFastestDrive
+{
+	param([switch]$Restore)
+	try
+	{
+		if ($Restore)
+		{
+			$cs = Get-CimInstance Win32_ComputerSystem
+			$cs | Set-CimInstance -Property @{ AutomaticManagedPagefile = $true } -ErrorAction SilentlyContinue
+			Get-CimInstance Win32_PageFileSetting -ErrorAction SilentlyContinue | Remove-CimInstance -ErrorAction SilentlyContinue
+			return
+		}
+		$best = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction SilentlyContinue |
+			Sort-Object FreeSpace -Descending | Select-Object -First 1
+		if (-not $best) { return }
+		$totalGB = [Math]::Ceiling((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
+		$size = [Math]::Max(16384, [int]($totalGB * 1024 * 1.5))
+		$cs = Get-CimInstance Win32_ComputerSystem
+		$cs | Set-CimInstance -Property @{ AutomaticManagedPagefile = $false } -ErrorAction SilentlyContinue
+		Get-CimInstance Win32_PageFileSetting -ErrorAction SilentlyContinue | Remove-CimInstance -ErrorAction SilentlyContinue
+		New-CimInstance -ClassName Win32_PageFileSetting -Property @{ Name = "$($best.DeviceID)\pagefile.sys"; InitialSize = $size; MaximumSize = $size } -ErrorAction SilentlyContinue | Out-Null
+	} catch {}
+}
+
+function Set-SophiaExeIoPriority
+{
+	param([switch]$Remove)
+	$ifeoRoot = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options"
+	foreach ($exe in (Get-SophiaEmulatorExeNames))
+	{
+		$perfKey = Join-Path (Join-Path $ifeoRoot $exe) "PerfOptions"
+		if ($Remove)
+		{
+			Remove-ItemProperty -Path $perfKey -Name "IoPriority" -Force -ErrorAction SilentlyContinue
+			Remove-ItemProperty -Path $perfKey -Name "PagePriority" -Force -ErrorAction SilentlyContinue
+		}
+		else
+		{
+			Set-SophiaRegValue -Path $perfKey -Name "IoPriority" -Value 3 -Type "DWord"
+			Set-SophiaRegValue -Path $perfKey -Name "PagePriority" -Value 5 -Type "DWord"
+		}
+	}
+}
+
+function Unhide-SophiaPowerSettings
+{
+	param([switch]$Restore)
+	$attrValue = 0
+	if (-not $Restore) { $attrValue = 2 }
+	$settings = @(
+		"54533251-82be-4824-96c1-47b60b740d00\5d76a2ca-e8c0-402f-a133-2158492d58ad",
+		"54533251-82be-4824-96c1-47b60b740d00\36687f9e-e3a5-4dbf-b1dc-15eb381c6863",
+		"54533251-82be-4824-96c1-47b60b740d00\be337238-0d82-4146-a960-4f3749d470c7",
+		"54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583",
+		"54533251-82be-4824-96c1-47b60b740d00\ea062031-0e34-4ff1-9b6d-eb1059334028",
+		"54533251-82be-4824-96c1-47b60b740d00\94d3a615-a899-4ac5-ae2b-e4d8f634367f",
+		"54533251-82be-4824-96c1-47b60b740d00\8baa4a8a-2c72-4c7e-8035-b6cf9943bda7"
+	)
+	foreach ($s in $settings)
+	{
+		Set-SophiaRegValue -Path ("HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\" + $s) -Name "Attributes" -Value $attrValue -Type "DWord"
+	}
+}
+
 
 # ====================================================================
 # [PORTABLE-INLINE] Optimizer\Core\Benchmark.ps1
@@ -1239,6 +1366,260 @@ function Compare-SophiaBenchmarks
 	Show-Delta "Disk Read" $first.DiskReadMBs $last.DiskReadMBs "MB/s" $false
 	Show-Delta "RAM trống" $first.RamFreeMB $last.RamFreeMB "MB" $false
 	Show-Delta "Tiến trình" $first.ProcessCount $last.ProcessCount "process" $true
+}
+
+
+# ====================================================================
+# [PORTABLE-INLINE] Optimizer\Core\PlanEngine.ps1
+# ====================================================================
+<#
+	.SYNOPSIS
+	Sophia Ultra Optimizer - Optimization Plan Engine (phân tích siêu sâu trước khi áp dụng)
+
+	.DESCRIPTION
+	Nhận danh sách tweak đã chọn và trả về KẾ HOẠCH thực thi tối ưu:
+	- Tự bổ sung tweak phụ thuộc (EXT02 -> EXT23 trên Win11, CPU04 -> EXT22)
+	- Loại bỏ tweak bị thay thế/mâu thuẫn (EXT07 thay GAM01, EXT39 thay EMU06, EXT03 thay EMU13)
+	- Sắp xếp theo PHA an toàn: Backup -> Tasks/Services -> Registry/Privacy -> GPU/Display
+	  -> Power -> Network -> Storage/Pagefile -> Kernel/BCD (cuối cùng, gần reboot nhất)
+	- Đánh dấu tweak cần RESTART, tính Impact Score và cảnh báo theo ngữ cảnh.
+#>
+
+function Get-SophiaRebootTweakIds
+{
+	return @(
+		"EMU01","EMU02","EMU03","EMU04","EMU06","CPU01","CPU04","CPU05","RAM01","RAM02","RAM03","RAM09",
+		"GPU01","GPU03","GPU04","GPU05","NET01","NET08","NET09","SYS04","EXT01","EXT21","EXT22","EXT38","EXT39","EXT46"
+	)
+}
+
+function Get-SophiaTweakPhase
+{
+	param($Tweak)
+	$id = $Tweak.Id
+	if ($id -in @("EMU07","SYS02","SYS01","EXT13","EXT14","EXT15","EXT27")) { return 2 }
+	if ($id -match '^EXT3[89]$|^EMU06$') { return 7 }
+	if ($id -match '^CPU0[145]$|^EMU0[1234]$|^EXT(01|22|23|46|48)$|^RAM09$') { return 8 }
+	if ($Tweak.Category -match 'PRIVACY|SYSTEM') { return 3 }
+	if ($Tweak.Category -match 'GPU') { return 4 }
+	if ($id -match '^GAM01$|^EXT0[789]$|^CPU0[2368]$|^EMU09$|^EXT(33|47)$') { return 5 }
+	if ($Tweak.Category -match 'NETWORK') { return 6 }
+	if ($Tweak.Category -match 'RAM|CPU|GAMING') { return 4 }
+	return 3
+}
+
+function Get-SophiaOptimizationPlan
+{
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory)]$Catalog,
+		[Parameter(Mandatory)][string[]]$SelectedIds,
+		$Snapshot = $null
+	)
+
+	$notes = @()
+	$warnings = @()
+	$ids = [System.Collections.Generic.List[string]]::new()
+	foreach ($id in $SelectedIds) { if (-not $ids.Contains($id)) { $ids.Add($id) } }
+
+	$byId = @{}
+	foreach ($t in $Catalog) { $byId[$t.Id] = $t }
+	$ids = @($ids | Where-Object { $byId.ContainsKey($_) })
+
+	# ── Dependencies ──────────────────────────────────────────────────────────
+	$osBuild = 0
+	try { $osBuild = [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name CurrentBuild -ErrorAction SilentlyContinue) } catch {}
+	if (($ids -contains "EXT02") -and $osBuild -ge 22621 -and ($ids -notcontains "EXT23"))
+	{
+		$ids += "EXT23"
+		$notes += "[Phụ thuộc] EXT02 (Timer 0.5ms) trên Windows 11 cần EXT23 GlobalTimerResolutionRequests — đã tự bổ sung."
+	}
+	if (($ids -contains "CPU04") -and ($ids -notcontains "EXT22"))
+	{
+		$ids += "EXT22"
+		$notes += "[Phụ thuộc] CPU04 tắt Spectre/Meltdown cần EXT22 (OverrideMask=3) đi cặp — đã tự bổ sung."
+	}
+	if (($ids -contains "EXT01"))
+	{
+		$notes += "[Lưu ý] EXT01 MSI Mode chỉ có hiệu lực sau RESTART và nên kiểm tra Device Manager nếu có thiết bị hoạt động lạ."
+	}
+
+	# ── Superseded / conflicts ────────────────────────────────────────────────
+	if (($ids -contains "EXT07") -and ($ids -contains "GAM01"))
+	{
+		$ids = @($ids | Where-Object { $_ -ne "GAM01" })
+		$notes += "[Mâu thuẫn] EXT07 Power Profile CỰC HẠN đã bao gồm Ultimate Performance — loại GAM01 khỏi kế hoạch."
+	}
+	if (($ids -contains "EXT39") -and ($ids -contains "EMU06"))
+	{
+		$ids = @($ids | Where-Object { $_ -ne "EMU06" })
+		$notes += "[Mâu thuẫn] EXT39 (Pagefile ổ nhanh nhất) thay thế EMU06 (Pagefile ổ hệ thống) — đã loại EMU06."
+	}
+	if (($ids -contains "EXT03") -and ($ids -contains "EMU13"))
+	{
+		$ids = @($ids | Where-Object { $_ -ne "EMU13" })
+		$notes += "[Trùng lặp] EXT03 Process Booster Task đã tự boost định kỳ — loại EMU13 (boost thủ công 1 lần)."
+	}
+
+	# ── Context warnings ──────────────────────────────────────────────────────
+	$isLaptop = $false
+	try { $isLaptop = [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue) } catch {}
+	if ($isLaptop -and ($ids -match 'EXT08|EXT07|CPU03'))
+	{
+		$warnings += "Máy có pin (laptop): nhóm khóa xung/idle (EXT07/EXT08/CPU03) sẽ RẤT NÓNG và hao pin — cân nhắc bỏ tick nếu không cắm điện cố định."
+	}
+	if ($Snapshot -and $Snapshot.RAMTotalGB -gt 0 -and $Snapshot.RAMTotalGB -le 8 -and ($ids -contains "RAM01"))
+	{
+		$warnings += "RAM <= 8GB: tắt Memory Compression (RAM01) có thể làm máy dễ tràn RAM — Plan Engine khuyên GIỮ tweak này ở trạng thái tắt trên máy RAM ít."
+	}
+	if (($ids | Where-Object { $byId[$_].Risk -eq "Extreme" }).Count -ge 5)
+	{
+		$warnings += "Kế hoạch chứa >= 5 tweak Extreme: hãy chắc chắn Restore Point đã tạo và bạn sẵn sàng restart + kiểm tra ổn định sau đó."
+	}
+
+	# ── Ordering + scoring ────────────────────────────────────────────────────
+	$rebootIds = Get-SophiaRebootTweakIds
+	$items = foreach ($id in $ids)
+	{
+		$t = $byId[$id]
+		$score = 1
+		if ($t.Risk -eq "Moderate") { $score = 2 } elseif ($t.Risk -eq "Extreme") { $score = 3 }
+		if ($t.Category -match 'GIẢ LẬP|EXTREME') { $score += 1 }
+		[PSCustomObject]@{
+			Id = $t.Id; Name = $t.Name; Category = $t.Category; Risk = $t.Risk
+			Phase = Get-SophiaTweakPhase -Tweak $t
+			NeedsReboot = ($rebootIds -contains $t.Id)
+			Impact = $score
+			Tweak = $t
+		}
+	}
+	$items = @($items | Sort-Object Phase, Id)
+	$totalScore = ($items | Measure-Object -Property Impact -Sum).Sum
+	$level = "Nhẹ"
+	if ($totalScore -ge 60) { $level = "CỰC HẠN" } elseif ($totalScore -ge 35) { $level = "Sâu" } elseif ($totalScore -ge 18) { $level = "Trung bình" }
+
+	return [PSCustomObject]@{
+		Items = $items
+		Count = $items.Count
+		ImpactScore = $totalScore
+		Level = $level
+		RebootCount = @($items | Where-Object NeedsReboot).Count
+		ExtremeCount = @($items | Where-Object { $_.Risk -eq "Extreme" }).Count
+		Notes = $notes
+		Warnings = $warnings
+		Phases = @($items | Group-Object Phase | Sort-Object { [int]$_.Name })
+	}
+}
+
+function Show-SophiaOptimizationPlan
+{
+	param([Parameter(Mandatory)]$Plan, [string]$Title = "KẾ HOẠCH TỐI ƯU SIÊU SÂU")
+
+	Write-Host ""
+	Write-Host "  ╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
+	Write-Host "  ║  $Title" -ForegroundColor Magenta
+	Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+	Write-Host ("  Tổng: {0} tweak | Impact Score: {1} ({2}) | Cần restart: {3} | Extreme: {4}" -f $Plan.Count, $Plan.ImpactScore, $Plan.Level, $Plan.RebootCount, $Plan.ExtremeCount) -ForegroundColor Cyan
+	$phaseNames = @{ 2 = "Pha 2 - Scheduled Tasks & Services"; 3 = "Pha 3 - Registry / Privacy / System"; 4 = "Pha 4 - GPU / Display / Multimedia"; 5 = "Pha 5 - Power Profile & CPU Power"; 6 = "Pha 6 - Network Stack"; 7 = "Pha 7 - Storage & Pagefile"; 8 = "Pha 8 - Kernel / BCD / Security Mitigations (cuối cùng)" }
+	foreach ($phase in $Plan.Phases)
+	{
+		$pName = $phaseNames[[int]$phase.Name]
+		if (-not $pName) { $pName = "Pha $($phase.Name)" }
+		Write-Host ""
+		Write-Host "  [$pName] ($($phase.Count) tweak)" -ForegroundColor Yellow
+		foreach ($item in $phase.Group)
+		{
+			$rebootTag = if ($item.NeedsReboot) { " (RESTART)" } else { "" }
+			Write-Host ("    - [{0}] [{1}] {2}{3}" -f $item.Id, $item.Risk, $item.Name, $rebootTag) -ForegroundColor Gray
+		}
+	}
+	foreach ($n in $Plan.Notes) { Write-Host "  $n" -ForegroundColor Cyan }
+	foreach ($w in $Plan.Warnings) { Write-Host "  ⚠ $w" -ForegroundColor Red }
+	Write-Host ""
+	Write-Host "  Thứ tự trên được áp dụng để tweak nền (tasks/services/registry) vào trước, kernel/BCD vào sau cùng ngay trước khi restart." -ForegroundColor DarkGray
+}
+
+
+# ====================================================================
+# [PORTABLE-INLINE] Optimizer\Core\SmartAdvisor.ps1
+# ====================================================================
+<#
+	.SYNOPSIS
+	Sophia Ultra Optimizer - Smart Advisor (tự phân tích phần cứng -> khuyên Mode + tweak)
+
+	.DESCRIPTION
+	Dựa trên Snapshot thật của máy (giả lập đã cài, GPU vendor, RAM, NVMe, VBS, laptop/desktop)
+	để đề xuất Mode chính + các tweak bổ sung + cảnh báo. Dùng cho phím G trong CLI,
+	tham số -Smart, và dòng khuyến nghị trên header giao diện.
+#>
+
+function Get-SophiaSmartRecommendation
+{
+	[CmdletBinding()]
+	param($Snapshot, $Catalog)
+
+	$reasons = @()
+	$extraIds = @()
+	$warnings = @()
+	$mode = "SophiaStandard"
+
+	if (-not $Snapshot)
+	{
+		return [PSCustomObject]@{ Mode = $mode; ExtraIds = @(); Reasons = @("Không đọc được thông tin phần cứng — dùng Sophia Standard an toàn."); Warnings = @() }
+	}
+
+	$hasEmulator = ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0)
+	$isLaptop = $false
+	try { $isLaptop = [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue) } catch {}
+
+	if ($hasEmulator)
+	{
+		$mode = "EmulatorFarm"
+		$reasons += "Phát hiện giả lập: $($Snapshot.InstalledEmulators -join ', ') -> Mode TREO GIẢ LẬP 24/7."
+		$extraIds += @("EXT02","EXT03","EXT04","EXT39")
+		if ($Snapshot.VBSRunning -or $Snapshot.HVCIEnabled)
+		{
+			$reasons += "VBS/HVCI đang BẬT và tranh VT-x với giả lập -> EMU01/EMU02/EMU04 đặc biệt quan trọng."
+		}
+	}
+	elseif ($Snapshot.RAMTotalGB -gt 0 -and $Snapshot.RAMTotalGB -le 8)
+	{
+		$mode = "LowSpec"
+		$reasons += "RAM chỉ $($Snapshot.RAMTotalGB)GB -> Mode LOW-SPEC / POTATO PC."
+		$warnings += "RAM ít: Plan Engine sẽ cảnh báo nếu bạn tick RAM01 (tắt Memory Compression)."
+	}
+	elseif ($Snapshot.GPUVendor -in @("NVIDIA","AMD"))
+	{
+		$mode = "HardcoreGaming"
+		$reasons += "GPU rời $($Snapshot.GPUName) ($($Snapshot.GPUVendor)) -> Mode HARDCORE GAMING."
+	}
+	else
+	{
+		$reasons += "Không thấy giả lập/GPU rời nổi bật, RAM $($Snapshot.RAMTotalGB)GB -> Mode WORKSTATION cân bằng."
+		$mode = "Workstation"
+	}
+
+	if ($Snapshot.GPUVendor -eq "AMD") { $extraIds += "EXT12" ; $reasons += "GPU AMD: bổ sung EXT12 tắt ULPS chống stutter." }
+	if ($Snapshot.GPUVendor -eq "NVIDIA") { $extraIds += "EXT43" ; $reasons += "GPU NVIDIA: bổ sung EXT43 ép Power Limit tối đa qua nvidia-smi." }
+	if ($Snapshot.SystemDriveType -match "NVMe") { $extraIds += @("EXT11","EXT38") ; $reasons += "Ổ NVMe: bổ sung EXT11 (NTFS sâu) + EXT38 (Interrupt Priority) để khai thác tối đa." }
+	if ($Snapshot.CPUThreads -ge 8) { $extraIds += "EXT03" ; $reasons += "CPU $($Snapshot.CPUThreads) luồng: EXT03 affinity tránh Core 0 phát huy tốt." }
+	if ($isLaptop)
+	{
+		$warnings += "Đây là LAPTOP: Smart Advisor KHÔNG tự thêm EXT08 (khóa idle) / CPU03 — tránh nóng & hao pin. Chỉ dùng khi cắm điện cố định như máy farm."
+		$extraIds = @($extraIds | Where-Object { $_ -notin @("EXT08") })
+	}
+	if ($Snapshot.HAGSEnabled) { $reasons += "HAGS đã bật sẵn (GPU01 có thể bỏ tick)." }
+
+	$catalogIds = @($Catalog | ForEach-Object { $_.Id })
+	$extraIds = @($extraIds | Select-Object -Unique | Where-Object { $catalogIds -contains $_ })
+
+	return [PSCustomObject]@{
+		Mode = $mode
+		ExtraIds = $extraIds
+		Reasons = $reasons
+		Warnings = $warnings
+		IsLaptop = $isLaptop
+	}
 }
 
 
@@ -1546,7 +1927,7 @@ function Invoke-SophiaNativeSafe
 # ====================================================================
 <#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Deep Tweaks Catalog (120 tweaks, 9 categories incl. EXTREME LAB, 6 modes)
+	Sophia Ultra Optimizer - Deep Tweaks Catalog (137 tweaks, 9 categories incl. EXTREME LAB, 6 modes)
 
 	.DESCRIPTION
 	Every tweak: Id, Name, Category, Description, Risk, Modes, ApplyScript, RestoreScript, CheckScript.
@@ -1981,6 +2362,63 @@ function Get-SophiaTweaksCatalog
 		Set-SophiaPowerSetting "238c9fa8-0aad-41ed-83f4-97be242c8f20" "bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d" 1; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
 	} { return $false } "powercfg RTCWAKE=0"
 
+	Add-Reg "EXT34" "Tắt WMI Autologger DiagLog (bớt ghi log chẩn đoán nền)" $EXT "Autologger\DiagLog Start=0: giảm I/O ghi log ETW liên tục của hệ thống chẩn đoán — ổ farm bớt bị làm phiền bởi ghi nền vô hình." "Moderate" ($FARM_GAME+$LOW) "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger\DiagLog" "Start" 0 1
+	Add-Reg "EXT35" "Tắt WMI Autologger ReadyBoot (boot trace)" $EXT "ReadyBoot trace ghi log mỗi lần khởi động phục vụ ReadyBoost/SysMain — máy SSD/farm không cần, tắt để boot sạch & ít ghi ổ." "Moderate" ($FARM+$LOW) "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger\ReadyBoot" "Start" 0 1
+	Add-Cmd "EXT36" "Tắt NetBIOS over TCP/IP mọi interface (giảm broadcast & delay LAN)" $EXT "TcpipNetbiosOptions=2 trên mọi NIC: ngừng broadcast NetBIOS cổ điển trong LAN — mạng farm/game sạch hơn, giảm tấn công giả mạo tên NetBIOS." "Moderate" $FARM_GAME {
+		$base = "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces"
+		if (Test-Path $base) { Get-ChildItem $base | ForEach-Object { Set-SophiaRegValue $_.PSPath "TcpipNetbiosOptions" 2 "DWord" } }
+	} {
+		$base = "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces"
+		if (Test-Path $base) { Get-ChildItem $base | ForEach-Object { Set-SophiaRegValue $_.PSPath "TcpipNetbiosOptions" 0 "DWord" } }
+	} { return $false } "NetBT TcpipNetbiosOptions=2"
+	Add-Cmd "EXT37" "TCP Supplemental: CUBIC + template Internet tốc độ cao" $EXT "Ép thuật toán điều khiển tắc nghẽn CUBIC và template supplemental cho kết nối Internet — throughput ổn định hơn cho launcher/update/farm tải dữ liệu lớn." "Moderate" $GAME {
+		& netsh interface tcp set supplemental template=internet congestionprovider=cubic 2>$null | Out-Null
+		& netsh interface tcp set global initialRto=1000 2>$null | Out-Null
+	} {
+		& netsh interface tcp set supplemental template=internet congestionprovider=default 2>$null | Out-Null
+	} { return $false } "netsh supplemental cubic"
+	Add-Cmd "EXT38" "Interrupt Priority = HIGH cho GPU + NVMe (DevicePriority=3)" $EXT "Đi cùng EXT01 MSI Mode: nâng mức ưu tiên ngắt của GPU & controller NVMe trong Interrupt Management — GPU/NVMe được CPU phục vụ ngắt trước thiết bị phụ." "Extreme" $FARM_GAME {
+		Set-SophiaInterruptPriority
+	} { Set-SophiaInterruptPriority -Restore } { return $false } "Enum\PCI\...\Interrupt Management DevicePriority=3"
+	Add-Cmd "EXT39" "Pagefile chuyển sang Ổ TRỐNG NHẤT (thường là NVMe phụ) — cố định lớn" $EXT "Bản cực hạn của EMU06: đặt pagefile cố định RAMx1.5 lên volume trống nhất để ổ hệ thống không bị I/O pagefile tranh với image giả lập. Cần RESTART." "Extreme" $FARM {
+		Set-SophiaPagefileFastestDrive
+	} { Set-SophiaPagefileFastestDrive -Restore } { return $false } "Win32_PageFileSetting fastest volume"
+	Add-Reg "EXT40" "MMCSS 'Pro Audio': SchedulingCategory = High (cho Stream/OBS)" $EXT "Profile Pro Audio của Multimedia Scheduler ở mức High — thu âm/stream/encode audio-video không bị luồng nền chen ngang gây xì/xé tiếng." "Moderate" $WORK "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Pro Audio" "SchedulingCategory" "High" "Medium" "String"
+	Add-Cmd "EXT41" "NIC Buffers = 2048/2048 (Receive/Transmit tối đa)" $EXT "Tăng bộ đệm nhận/gửi của card mạng lên tối đa phần cứng cho phép qua Advanced Properties — burst gói tin của nhiều instance/game không bị drop ở tầng driver." "Moderate" $FARM_GAME {
+		Set-SophiaNetAdapterBuffers
+	} { Set-SophiaNetAdapterBuffers -Restore } { return $false } "Set-NetAdapterAdvancedProperty *ReceiveBuffers/*TransmitBuffers"
+	Add-Reg "EXT42" "Ưu tiên IPv4 hơn IPv6 (DisabledComponents = 0x20)" $EXT "Không tắt IPv6 (tránh vỡ kết nối mới) nhưng ưu tiên IPv4 trong prefix policy — launcher/game server IPv4 kết nối nhanh, bớt độ trễ phân giải kép." "Moderate" $GAME "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters" "DisabledComponents" 32 0
+	Add-Cmd "EXT43" "NVIDIA: Ép Power Limit = TỐI ĐA qua nvidia-smi" $EXT "Nếu có nvidia-smi: đặt power limit lên mức max_limit của card — GPU không bị giới hạn điện sớm khi boost dài. Tự bỏ qua nếu không phải NVIDIA." "Extreme" $GAME {
+		Set-SophiaNvidiaPowerLimit | Out-Null
+	} { Set-SophiaNvidiaPowerLimit -Restore | Out-Null } { return $false } "nvidia-smi -pl max_limit"
+	Add-Cmd "EXT44" "Tắt Processor Autonomous Mode (HWP tự trị -> PERFEPP kiểm soát)" $EXT "PERFAUTONOMOUS=0: tắt chế độ CPU tự chọn xung hoàn toàn tự trị để PERFEPP=0 (EXT/CPU08) kiểm soát dứt khoát theo hướng hiệu năng. Cần hiểu rõ CPU của bạn." "Extreme" $GAME {
+		Set-SophiaPowerSetting "54533251-82be-4824-96c1-47b60b740d00" "8baa4a8a-2c72-4c7e-8035-b6cf9943bda7" 0; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
+	} {
+		Set-SophiaPowerSetting "54533251-82be-4824-96c1-47b60b740d00" "8baa4a8a-2c72-4c7e-8035-b6cf9943bda7" 1; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
+	} { return $false } "powercfg PERFAUTONOMOUS=0"
+	Add-Cmd "EXT45" "BCD Boot Menu Policy = Legacy (vào Windows nhanh, F8 truyền thống)" $EXT "bootmenupolicy Legacy: bỏ màn hình boot đồ họa kép, khởi động thẳng & phím F8 khôi phục hoạt động kiểu cũ — farm restart nhanh và dễ cứu hộ." "Safe" $FARM {
+		& bcdedit /set '{current}' bootmenupolicy Legacy 2>$null | Out-Null
+	} {
+		& bcdedit /set '{current}' bootmenupolicy Standard 2>$null | Out-Null
+	} { return $false } "bcdedit bootmenupolicy Legacy"
+	Add-Cmd "EXT46" "Tắt DEP/NX (nx AlwaysOff) — CHỈ God Mode" $EXT "Vô hiệu Data Execution Prevention toàn hệ thống cho tương thích giả lập/driver cũ tối đa. Mất một lớp bảo mật quan trọng — Plan Engine chỉ để ở God Mode." "Extreme" @() {
+		& bcdedit /set '{current}' nx AlwaysOff 2>$null | Out-Null
+	} {
+		& bcdedit /set '{current}' nx OptIn 2>$null | Out-Null
+	} { return $false } "bcdedit nx AlwaysOff"
+	Add-Cmd "EXT47" "Hiện toàn bộ Power Settings ẩn (Unhide PERF/IDLE/EPP trong Power Options)" $EXT "Attributes=2 cho 7 thiết lập ẩn quan trọng: từ nay bạn tinh chỉnh tay IDLE/PERFBOOST/CPMINCORES... ngay trong Power Options nâng cao mà không cần lệnh." "Safe" $ALL_PERF {
+		Unhide-SophiaPowerSettings
+	} { Unhide-SophiaPowerSettings -Restore } { return $false } "PowerSettings Attributes=2"
+	Add-Cmd "EXT48" "IFEO IoPriority=High + PagePriority=5 cho exe giả lập" $EXT "Đi cặp EXT04: ngoài CPU priority, ép cả I/O priority cao & page priority cho exe giả lập — đọc/ghi image .vdi/.vmdk được ưu tiên trên hàng đợi đĩa." "Moderate" $FARM {
+		Set-SophiaExeIoPriority
+	} { Set-SophiaExeIoPriority -Remove } { return $false } "IFEO PerfOptions IoPriority/PagePriority"
+	Add-Reg "EXT49" "Chặn App nền bằng Policy (LetAppsRunInBackground = Deny)" $EXT "Bản Policy cứng của SYS03: AppPrivacy LetAppsRunInBackground=2 (Force Deny) — app Store không chạy ngầm ở mọi user, farm/game không bị giành tài nguyên." "Moderate" ($FARM+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" "LetAppsRunInBackground" 2 0
+	Add-Cmd "EXT50" "Tắt Print Spooler (nếu không in ấn — giảm bề mặt tấn công & process nền)" $EXT "Spooler là service hay bị khai thác (PrintNightmare) và vô dụng trên máy farm/game không máy in. Disabled hẳn; có máy in thì đừng tick." "Moderate" ($FARM_GAME+$LOW) {
+		Stop-Service Spooler -Force -ErrorAction SilentlyContinue; Set-Service Spooler -StartupType Disabled -ErrorAction SilentlyContinue
+	} {
+		Set-Service Spooler -StartupType Manual -ErrorAction SilentlyContinue
+	} { try { return ((Get-Service Spooler -ErrorAction SilentlyContinue).StartType -eq 'Disabled') } catch { return $false } } "Spooler Disabled"
+
 	return $catalog.ToArray()
 }
 
@@ -1995,7 +2433,7 @@ function Get-SophiaTweaksCatalog
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 120 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 137 tweaks.
 #>
 
 function Get-SophiaModeTweakIds
@@ -2029,6 +2467,22 @@ function Invoke-SophiaSelectedTweaks
 			Write-Host "  Đã hủy. Bỏ tick các tweak [Extreme] màu đỏ nếu bạn không chắc chắn." -ForegroundColor Yellow
 			return
 		}
+	}
+
+	# Plan Engine: phân tích phụ thuộc/mâu thuẫn + sắp xếp theo pha an toàn trước khi chạm vào hệ thống
+	if (Get-Command Get-SophiaOptimizationPlan -ErrorAction SilentlyContinue)
+	{
+		try
+		{
+			$plan = Get-SophiaOptimizationPlan -Catalog $Catalog -SelectedIds $SelectedIds
+			if (Get-Command Show-SophiaOptimizationPlan -ErrorAction SilentlyContinue) { Show-SophiaOptimizationPlan -Plan $plan }
+			if ($plan.Count -ne $selected.Count)
+			{
+				Write-Host "  [Plan Engine] Đã điều chỉnh danh sách: $($selected.Count) -> $($plan.Count) tweak (xem ghi chú ở trên)." -ForegroundColor Cyan
+			}
+			$selected = @($plan.Items | ForEach-Object { $_.Tweak })
+		}
+		catch { Write-Host "  [!] Plan Engine lỗi ($($_.Exception.Message)) — áp dụng theo thứ tự thường." -ForegroundColor Yellow }
 	}
 
 	$logDir = "$env:SystemDrive\Sophia_Backups\Logs"
@@ -2160,11 +2614,12 @@ function Show-SophiaSimpleMenu
 			Write-Host ("      {0}" -f $m.Description) -ForegroundColor Gray
 		}
 		Write-Host "   7. 🎛️  Mở giao diện TICK-CHỌN đầy đủ (phím ↑↓/SPACE)" -ForegroundColor Green
+		Write-Host "   G. 🤖 SMART AUTO — tự chọn Mode + tweak theo phần cứng máy này" -ForegroundColor Green
 		Write-Host "   8. 🧠 Purge RAM ngay          9. 🖥️ Boost giả lập ngay" -ForegroundColor Green
 		Write-Host "   T. 📊 Benchmark (Before/After)   C. 📈 So sánh Benchmark" -ForegroundColor Green
 		Write-Host "   R. ↩️  Restore mặc định        S. 💾 Tạo Shortcut Desktop" -ForegroundColor Green
 		Write-Host "   0. Thoát" -ForegroundColor Yellow
-		$choice = Read-Host "  Chọn (0-9/T/C/R/S)"
+		$choice = Read-Host "  Chọn (0-9/G/T/C/R/S)"
 		if ($choice -match '^[1-6]$')
 		{
 			$m = $modes[[int]::Parse($choice) - 1]
@@ -2173,6 +2628,20 @@ function Show-SophiaSimpleMenu
 			if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids }
 		}
 		elseif ($choice -eq '7') { Show-SophiaOptimizerUI -Catalog $Catalog -Snapshot $Snapshot }
+		elseif ($choice -eq 'G' -or $choice -eq 'g')
+		{
+			if (Get-Command Get-SophiaSmartRecommendation -ErrorAction SilentlyContinue)
+			{
+				$rec = Get-SophiaSmartRecommendation -Snapshot $Snapshot -Catalog $Catalog
+				Write-Host "  Smart Advisor khuyên: Mode $($rec.Mode) + $($rec.ExtraIds.Count) tweak bổ sung" -ForegroundColor Green
+				$rec.Reasons | ForEach-Object { Write-Host "      - $_" -ForegroundColor Cyan }
+				$rec.Warnings | ForEach-Object { Write-Host "      [!] $_" -ForegroundColor Yellow }
+				$ids = Get-SophiaModeTweakIds -ModeKey $rec.Mode -Catalog $Catalog
+				$ids = @($ids + $rec.ExtraIds | Select-Object -Unique)
+				$go = Read-Host "  Áp dụng $($ids.Count) tweak Smart Auto? (Y/N)"
+				if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids }
+			}
+		}
 		elseif ($choice -eq '8') { if (Get-Command Invoke-SophiaRamPurge -ErrorAction SilentlyContinue) { Invoke-SophiaRamPurge } }
 		elseif ($choice -eq '9') { Invoke-EmulatorAutoBooster }
 		elseif ($choice -eq 'T' -or $choice -eq 't') { if (Get-Command Invoke-SophiaBenchmark -ErrorAction SilentlyContinue) { Invoke-SophiaBenchmark -Label "Menu" | Out-Null } }
@@ -2268,10 +2737,12 @@ function Show-SophiaOptimizerUI
 		Write-Host $modeLine -ForegroundColor Yellow
 		$modeObj = $modes | Where-Object Key -eq $currentMode | Select-Object -First 1
 		if ($modeObj) { Write-Host "  $($modeObj.Icon) $($modeObj.Description)" -ForegroundColor DarkYellow }
+		if ($smartRec) { Write-Host "  🤖 Smart Advisor (phím G): khuyên dùng Mode $($smartRec.Mode) + $($smartRec.ExtraIds.Count) tweak theo phần cứng máy này" -ForegroundColor Green }
 		Write-Host ("  Đã tick: {0}/{1} tweak | Hiển thị: {2} | Tìm kiếm: '{3}'" -f $selectedCount, $Catalog.Count, $filtered.Count, $searchTerm) -ForegroundColor Cyan
 		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 		Write-Host "  [↑↓/KJ] Chọn  [SPACE] Tick  [1-6] Mode  [A]ll  [N]one  [/] Tìm  [P] Purge RAM  [E] Boost Giả Lập" -ForegroundColor Gray
-		Write-Host "  [V] Check đã áp dụng (●)  [T] Benchmark  [S] Lưu Profile  [L] Nạp Profile  [B] Backup" -ForegroundColor Gray
+		Write-Host "  [G] Smart Auto (AI khuyên dùng)  [V] Check đã áp dụng (●)  [T] Benchmark  [S] Lưu Profile" -ForegroundColor Gray
+		Write-Host "  [L] Nạp Profile  [B] Backup" -ForegroundColor Gray
 		Write-Host "  [R] Restore Mặc Định  [ENTER] ÁP DỤNG  [Q] Thoát" -ForegroundColor Gray
 		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 
@@ -2380,6 +2851,22 @@ function Show-SophiaOptimizerUI
 			else { Write-Host "  [!] Không tìm thấy module Benchmark." -ForegroundColor Yellow }
 			Read-Host "  Nhấn ENTER để tiếp tục"
 		}
+		elseif ($ch -eq 'g' -or $ch -eq 'G') {
+			try { [Console]::CursorVisible = $true } catch {}
+			if ($smartRec)
+			{
+				$currentMode = $smartRec.Mode
+				$selected = @{}
+				foreach ($id in (Get-SophiaModeTweakIds -ModeKey $currentMode -Catalog $Catalog)) { $selected[$id] = $true }
+				foreach ($id in $smartRec.ExtraIds) { $selected[$id] = $true }
+				$cursor = 0
+				Write-Host "  🤖 Smart Advisor đã tự tick Mode $currentMode + tweak riêng cho máy này:" -ForegroundColor Green
+				$smartRec.Reasons | ForEach-Object { Write-Host "      - $_" -ForegroundColor Cyan }
+				$smartRec.Warnings | ForEach-Object { Write-Host "      [!] $_" -ForegroundColor Yellow }
+			}
+			else { Write-Host "  [!] Smart Advisor không khả dụng (thiếu dữ liệu phần cứng)." -ForegroundColor Yellow }
+			Read-Host "  Nhấn ENTER để xem danh sách đã tick"
+		}
 		elseif ($ch -eq 's' -or $ch -eq 'S') {
 			try { [Console]::CursorVisible = $true } catch {}
 			$ids = @($selected.Keys | Where-Object { $selected[$_] })
@@ -2429,6 +2916,27 @@ try { $snapshot = Get-SophiaSystemSnapshot } catch {}
 # Bridge vào module Sophia gốc (không chặn bởi InitialActions/LGPO/UBR)
 try { Initialize-SophiaNativeModule -RepoRoot $RepoRoot | Out-Null } catch {}
 
+$smartRec = $null
+if (Get-Command Get-SophiaSmartRecommendation -ErrorAction SilentlyContinue)
+{
+	try { $smartRec = Get-SophiaSmartRecommendation -Snapshot $snapshot -Catalog $catalog } catch {}
+}
+if ($Smart -and $smartRec)
+{
+	$Mode = $smartRec.Mode
+	Write-Host "  Smart Advisor: Mode $Mode" -ForegroundColor Green
+	$smartRec.Reasons | ForEach-Object { Write-Host "      - $_" -ForegroundColor Cyan }
+	$smartRec.Warnings | ForEach-Object { Write-Host "      [!] $_" -ForegroundColor Yellow }
+}
+if ($Plan)
+{
+	$ids = Get-SophiaModeTweakIds -ModeKey $Mode -Catalog $catalog
+	if ($Smart -and $smartRec) { $ids = @($ids + $smartRec.ExtraIds | Select-Object -Unique) }
+	$planObj = Get-SophiaOptimizationPlan -Catalog $catalog -SelectedIds $ids -Snapshot $snapshot
+	Show-SophiaOptimizationPlan -Plan $planObj -Title "KẾ HOẠCH SIÊU SÂU - Mode $Mode (chưa áp dụng)"
+	Write-Host "  Để thực thi: chạy lại với -Apply (và -Smart nếu muốn Smart Advisor chọn hộ)." -ForegroundColor Yellow
+	return
+}
 if ($ListModes)
 {
 	Write-Host ""
@@ -2505,6 +3013,7 @@ if ($Profile)
 if ($Apply)
 {
 	$ids = Get-SophiaModeTweakIds -ModeKey $Mode -Catalog $catalog
+	if ($Smart -and $smartRec) { $ids = @($ids + $smartRec.ExtraIds | Select-Object -Unique) }
 	$modeObj = $modes | Where-Object Key -eq $Mode | Select-Object -First 1
 	Write-Host "  Mode: $($modeObj.Icon) $($modeObj.Name) — sẽ áp dụng $($ids.Count) tweak." -ForegroundColor Yellow
 	if (-not $Yes)

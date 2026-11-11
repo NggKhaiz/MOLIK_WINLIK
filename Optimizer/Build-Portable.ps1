@@ -1,4 +1,4 @@
-<#
+﻿<#
 	.SYNOPSIS
 	Build Sophia-Ultra-Portable.ps1 — bản 1 FILE duy nhất, không cần cài đặt/clone repo.
 
@@ -28,6 +28,8 @@ $engineFiles = @(
 	"Core\RamCleanerDaemon.ps1",
 	"Core\ExtremeEngine.ps1",
 	"Core\Benchmark.ps1",
+	"Core\PlanEngine.ps1",
+	"Core\SmartAdvisor.ps1",
 	"Core\BackupRestore.ps1",
 	"Core\SophiaBridge.ps1",
 	"Catalog\TweaksCatalog.ps1",
