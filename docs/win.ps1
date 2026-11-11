@@ -1,4 +1,4 @@
-﻿<#
+<#
 	.SYNOPSIS
 	Sophia Ultra Optimizer — ONLINE LAUNCHER (dùng như winutil, KHÔNG cần tải/cài tool)
 
@@ -11,7 +11,6 @@
 
 	  irm "nggkhaiz.github.io/MOLIK_WINLIK/win.ps1" | iex
 
-	(C) @nggkhaiz - MOLIK_WINLIK (based on Sophia Script by farag2 & winutil by Chris Titus Tech, MIT)
 	Script siêu nhẹ này chỉ làm 2 việc: tự nâng quyền Admin (mở cửa sổ mới, không đóng shell của bạn),
 	rồi nạp bản Sophia-Ultra-Portable.ps1 mới nhất từ GitHub của bạn vào bộ nhớ và chạy.
 	Không cài đặt, không giải nén, không để lại file tool nào trên máy.

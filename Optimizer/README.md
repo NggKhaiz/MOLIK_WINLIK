@@ -2,7 +2,7 @@
 
 > **Credit:** Phát triển bởi **@nggkhaiz** (repo [MOLIK_WINLIK](https://github.com/NggKhaiz/MOLIK_WINLIK)) — dựa trên [Sophia Script](https://github.com/farag2/Sophia-Script-for-Windows) của farag2 và tích hợp data [winutil](https://github.com/ChrisTitusTech/winutil) của Chris Titus Tech (đều MIT).
 
-Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **184 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
+Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **187 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
 
 ## 🌐 Dùng ONLINE như winutil — KHÔNG cần tải tool, KHÔNG cài đặt
 
@@ -12,7 +12,7 @@ Mở PowerShell và gõ đúng 1 lệnh (như `christitus.com/win` của winutil
 irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1" | iex
 ```
 
-Tool tự nâng quyền Admin (mở cửa sổ mới, không đóng shell của bạn), nạp toàn bộ engine + 184 tweak vào bộ nhớ và mở giao diện tick-chọn — **không tải file, không cài đặt, không để lại file tool** trên máy.
+Tool tự nâng quyền Admin (mở cửa sổ mới, không đóng shell của bạn), nạp toàn bộ engine + 187 tweak vào bộ nhớ và mở giao diện tick-chọn — **không tải file, không cài đặt, không để lại file tool** trên máy.
 
 > Link ngắn kiểu `christitus.com/win`: bật **Settings → Pages → Source: Deploy from branch `main` / folder `/docs`** (2 click, file `docs/win.ps1` đã chuẩn bị sẵn) là dùng được `irm "nggkhaiz.github.io/MOLIK_WINLIK/win.ps1" | iex`. Không bật cũng không sao — link raw ở trên hoạt động ngay sau khi Merge.
 
@@ -53,7 +53,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Po
 | `3` | 🎬 **WORKSTATION / STREAM** | Render/OBS/compile: mạnh nhưng giữ ổn định & mitigations, ưu tiên GPU encode/foreground |
 | `4` | 🥔 **LOW-SPEC / POTATO PC** | Máy yếu RAM ≤8GB: tắt visual effects, services/background apps/telemetry thừa |
 | `5` | 🛡️ **SOPHIA STANDARD** | Privacy + gọn gàng an toàn chuẩn Sophia gốc, không đụng kernel/BCD |
-| `6` | 👑 **GOD MODE** | Toàn bộ 184 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
+| `6` | 👑 **GOD MODE** | Toàn bộ 187 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
 
 ## ⌨️ Điều khiển trong CLI
 
@@ -77,7 +77,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Po
 .\Sophia-Optimizer.ps1 -Mode EmulatorFarm -Apply -Yes   # áp dụng thẳng 1 mode
 .\Sophia-Optimizer.ps1 -Mode HardcoreGaming              # mở CLI đã tick sẵn mode Gaming
 .\Sophia-Optimizer.ps1 -ListModes                        # xem 6 mode
-.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 184 tweak
+.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 187 tweak
 .\Sophia-Optimizer.ps1 -PurgeRAM                         # dọn RAM ngay
 .\Sophia-Optimizer.ps1 -BoostEmulators                   # boost process giả lập
 .\Sophia-Optimizer.ps1 -ExportReport                     # xuất JSON báo cáo phần cứng + catalog
@@ -106,7 +106,7 @@ Optimizer/
   Data/WinUtilApps.ps1          # 239 ứng dụng winget/choco
   Core/SophiaBridge.ps1         # Bridge vào Sophia.psm1 gốc theo đúng edition Win10/11/LTSC/ARM/PS7
                                 # (bỏ qua chặn cứng LGPO/UBR của InitialActions.ps1)
-  Catalog/TweaksCatalog.ps1     # 184 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
+  Catalog/TweaksCatalog.ps1     # 187 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
   UI/InteractiveCLI.ps1         # TUI tick-chọn [✓]/[ ], tìm kiếm, thực thi & log
 ```
 

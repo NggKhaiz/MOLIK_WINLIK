@@ -107,7 +107,7 @@ href="https://trendshift.io/repositories/17603"><img src="https://trendshift.io/
 
 ## 👑 MOLIK_WINLIK — Sophia Ultra Optimizer by @nggkhaiz (Fork Add-on — Tick-Select CLI)
 
-> 🇻🇳 Tool tối ưu sâu do fork này bổ sung, nằm ngoài module Sophia gốc (`src/` giữ nguyên 100%): **184 tweak cực mạnh**, **6 mode riêng** cho từng nhu cầu và giao diện **tick-chọn CLI** `[✓]/[ ]`.
+> 🇻🇳 Tool tối ưu sâu do fork này bổ sung, nằm ngoài module Sophia gốc (`src/` giữ nguyên 100%): **187 tweak cực mạnh**, **6 mode riêng** cho từng nhu cầu và giao diện **tick-chọn CLI** `[✓]/[ ]`.
 
 ```powershell
 # DÙNG ONLINE NHƯ WINUTIL — không cần tải tool, không cài đặt, chạy ngay trong bộ nhớ:

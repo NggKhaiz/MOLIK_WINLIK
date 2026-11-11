@@ -1,4 +1,4 @@
-﻿<#
+<#
 	.SYNOPSIS
 	Sophia Ultra Optimizer — Chạy NGAY không cần cài đặt (tải bản Portable 1 file vào %TEMP% rồi chạy)
 

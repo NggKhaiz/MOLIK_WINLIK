@@ -1,4 +1,4 @@
-﻿<#
+<#
 	MOLIK_WINLIK by @nggkhaiz — Sophia Ultra Optimizer PORTABLE (1 file duy nhất, KHÔNG CẦN CÀI ĐẶT, offline: đã gộp cả data winutil)
 	Dùng ONLINE như winutil: irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1" | iex
 	File này được sinh tự động bởi Optimizer\Build-Portable.ps1 — đừng sửa tay, hãy sửa nguồn trong Optimizer/ rồi build lại.
@@ -10,7 +10,7 @@
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
 	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 184 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	(src/Sophia_Script_for_Windows_*) + 187 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -26,7 +26,6 @@
 	.\Sophia-Optimizer.ps1 -RestoreDefaults -Yes
 
 	.NOTES
-	Author: @nggkhaiz - MOLIK_WINLIK | Based on Sophia Script (farag2) & winutil (Chris Titus Tech)
 	Yêu cầu: Windows 10/11, PowerShell 5.1+ (hoặc PS7), chạy với quyền Administrator.
 #>
 #Requires -Version 5.1
@@ -2400,7 +2399,25 @@ function Test-SophiaOptimizerHealth
 		Report "PASS" "Smart Advisor: máy này -> Mode $($rec.Mode) + $($rec.ExtraIds.Count) tweak bổ sung ($($snap.OSName), $($snap.CPUThreads) luồng, RAM $($snap.RAMTotalGB)GB)"
 	} catch { Report "WARN" "Smart Advisor/Snapshot: $($_.Exception.Message)" }
 
-	# 5) Portable integrity
+	# 5) BOM guard: file chạy qua irm | iex TUYỆT ĐỐI không được có BOM (sẽ làm hỏng token đầu tiên)
+	if ($RepoRoot)
+	{
+		foreach ($onlineFile in @("win.ps1", "docs\win.ps1", "Sophia-Ultra-Portable.ps1", "Sophia-Ultra-Standalone.ps1"))
+		{
+			$of = Join-Path $RepoRoot $onlineFile
+			if (Test-Path $of)
+			{
+				$bytes = [System.IO.File]::ReadAllBytes($of)
+				if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+				{
+					Report "FAIL" "BOM guard: $onlineFile có BOM UTF-8 — sẽ lỗi khi chạy irm | iex! Hãy bỏ BOM."
+				}
+				else { Report "PASS" "BOM guard: $onlineFile sạch (an toàn cho irm | iex)" }
+			}
+		}
+	}
+
+	# 6) Portable integrity
 	if ($RepoRoot)
 	{
 		$portable = Join-Path $RepoRoot "Sophia-Ultra-Portable.ps1"
@@ -3277,6 +3294,10 @@ function Get-SophiaTweaksCatalog
 	Add-Reg "EXT71" "Tắt Online Speech Recognition (HasAccepted = 0)" $EXT "Nhận dạng giọng nói online không kích hoạt nền — giảm kết nối dịch vụ thoại thừa trên máy chuyên dụng." "Safe" $STD "HKCU:\Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy" "HasAccepted" 0 1
 	Add-Reg "EXT72" "DisableWindowsConsumerFeatures = 1 (Policy cứng, chặn app quảng cáo tự cài)" $EXT "Bản Policy của Consumer Features: Windows không tự tải/cài app gợi ý (Candy Crush, TikTok...) sau mỗi lần update — ổ & Start Menu sạch lâu dài." "Safe" ($STD+$FARM+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" "DisableWindowsConsumerFeatures" 1 0
 
+	Add-Reg "EXT73" "LanmanWorkstation: DisableBandwidthThrottling = 1" $EXT "Workstation service không bóp băng thông chuyển file/ADB qua LAN — copy image giả lập & đẩy file giữa các máy trong farm đạt tốc độ tối đa phần cứng." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" "DisableBandwidthThrottling" 1 0
+	Add-Reg "EXT74" "MMCSS 'Games': Priority = 6 (cao nhất cho luồng game)" $EXT "Hoàn thiện bộ ba MMCSS Games: SchedulingCategory High (EXT16) + GPU Priority 8 (GAM09) + Priority 6 — dispatcher luôn xếp luồng game trước mọi tác vụ thường." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "Priority" 6 2
+	Add-Reg "EXT75" "Tắt Store Apps tự cập nhật nền (WindowsStore AutoDownload = 2)" $EXT "Microsoft Store không tự tải bản cập nhật app trong nền giành mạng/disk — bạn chủ động update khi rảnh. App đã cài vẫn chạy bình thường." "Safe" ($FARM+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore" "AutoDownload" 2 4
+
 	return $catalog.ToArray()
 }
 
@@ -3291,7 +3312,7 @@ function Get-SophiaTweaksCatalog
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 184 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 187 tweaks.
 #>
 
 function Get-SophiaModeTweakIds

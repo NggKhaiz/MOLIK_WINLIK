@@ -65,5 +65,5 @@ if ($portable -eq $launcher) { throw "Không tìm thấy block nạp engine tron
 $banner = "<#`r`n`tMOLIK_WINLIK by @nggkhaiz — Sophia Ultra Optimizer PORTABLE (1 file duy nhat, KHONG CAN CAI DAT)`r`n`tFile này được sinh tự động bởi Optimizer\Build-Portable.ps1 — đừng sửa tay, hãy sửa nguồn trong Optimizer/ rồi build lại.`r`n`tChạy: .\Sophia-Ultra-Portable.ps1  |  irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`r`n#>`r`n"
 $portable = $banner + $portable
 
-$portable | Set-Content -Path $OutputPath -Encoding UTF8 -Force
+[System.IO.File]::WriteAllText($OutputPath, $portable, (New-Object System.Text.UTF8Encoding($false)))
 Write-Host "[✓] Đã sinh bản Portable: $OutputPath ($([Math]::Round((Get-Item $OutputPath).Length / 1KB, 1)) KB)" -ForegroundColor Green

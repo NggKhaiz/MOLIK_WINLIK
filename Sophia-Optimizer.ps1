@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
 	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 184 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	(src/Sophia_Script_for_Windows_*) + 187 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -21,7 +21,6 @@
 	.\Sophia-Optimizer.ps1 -RestoreDefaults -Yes
 
 	.NOTES
-	Author: @nggkhaiz - MOLIK_WINLIK | Based on Sophia Script (farag2) & winutil (Chris Titus Tech)
 	Yêu cầu: Windows 10/11, PowerShell 5.1+ (hoặc PS7), chạy với quyền Administrator.
 #>
 #Requires -Version 5.1

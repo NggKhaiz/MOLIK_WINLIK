@@ -86,7 +86,25 @@ function Test-SophiaOptimizerHealth
 		Report "PASS" "Smart Advisor: máy này -> Mode $($rec.Mode) + $($rec.ExtraIds.Count) tweak bổ sung ($($snap.OSName), $($snap.CPUThreads) luồng, RAM $($snap.RAMTotalGB)GB)"
 	} catch { Report "WARN" "Smart Advisor/Snapshot: $($_.Exception.Message)" }
 
-	# 5) Portable integrity
+	# 5) BOM guard: file chạy qua irm | iex TUYỆT ĐỐI không được có BOM (sẽ làm hỏng token đầu tiên)
+	if ($RepoRoot)
+	{
+		foreach ($onlineFile in @("win.ps1", "docs\win.ps1", "Sophia-Ultra-Portable.ps1", "Sophia-Ultra-Standalone.ps1"))
+		{
+			$of = Join-Path $RepoRoot $onlineFile
+			if (Test-Path $of)
+			{
+				$bytes = [System.IO.File]::ReadAllBytes($of)
+				if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+				{
+					Report "FAIL" "BOM guard: $onlineFile có BOM UTF-8 — sẽ lỗi khi chạy irm | iex! Hãy bỏ BOM."
+				}
+				else { Report "PASS" "BOM guard: $onlineFile sạch (an toàn cho irm | iex)" }
+			}
+		}
+	}
+
+	# 6) Portable integrity
 	if ($RepoRoot)
 	{
 		$portable = Join-Path $RepoRoot "Sophia-Ultra-Portable.ps1"

@@ -551,5 +551,9 @@ function Get-SophiaTweaksCatalog
 	Add-Reg "EXT71" "Tắt Online Speech Recognition (HasAccepted = 0)" $EXT "Nhận dạng giọng nói online không kích hoạt nền — giảm kết nối dịch vụ thoại thừa trên máy chuyên dụng." "Safe" $STD "HKCU:\Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy" "HasAccepted" 0 1
 	Add-Reg "EXT72" "DisableWindowsConsumerFeatures = 1 (Policy cứng, chặn app quảng cáo tự cài)" $EXT "Bản Policy của Consumer Features: Windows không tự tải/cài app gợi ý (Candy Crush, TikTok...) sau mỗi lần update — ổ & Start Menu sạch lâu dài." "Safe" ($STD+$FARM+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" "DisableWindowsConsumerFeatures" 1 0
 
+	Add-Reg "EXT73" "LanmanWorkstation: DisableBandwidthThrottling = 1" $EXT "Workstation service không bóp băng thông chuyển file/ADB qua LAN — copy image giả lập & đẩy file giữa các máy trong farm đạt tốc độ tối đa phần cứng." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" "DisableBandwidthThrottling" 1 0
+	Add-Reg "EXT74" "MMCSS 'Games': Priority = 6 (cao nhất cho luồng game)" $EXT "Hoàn thiện bộ ba MMCSS Games: SchedulingCategory High (EXT16) + GPU Priority 8 (GAM09) + Priority 6 — dispatcher luôn xếp luồng game trước mọi tác vụ thường." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "Priority" 6 2
+	Add-Reg "EXT75" "Tắt Store Apps tự cập nhật nền (WindowsStore AutoDownload = 2)" $EXT "Microsoft Store không tự tải bản cập nhật app trong nền giành mạng/disk — bạn chủ động update khi rảnh. App đã cài vẫn chạy bình thường." "Safe" ($FARM+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore" "AutoDownload" 2 4
+
 	return $catalog.ToArray()
 }
