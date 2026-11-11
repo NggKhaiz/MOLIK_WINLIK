@@ -2,47 +2,53 @@
 
 > **Credit:** Phát triển bởi **@nggkhaiz** (repo [MOLIK_WINLIK](https://github.com/NggKhaiz/MOLIK_WINLIK)) — dựa trên [Sophia Script](https://github.com/farag2/Sophia-Script-for-Windows) của farag2 và tích hợp data [winutil](https://github.com/ChrisTitusTech/winutil) của Chris Titus Tech (đều MIT).
 
-Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **185 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
+Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **190 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
 
-## 🌐 Dùng ONLINE như winutil — KHÔNG cần tải tool, KHÔNG cài đặt
+## 📴 OFFLINE 100% — chạy đơn giản: double-click là xong (tự xin Admin)
 
-Mở PowerShell và gõ đúng 1 lệnh (như `christitus.com/win` của winutil):
+MOLIK WINLIK **không còn bản online** (`irm | iex` đã bị loại bỏ: Windows Defender/AMSI
+chặn chạy code trong bộ nhớ và ExecutionPolicy chặn chạy file lạ — hai lỗi thực tế đã gặp).
+Bản chính thức là **offline hoàn toàn**: tải/nhận bản **một lần duy nhất**, sau đó chạy
+không cần Internet, không tải thêm code khi chạy.
+
+### Cách chạy chuẩn (khuyên dùng)
+
+1. Tải file ZIP của repo này (nút **Code → Download ZIP** trên GitHub) hoặc nhận cả thư mục
+   qua USB/LAN. Giải nén vào bất kỳ đâu (Desktop, `D:\MOLIK_WINLIK`...).
+2. **Double-click `MOLIK_WINLIK.bat`** → bấm **Yes** ở hộp UAC → giao diện tick-chọn mở ra.
+   Xong. Không cài đặt, không sửa ExecutionPolicy của máy (`Bypass` chỉ áp cho đúng
+   tiến trình PowerShell mà .bat khởi chạy).
+
+`MOLIK_WINLIK.bat` tự tìm `MolikWinlik-Portable.ps1` (bản 1 file, chứa toàn bộ engine +
+190 tweak + data 239 app) ngay cạnh nó. Giữ 2 file này cùng thư mục là đủ chạy ở mọi máy.
+
+### Chạy bằng PowerShell (khi đã mở sẵn terminal Admin)
 
 ```powershell
-irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1" | iex
+.\MolikWinlik-Portable.ps1            # ban 1 file (offline)
+.\MolikWinlik-Portable.ps1 -Menu      # menu so don gian
+.\MolikWinlik.ps1                     # trong repo (nap engine tu Optimizer/)
 ```
 
-Tool tự nâng quyền Admin (mở cửa sổ mới, không đóng shell của bạn), nạp toàn bộ engine + 185 tweak vào bộ nhớ và mở giao diện tick-chọn — **không tải file, không cài đặt, không để lại file tool** trên máy.
+Lệnh chỉ-đọc (`-ListModes`, `-ListTweaks`, `-ListApps`, `-Plan`, `-SelfTest`,
+`-CompareBenchmarks`) **không cần Admin** và không hiện UAC. Thao tác áp dụng tweak
+tự nâng quyền qua UAC như trước.
 
-> Link ngắn kiểu `christitus.com/win`: bật **Settings → Pages → Source: Deploy from branch `main` / folder `/docs`** (2 click, file `docs/win.ps1` đã chuẩn bị sẵn) là dùng được `irm "nggkhaiz.github.io/MOLIK_WINLIK/win.ps1" | iex`. Không bật cũng không sao — link raw ở trên hoạt động ngay sau khi Merge.
+### Toàn vẹn file khi nhận bản qua người khác
 
-Chọn sẵn Mode bằng cách:
+Đối chiếu SHA256 của `MolikWinlik-Portable.ps1` với file `MolikWinlik-Portable.ps1.sha256`
+đi kèm (hoặc trên repo):
 
 ```powershell
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1"))) -Mode HardcoreGaming
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1"))) -Smart
+Get-FileHash .\MolikWinlik-Portable.ps1 -Algorithm SHA256
 ```
 
-## 🚀 Chạy nhanh — KHÔNG CẦN CÀI ĐẶT (offline)
+### Tên file cũ (tương thích ngược)
 
-```powershell
-# Cách 0 (TIỆN NHẤT): double-click file Sophia-1Click.bat
-#   -> tự tải bản Portable 1 file vào %TEMP% rồi chạy ngay, không cài gì vào máy
-
-# Cách 1: 1 lệnh, không cần clone/cài
-irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex
-
-# Cách 2: tải đúng 1 file Sophia-Ultra-Portable.ps1 (141KB, chứa toàn bộ engine)
-#   về bất kỳ đâu (USB, Desktop, TEMP...) rồi chạy:
-.\Sophia-Ultra-Portable.ps1
-.\Sophia-Ultra-Portable.ps1 -Mode HardcoreGaming
-.\Sophia-Ultra-Portable.ps1 -Menu        # menu số đơn giản, host nào cũng chạy được
-
-# Cách 3: trong repo (double-click Run-Sophia-Optimizer.bat hoặc):
-.\Sophia-Optimizer.ps1
-
-# Bản Portable được sinh tự động từ nguồn bằng: .\Optimizer\Build-Portable.ps1
-```
+`Sophia-Optimizer.ps1`, `Sophia-Ultra-Portable.ps1`, `Sophia-1Click.bat`,
+`Run-Sophia-Optimizer.bat` chỉ còn là shim chuyển tiếp sang tên mới — đừng dùng cho
+bản phát hành mới. `win.ps1` / `docs/win.ps1` / `Sophia-Ultra-Standalone.ps1` (bản
+online cũ) đã bị xóa hẳn.
 
 ## 🎛️ 6 Mode tối ưu riêng cho từng nhu cầu
 
@@ -52,8 +58,8 @@ irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Po
 | `2` | 🎮 **HARDCORE GAMING** | FPS/esports low-latency: HAGS, tắt MPO/Game DVR, BCD timer latency, Nagle off, `NetworkThrottlingIndex=0`, `SystemResponsiveness=0`, chuột 1:1, Ultimate Performance |
 | `3` | 🎬 **WORKSTATION / STREAM** | Render/OBS/compile: mạnh nhưng giữ ổn định & mitigations, ưu tiên GPU encode/foreground |
 | `4` | 🥔 **LOW-SPEC / POTATO PC** | Máy yếu RAM ≤8GB: tắt visual effects, services/background apps/telemetry thừa |
-| `5` | 🛡️ **SOPHIA STANDARD** | Privacy + gọn gàng an toàn chuẩn Sophia gốc, không đụng kernel/BCD |
-| `6` | 👑 **GOD MODE** | Toàn bộ 185 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
+| `5` | 🛡️ **MOLIK STANDARD** | Privacy + gọn gàng an toàn, không đụng kernel/BCD (tên khóa nội bộ vẫn là `SophiaStandard` để tương thích Profile cũ) |
+| `6` | 👑 **GOD MODE** | Toàn bộ 190 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
 
 ## ⌨️ Điều khiển trong CLI
 
@@ -74,22 +80,22 @@ irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Po
 ## 🖥️ Chế độ không tương tác (automation)
 
 ```powershell
-.\Sophia-Optimizer.ps1 -Mode EmulatorFarm -Apply -Yes   # áp dụng thẳng 1 mode
-.\Sophia-Optimizer.ps1 -Mode HardcoreGaming              # mở CLI đã tick sẵn mode Gaming
-.\Sophia-Optimizer.ps1 -ListModes                        # xem 6 mode
-.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 185 tweak
-.\Sophia-Optimizer.ps1 -PurgeRAM                         # dọn RAM ngay
-.\Sophia-Optimizer.ps1 -BoostEmulators                   # boost process giả lập
-.\Sophia-Optimizer.ps1 -ExportReport                     # xuất JSON báo cáo phần cứng + catalog
-.\Sophia-Optimizer.ps1 -RestoreDefaults -Yes             # khôi phục mặc định
+.\MolikWinlik.ps1 -Mode EmulatorFarm -Apply -Yes   # áp dụng thẳng 1 mode
+.\MolikWinlik.ps1 -Mode HardcoreGaming              # mở CLI đã tick sẵn mode Gaming
+.\MolikWinlik.ps1 -ListModes                        # xem 6 mode
+.\MolikWinlik.ps1 -ListTweaks                       # liệt kê 190 tweak
+.\MolikWinlik.ps1 -PurgeRAM                         # dọn RAM ngay
+.\MolikWinlik.ps1 -BoostEmulators                   # boost process giả lập
+.\MolikWinlik.ps1 -ExportReport                     # xuất JSON báo cáo phần cứng + catalog
+.\MolikWinlik.ps1 -RestoreDefaults -Yes             # khôi phục mặc định
 ```
 
 ## 🧩 Kiến trúc
 
 ```
-Sophia-Optimizer.ps1            # Entry point (self-elevate Admin, CLI + non-interactive)
-Sophia-Ultra-Standalone.ps1     # Single-file cho irm | iex
-Run-Sophia-Optimizer.bat        # Double-click launcher
+MolikWinlik.ps1                 # Entry point trong repo (self-elevate Admin, CLI + non-interactive)
+MolikWinlik-Portable.ps1        # Ban 1 FILE offline (sinh boi Optimizer/Build-Portable.ps1)
+MOLIK_WINLIK.bat                # Double-click: tu xin Admin -> chay Portable (offline 100%)
 Optimizer/
   Core/HardwareDetector.ps1     # Nhận diện CPU/RAM/GPU/SSD, VBS/HVCI/Hyper-V, giả lập đã cài
   Core/RamCleanerDaemon.ps1     # NTAPI EmptyWorkingSet + NtSetSystemInformation purge Standby List,
@@ -106,17 +112,17 @@ Optimizer/
   Data/WinUtilApps.ps1          # 239 ứng dụng winget/choco
   Core/SophiaBridge.ps1         # Bridge vào Sophia.psm1 gốc theo đúng edition Win10/11/LTSC/ARM/PS7
                                 # (bỏ qua chặn cứng LGPO/UBR của InitialActions.ps1)
-  Catalog/TweaksCatalog.ps1     # 185 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
+  Catalog/TweaksCatalog.ps1     # 190 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
   UI/InteractiveCLI.ps1         # TUI tick-chọn [✓]/[ ], tìm kiếm, thực thi & log
 ```
 
 ### 9 nhóm tweak
 
-1. 🖥️ Treo Giả Lập 24/7 (13) · 2. 🎮 Gaming & Low-Latency (12) · 3. ⚡ CPU/Kernel/Timer (10) · 4. 🧠 RAM & Memory (10) · 5. 🎨 GPU & Display (10) · 6. 🌐 Network (10) · 7. 🧹 System/Services/Debloat (12) · 8. 🔒 Privacy Sophia Native (10) · 9. 🚀 **EXTREME LAB (25)**
+1. 🖥️ Treo Giả Lập 24/7 (13) · 2. 🎮 Gaming & Low-Latency (12) · 3. ⚡ CPU/Kernel/Timer (10) · 4. 🧠 RAM & Memory (10) · 5. 🎨 GPU & Display (10) · 6. 🌐 Network (10) · 7. 🧹 System/Services/Debloat (12) · 8. 🔒 Privacy (10) · 9. 🚀 **EXTREME LAB (78)** · 10. 🧩 WinUtil (25)
 
 ## 🚀 EXTREME LAB — tầng cực hạn (nhóm 9)
 
-25 tweak sâu nhất, do `Optimizer/Core/ExtremeEngine.ps1` thực thi:
+78 tweak sâu nhất (EXT01–EXT80, trừ EXT13/EXT46 đã gỡ vì bị Antivirus gắn cờ mạnh), phần lõi do `Optimizer/Core/ExtremeEngine.ps1` thực thi:
 
 - **MSI Mode** cho GPU + NVMe + NIC (giảm DPC latency thật, cần restart)
 - **Timer Resolution Daemon 0.5ms** toàn hệ thống (`NtSetTimerResolution`, Scheduled Task) + `GlobalTimerResolutionRequests` cho Win11
@@ -128,9 +134,9 @@ Optimizer/
 ## 🧠 Plan Siêu Sâu + Smart Advisor (Tự động hoá tối đa)
 
 ```powershell
-.\Sophia-Optimizer.ps1 -Plan                      # xem KẾ HOẠCH chi tiết theo Mode (chưa áp dụng)
-.\Sophia-Optimizer.ps1 -Smart -Plan               # Smart Advisor tự chọn Mode theo phần cứng rồi lập plan
-.\Sophia-Optimizer.ps1 -Smart -Apply -Yes         # Smart Advisor chọn hộ + áp dụng luôn
+.\MolikWinlik.ps1 -Plan                      # xem KẾ HOẠCH chi tiết theo Mode (chưa áp dụng)
+.\MolikWinlik.ps1 -Smart -Plan               # Smart Advisor tự chọn Mode theo phần cứng rồi lập plan
+.\MolikWinlik.ps1 -Smart -Apply -Yes         # Smart Advisor chọn hộ + áp dụng luôn
 # Trong CLI: phím G = Smart Auto, Menu đơn giản: phím G tương tự
 ```
 
@@ -138,40 +144,47 @@ Optimizer/
 
 **Smart Advisor** (`Optimizer/Core/SmartAdvisor.ps1`) đọc phần cứng thật: thấy giả lập → Farm, GPU AMD → thêm tắt ULPS, NVIDIA → thêm ép Power Limit, NVMe → thêm NTFS/Interrupt sâu, laptop → chặn tweak gây nóng.
 
-**EXTREME LAB mở rộng EXT34–EXT50:** WMI Autologger off, NetBIOS off, TCP CUBIC, Interrupt Priority GPU/NVMe, Pagefile ổ nhanh nhất, NIC buffers 2048, ưu tiên IPv4, NVIDIA Power Limit max, tắt HWP Autonomous, Boot Legacy, DEP off (God Mode), Unhide Power Settings, IFEO I/O Priority, Print Spooler off...
+**EXTREME LAB mở rộng EXT34–EXT50:** WMI Autologger off, NetBIOS off, TCP CUBIC, Interrupt Priority GPU/NVMe, Pagefile ổ nhanh nhất, NIC buffers 2048, ưu tiên IPv4, NVIDIA Power Limit max, tắt HWP Autonomous, Boot Legacy, Unhide Power Settings, IFEO I/O Priority, Print Spooler off...
 
-## 🛡️ Antivirus/AMSI chặn chạy trong bộ nhớ? Đã có fallback minh bạch
+## 🛡️ Vì sao bỏ hẳn bản online? (Antivirus/AMSI + ExecutionPolicy)
 
-`irm ... | iex` nạp toàn bộ script vào RAM nên Windows Defender (AMSI) quét toàn văn bản 1 lần — các tool tối ưu chứa lệnh BCD/service/registry mạnh dễ bị gắn cờ oan (winutil cũng từng bị). MOLIK WINLIK xử lý như sau:
+Hai lỗi thực tế khi chạy `irm ... | iex` trên máy thật:
 
-1. `win.ps1` thử chạy trong bộ nhớ trước; nếu bị chặn, **tự động** tải file lõi vào `%TEMP%\MOLIK_WINLIK\MolikWinlik-Core.ps1`, **đối chiếu SHA256** với `Sophia-Ultra-Portable.ps1.sha256` trên repo (sai hash = dừng ngay), `Unblock-File` rồi chạy file — tương đương bạn tự tải file và double-click.
-2. Đã gỡ 2 tweak bị AV gắn cờ mạnh nhất khỏi catalog: tắt DEP/NX toàn hệ thống và tắt Scheduled Task của Defender (hiệu quả hiệu năng rất nhỏ so với rủi ro), bỏ luôn đặc quyền `SeDebugPrivilege` trong RAM cleaner.
-3. Nếu vẫn bị chặn: dùng `Sophia-1Click.bat` (cơ chế file tạm tương tự) hoặc tải `Sophia-Ultra-Portable.ps1` chạy trực tiếp — đó là cách chạy file script thông thường, không qua `iex`.
+1. **Defender/AMSI chặn blob trong bộ nhớ**: nạp ~290KB script qua `iex` bị quét toàn văn
+   và gắn cờ (`This script contains malicious content...`) — tool tối ưu nào chứa lệnh
+   BCD/service/registry mạnh cũng dễ bị, kể cả winutil từng bị gắn cờ oan.
+2. **ExecutionPolicy chặn file .ps1**: fallback tải file về `%TEMP%` rồi `& file.ps1` vẫn
+   chết vì phiên PowerShell hiện tại đang `Restricted` (`running scripts is disabled`).
 
-Tool không dùng bất kỳ kỹ thuật che giấu/mã hoá nào để qua mặt Antivirus — toàn bộ code đều đọc được công khai trong repo này.
+Giải pháp triệt để của MOLIK WINLIK: **chỉ chạy file local qua `MOLIK_WINLIK.bat`** —
+`.bat` không bị ExecutionPolicy chặn, tự xin Admin bằng UAC chuẩn, và mở PowerShell con
+với `-ExecutionPolicy Bypass` **chỉ cho tiến trình đó** (không đổi policy của máy).
+Chạy file script từ đĩa cũng là đường ít bị AMSI gắn cờ nhất vì Defender quét file
+thông thường thay vì blob `iex`. Tool không dùng bất kỳ kỹ thuật che giấu/mã hoá nào
+để qua mặt Antivirus — toàn bộ code đều đọc được công khai trong repo này.
 
 ## 🧩 Tích hợp WinUtil (Chris Titus Tech) — OFFLINE 100%, không cần tải
 
 Data của [winutil](https://github.com/ChrisTitusTech/winutil) (MIT License, xem `Optimizer/Data/LICENSE-winutil.txt`) đã được **vendor trực tiếp vào repo này** — chạy hoàn toàn offline, không tải thêm bất cứ gì lúc chạy:
 
-- **25 tweak winutil** (nhóm `10. WINUTIL` trong CLI): Brave Debloat, Edge Debloat (17 registry), tắt nhà Home/Gallery Explorer, End Task chuột phải, WPBT, giờ UTC, khóa màn hình, NumLock, Dark/BSoD verbose... Đã loại trừ các tweak trùng/mâu thuẫn với 137 tweak bản địa (GameDVR, telemetry, MPO, chuột 1:1...). Chuyển đổi bởi `Optimizer/Core/WinUtilBridge.ps1`, dữ liệu tại `Optimizer/Data/WinUtilTweaks.ps1`.
+- **25 tweak winutil** (nhóm `10. WINUTIL` trong CLI): Brave Debloat, Edge Debloat (17 registry), tắt nhà Home/Gallery Explorer, End Task chuột phải, WPBT, giờ UTC, khóa màn hình, NumLock, Dark/BSoD verbose... Đã loại trừ các tweak trùng/mâu thuẫn với 165 tweak bản địa (GameDVR, telemetry, MPO, chuột 1:1...). Chuyển đổi bởi `Optimizer/Core/WinUtilBridge.ps1`, dữ liệu tại `Optimizer/Data/WinUtilTweaks.ps1`.
 - **239 ứng dụng cài qua winget** (kiểu winutil) tại `Optimizer/Data/WinUtilApps.ps1`:
 
 ```powershell
-.\Sophia-Optimizer.ps1 -ListApps                       # xem 239 app / nhóm
-.\Sophia-Optimizer.ps1 -InstallApps "steam, vlc, chrome, discord"
-.\Sophia-Optimizer.ps1 -AppsMenu                       # menu chọn app (hoặc phím A trong Menu đơn giản)
+.\MolikWinlik.ps1 -ListApps                       # xem 239 app / nhóm
+.\MolikWinlik.ps1 -InstallApps "steam, vlc, chrome, discord"
+.\MolikWinlik.ps1 -AppsMenu                       # menu chọn app (hoặc phím A trong Menu đơn giản)
 ```
 
 ## 📊 Benchmark Before/After
 
 ```powershell
-.\Sophia-Optimizer.ps1 -Benchmark -BenchmarkLabel Before   # đo TRƯỚC khi tối ưu
-.\Sophia-Optimizer.ps1 -Mode GodMode -Apply -Yes            # áp dụng (đã gồm xác nhận Extreme qua -Yes)
+.\MolikWinlik.ps1 -Benchmark -BenchmarkLabel Before   # đo TRƯỚC khi tối ưu
+.\MolikWinlik.ps1 -Mode GodMode -Apply -Yes            # áp dụng (đã gồm xác nhận Extreme qua -Yes)
 # restart máy, rồi:
-.\Sophia-Optimizer.ps1 -Benchmark -BenchmarkLabel After
-.\Sophia-Optimizer.ps1 -CompareBenchmarks                   # xem % cải thiện CPU/Disk/RAM
-.\Sophia-Optimizer.ps1 -Mode EmulatorFarm -Apply -DryRun    # xem trước, chưa thực thi
+.\MolikWinlik.ps1 -Benchmark -BenchmarkLabel After
+.\MolikWinlik.ps1 -CompareBenchmarks                   # xem % cải thiện CPU/Disk/RAM
+.\MolikWinlik.ps1 -Mode EmulatorFarm -Apply -DryRun    # xem trước, chưa thực thi
 ```
 
 Trong CLI: phím `V` = kiểm tra tweak nào đã áp dụng (●), `T` = chạy benchmark, `S`/`L` = lưu/nạp Profile tick chọn (JSON, mang sang máy khác áp y hệt: `-Profile file.json`). Host không hỗ trợ phím trực tiếp sẽ tự chuyển sang **Menu đơn giản** (hoặc cờ `-Menu`), trong menu có sẵn mục tạo **Shortcut Desktop** để lần sau double-click là chạy.
@@ -179,7 +192,7 @@ Trong CLI: phím `V` = kiểm tra tweak nào đã áp dụng (●), `T` = chạy
 ## 🩺 Self-Test / Debug toàn diện
 
 ```powershell
-.\Sophia-Optimizer.ps1 -SelfTest     # parse cú pháp, dựng catalog, chạy thử 170 CheckScript (chỉ đọc)
+.\MolikWinlik.ps1 -SelfTest     # parse cú pháp, dựng catalog, chạy thử toàn bộ CheckScript của catalog (chỉ đọc)
 # hoặc phím D trong Menu đơn giản — không thay đổi gì trên hệ thống
 ```
 

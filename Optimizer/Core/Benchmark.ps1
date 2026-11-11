@@ -32,7 +32,7 @@ function Invoke-SophiaBenchmark
 			$h = 0
 			for ($i = 0; $i -lt 4000; $i++)
 			{
-				$bytes = [System.Text.Encoding]::UTF8.GetBytes("sophia-bench-$i-$h")
+				$bytes = [System.Text.Encoding]::UTF8.GetBytes("molikwinlik-bench-$i-$h")
 				$h = [BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)).Length + $i
 			}
 			return 4000
@@ -50,7 +50,7 @@ function Invoke-SophiaBenchmark
 
 	# Disk sequential 128MB
 	$diskWrite = 0; $diskRead = 0
-	$tmpFile = Join-Path $env:TEMP "sophia_bench_$([Guid]::NewGuid().ToString('N')).bin"
+	$tmpFile = Join-Path $env:TEMP "molikwinlik_bench_$([Guid]::NewGuid().ToString('N')).bin"
 	try
 	{
 		$data = New-Object byte[] (1MB)

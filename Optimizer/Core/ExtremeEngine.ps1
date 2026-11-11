@@ -164,7 +164,7 @@ function Set-SophiaNetAdapterExtreme
 				@{ K = "*RSS"; On = "1"; Off = "1" },
 				@{ K = "*LsoV2IPv4"; On = "0"; Off = "1" },
 				@{ K = "*LsoV2IPv6"; On = "0"; Off = "1" },
-				@{ K = "*EEE"; On = "0"; Off = "0" },
+				@{ K = "*EEE"; On = "0"; Off = "1" },
 				@{ K = "*SelectiveSuspend"; On = "0"; Off = "1" },
 				@{ K = "*JumboPacket"; On = "1514"; Off = "1514" }
 			)
