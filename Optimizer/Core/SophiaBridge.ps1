@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Bridge to Native Sophia Script Modules (src/Sophia_Script_for_Windows_*)
+	MOLIK WINLIK - Bridge to Native Sophia Script Modules (src/Sophia_Script_for_Windows_*)
 
 	.DESCRIPTION
 	Automatically resolves the correct Sophia Script edition for the host OS (Windows 10 / 11 / LTSC / ARM / PS5.1 / PS7),

@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Self-Test / Debug toàn diện (không thay đổi hệ thống)
+	MOLIK WINLIK - Self-Test / Debug toàn diện (không thay đổi hệ thống)
 
 	.DESCRIPTION
 	1) Parse cú pháp mọi file .ps1 của tool bằng PowerShell Parser chính chủ
@@ -27,7 +27,7 @@ function Test-SophiaOptimizerHealth
 
 	Write-Host ""
 	Write-Host "  ╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-	Write-Host "  ║  🩺 SOPHIA ULTRA OPTIMIZER — SELF-TEST / DEBUG TOÀN DIỆN           ║" -ForegroundColor Cyan
+	Write-Host "  ║  🩺 MOLIK WINLIK — SELF-TEST / DEBUG TOÀN DIỆN           ║" -ForegroundColor Cyan
 	Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 
 	# 1) Syntax parse

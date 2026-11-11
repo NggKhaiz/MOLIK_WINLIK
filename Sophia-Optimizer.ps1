@@ -1,11 +1,11 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer — Interactive Tick-Select CLI (Tối ưu sâu Windows)
+	MOLIK WINLIK — Interactive Tick-Select CLI (Tối ưu sâu Windows)
 
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
-	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 187 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	Workstation/Streaming, Low-Spec và MOLIK Standard/Privacy. Xây trên bản gốc upstream
+	(src/Sophia_Script_for_Windows_*) + 185 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -128,7 +128,7 @@ $modes = Get-SophiaOptimizationModes
 $snapshot = $null
 try { $snapshot = Get-SophiaSystemSnapshot } catch {}
 
-# Bridge vào module Sophia gốc (không chặn bởi InitialActions/LGPO/UBR)
+# Bridge vào module gốc upstream (không chặn bởi InitialActions/LGPO/UBR)
 try { Initialize-SophiaNativeModule -RepoRoot $RepoRoot | Out-Null } catch {}
 
 $smartRec = $null
@@ -175,7 +175,7 @@ if ($ListTweaks)
 }
 if ($ExportReport)
 {
-	$reportPath = Join-Path $RepoRoot ("Sophia-System-Report-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
+	$reportPath = Join-Path $RepoRoot ("MolikWinlik-System-Report-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
 	$reportObj = @{ Snapshot = $snapshot; Modes = $modes; TweakCount = $catalog.Count; Catalog = @($catalog | Select-Object Id, Name, Category, Risk, Modes, Detail) }
 	$reportObj | ConvertTo-Json -Depth 6 | Set-Content $reportPath -Encoding UTF8
 	Write-Host "  [✓] Đã xuất báo cáo: $reportPath" -ForegroundColor Green

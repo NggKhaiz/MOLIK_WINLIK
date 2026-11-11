@@ -1,10 +1,10 @@
 @echo off
 chcp 65001 >nul
-title Sophia Ultra Optimizer - Tick-Select CLI
+title MOLIK WINLIK - Tick-Select CLI
 cd /d "%~dp0"
 echo.
 echo  ============================================================
-echo   SOPHIA ULTRA OPTIMIZER - Toi Uu Sau Windows
+echo   MOLIK WINLIK - Toi Uu Sau Windows
 echo   Treo Gia Lap 24/7 - Hardcore Gaming - Workstation - Low-Spec
 echo  ============================================================
 echo.

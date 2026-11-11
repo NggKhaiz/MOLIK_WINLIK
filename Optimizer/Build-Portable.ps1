@@ -7,7 +7,7 @@
 	ngay tại vị trí block nạp module, tạo thành 1 file .ps1 độc lập:
 	  - Tải 1 file về, chạy trực tiếp (kể cả để trong %TEMP%)
 	  - irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex
-	Không ghi gì vào máy ngoài backup/log ở C:\Sophia_Backups (chỉ khi bạn áp dụng tweak).
+	Không ghi gì vào máy ngoài backup/log ở C:\MOLIK_WINLIK_Backups (chỉ khi bạn áp dụng tweak).
 
 	.EXAMPLE
 	.\Optimizer\Build-Portable.ps1
@@ -62,8 +62,11 @@ $portable = [regex]::Replace($launcher, $pattern, [System.Text.RegularExpression
 
 if ($portable -eq $launcher) { throw "Không tìm thấy block nạp engine trong Sophia-Optimizer.ps1 — build thất bại." }
 
-$banner = "<#`r`n`tMOLIK_WINLIK by @nggkhaiz — Sophia Ultra Optimizer PORTABLE (1 file duy nhat, KHONG CAN CAI DAT)`r`n`tFile này được sinh tự động bởi Optimizer\Build-Portable.ps1 — đừng sửa tay, hãy sửa nguồn trong Optimizer/ rồi build lại.`r`n`tChạy: .\Sophia-Ultra-Portable.ps1  |  irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`r`n#>`r`n"
+$banner = "<#`r`n`tMOLIK_WINLIK by @nggkhaiz — MOLIK WINLIK PORTABLE (1 file duy nhat, KHONG CAN CAI DAT)`r`n`tFile này được sinh tự động bởi Optimizer\Build-Portable.ps1 — đừng sửa tay, hãy sửa nguồn trong Optimizer/ rồi build lại.`r`n`tChạy: .\Sophia-Ultra-Portable.ps1  |  irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`r`n#>`r`n"
 $portable = $banner + $portable
 
 [System.IO.File]::WriteAllText($OutputPath, $portable, (New-Object System.Text.UTF8Encoding($false)))
+$portableHash = (Get-FileHash -Path $OutputPath -Algorithm SHA256).Hash.ToLower()
+"$portableHash  $(Split-Path $OutputPath -Leaf)" | Set-Content -Path "$OutputPath.sha256" -Encoding ASCII -Force
+Write-Host "[✓] SHA256: $portableHash" -ForegroundColor DarkGray
 Write-Host "[✓] Đã sinh bản Portable: $OutputPath ($([Math]::Round((Get-Item $OutputPath).Length / 1KB, 1)) KB)" -ForegroundColor Green

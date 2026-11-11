@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Extreme Engine (MSI interrupts, timer daemon, process affinity, per-exe priority)
+	MOLIK WINLIK - Extreme Engine (MSI interrupts, timer daemon, process affinity, per-exe priority)
 
 	.DESCRIPTION
 	Low-level helpers used by the EXTREME LAB catalog section:
@@ -11,7 +11,7 @@
 	Every setter has a matching remover/restore and is safe to run when hardware is absent.
 #>
 
-$script:SophiaDataDir = "$env:ProgramData\SophiaUltraOptimizer"
+$script:SophiaDataDir = "$env:ProgramData\MOLIK_WINLIK"
 
 function Get-SophiaDataDir
 {
@@ -272,7 +272,7 @@ function Invoke-SophiaProcessBoostNow
 function Register-SophiaProcessBoosterTask
 {
 	$dir = Get-SophiaDataDir
-	$scriptPath = Join-Path $dir "SophiaProcessBooster.ps1"
+	$scriptPath = Join-Path $dir "MolikBooster.ps1"
 	$script = @'
 $names = @("dnplayer","LdVBoxHeadless","Ld9BoxHeadless","LdBoxHeadless","HD-Player","Nox","NoxVMHandle","MuMuPlayer","NemuPlayer","NemuHeadless","MEmu","MEmuHeadless","VBoxHeadless")
 $cores = [Environment]::ProcessorCount
@@ -289,19 +289,20 @@ foreach ($n in $names) {
 	$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
 	$settings = New-ScheduledTaskSettingsSet -Compatibility Win8 -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 2)
 	$principal = New-ScheduledTaskPrincipal -UserId "NT AUTHORITY\SYSTEM" -RunLevel Highest -LogonType ServiceAccount
-	Register-ScheduledTask -TaskName "Sophia_Process_Booster" -TaskPath "\Sophia\" -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "Every 5 min: AboveNormal priority + affinity off Core 0 for Android emulator processes" -Force | Out-Null
+	Register-ScheduledTask -TaskName "MOLIK_WINLIK_Booster" -TaskPath "\MOLIK_WINLIK\" -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "Every 5 min: AboveNormal priority + affinity off Core 0 for Android emulator processes" -Force | Out-Null
 	Invoke-SophiaProcessBoostNow | Out-Null
 }
 
 function Unregister-SophiaProcessBoosterTask
 {
+	Unregister-ScheduledTask -TaskName "MOLIK_WINLIK_Booster" -TaskPath "\MOLIK_WINLIK\" -Confirm:$false -ErrorAction SilentlyContinue
 	Unregister-ScheduledTask -TaskName "Sophia_Process_Booster" -TaskPath "\Sophia\" -Confirm:$false -ErrorAction SilentlyContinue
 }
 
-function Start-SophiaTimerResolutionDaemon
+function Start-MolikTimerDaemon
 {
 	$dir = Get-SophiaDataDir
-	$scriptPath = Join-Path $dir "SophiaTimerResolution.ps1"
+	$scriptPath = Join-Path $dir "MolikTimer.ps1"
 	$script = @'
 $code = @"
 using System;
@@ -320,18 +321,19 @@ while ($true) { Start-Sleep -Seconds 3600 }
 	$trigger = New-ScheduledTaskTrigger -AtLogOn
 	$settings = New-ScheduledTaskSettingsSet -Compatibility Win8 -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Days 3650)
 	$principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -RunLevel Highest -LogonType Interactive
-	Register-ScheduledTask -TaskName "Sophia_Timer_Resolution" -TaskPath "\Sophia\" -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "Holds Windows timer resolution at 0.5ms (NtSetTimerResolution 5000) for minimum game/emulator latency" -Force | Out-Null
-	Start-ScheduledTask -TaskName "Sophia_Timer_Resolution" -TaskPath "\Sophia\" -ErrorAction SilentlyContinue
+	Register-ScheduledTask -TaskName "MOLIK_WINLIK_Timer" -TaskPath "\MOLIK_WINLIK\" -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "Holds Windows timer resolution at 0.5ms (NtSetTimerResolution 5000) for minimum game/emulator latency" -Force | Out-Null
+	Start-ScheduledTask -TaskName "MOLIK_WINLIK_Timer" -TaskPath "\MOLIK_WINLIK\" -ErrorAction SilentlyContinue
 }
 
-function Stop-SophiaTimerResolutionDaemon
+function Stop-MolikTimerDaemon
 {
-	Stop-ScheduledTask -TaskName "Sophia_Timer_Resolution" -TaskPath "\Sophia\" -ErrorAction SilentlyContinue
+	Stop-ScheduledTask -TaskName "MOLIK_WINLIK_Timer" -TaskPath "\MOLIK_WINLIK\" -ErrorAction SilentlyContinue
+	Unregister-ScheduledTask -TaskName "MOLIK_WINLIK_Timer" -TaskPath "\MOLIK_WINLIK\" -Confirm:$false -ErrorAction SilentlyContinue
 	Unregister-ScheduledTask -TaskName "Sophia_Timer_Resolution" -TaskPath "\Sophia\" -Confirm:$false -ErrorAction SilentlyContinue
 	try
 	{
 		Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
-			Where-Object { $_.CommandLine -match 'SophiaTimerResolution' } |
+			Where-Object { $_.CommandLine -match 'MolikTimer' } |
 			ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 	} catch {}
 }

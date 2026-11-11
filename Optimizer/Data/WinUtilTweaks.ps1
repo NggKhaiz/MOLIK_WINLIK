@@ -1,5 +1,5 @@
 ﻿<#
-	Sophia Ultra Optimizer - WinUtil Tweaks Data (VENDORED, works OFFLINE - no download needed)
+	MOLIK WINLIK - WinUtil Tweaks Data (VENDORED, works OFFLINE - no download needed)
 	Converted from ChrisTitusTech/winutil config/tweaks.json (commit 2ef5e5d), MIT License - see LICENSE-winutil.txt
 	Only pure-registry Toggle tweaks were converted; tweaks duplicating/conflicting with the native 137-tweak catalog were excluded.
 #>
