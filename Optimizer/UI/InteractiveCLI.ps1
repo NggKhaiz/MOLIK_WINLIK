@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 176 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 184 tweaks.
 #>
 
 function Get-SophiaModeTweakIds
@@ -175,7 +175,7 @@ function Show-SophiaSimpleMenu
 	{
 		Write-Host ""
 		Write-Host "  ╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-		Write-Host "  ║  👑 SOPHIA ULTRA OPTIMIZER — MENU ĐƠN GIẢN (Không cần cài)   ║" -ForegroundColor Magenta
+		Write-Host "  ║  👑 MOLIK_WINLIK by @nggkhaiz — MENU ĐƠN GIẢN (Không cần cài)   ║" -ForegroundColor Magenta
 		Write-Host "  ╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
 		$modes = Get-SophiaOptimizationModes
 		for ($i = 0; $i -lt $modes.Count; $i++)
@@ -231,7 +231,7 @@ function Show-SophiaSimpleMenu
 		{
 			try
 			{
-				if (-not $LauncherPath) { $LauncherPath = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex`"" }
+				if (-not $LauncherPath) { $LauncherPath = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`"" }
 				$desktop = [Environment]::GetFolderPath("Desktop")
 				$lnkPath = Join-Path $desktop "Sophia Ultra Optimizer.lnk"
 				$shell = New-Object -ComObject WScript.Shell
@@ -244,7 +244,7 @@ function Show-SophiaSimpleMenu
 				else
 				{
 					$lnk.TargetPath = "powershell.exe"
-					$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex`""
+					$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`""
 				}
 				$lnk.Description = "Sophia Ultra Optimizer - Tick-Select CLI (Portable, khong can cai)"
 				$lnk.Save()
@@ -293,7 +293,7 @@ function Show-SophiaOptimizerUI
 
 		# Header
 		Write-Host "  ╔══════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-		Write-Host "  ║  👑 SOPHIA ULTRA OPTIMIZER — Tối Ưu Sâu Windows: Giả Lập 24/7 • Game • FPS  ║" -ForegroundColor Magenta
+		Write-Host "  ║  👑 MOLIK_WINLIK — SOPHIA ULTRA OPTIMIZER by @nggkhaiz: Giả Lập 24/7 • Game • FPS  ║" -ForegroundColor Magenta
 		Write-Host "  ╚══════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
 		if ($Snapshot)
 		{

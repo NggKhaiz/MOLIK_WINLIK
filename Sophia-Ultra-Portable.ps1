@@ -1,6 +1,6 @@
 ﻿<#
-	Sophia Ultra Optimizer — PORTABLE (1 file duy nhất, KHÔNG CẦN CÀI ĐẶT, offline: đã gộp cả data winutil)
-	Dung ONLINE nhu winutil: irm "https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/win.ps1" | iex
+	MOLIK_WINLIK by @nggkhaiz — Sophia Ultra Optimizer PORTABLE (1 file duy nhất, KHÔNG CẦN CÀI ĐẶT, offline: đã gộp cả data winutil)
+	Dùng ONLINE như winutil: irm "https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/win.ps1" | iex
 	File này được sinh tự động bởi Optimizer\Build-Portable.ps1 — đừng sửa tay, hãy sửa nguồn trong Optimizer/ rồi build lại.
 #>
 <#
@@ -10,7 +10,7 @@
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
 	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 176 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	(src/Sophia_Script_for_Windows_*) + 184 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -26,6 +26,7 @@
 	.\Sophia-Optimizer.ps1 -RestoreDefaults -Yes
 
 	.NOTES
+	Author: @nggkhaiz - MOLIK_WINLIK | Based on Sophia Script (farag2) & winutil (Chris Titus Tech)
 	Yêu cầu: Windows 10/11, PowerShell 5.1+ (hoặc PS7), chạy với quyền Administrator.
 #>
 #Requires -Version 5.1
@@ -76,7 +77,7 @@ try
 		else
 		{
 			# Đang chạy qua irm | iex (không có file trên đĩa): nâng quyền bằng cách gọi lại bản Portable từ xa
-			$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex")
+			$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex")
 			Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
 			return
 		}
@@ -1246,6 +1247,20 @@ function Set-SophiaNetAdapterCoalescing
 			if (-not $Restore) { $val = "0" }
 			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*PacketCoalescing" -RegistryValue $val -NoRestart -ErrorAction SilentlyContinue } catch {}
 			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*DmaCoalescing" -RegistryValue $val -NoRestart -ErrorAction SilentlyContinue } catch {}
+		}
+	} catch {}
+}
+
+function Set-SophiaNicWakeOff
+{
+	param([switch]$Restore)
+	try
+	{
+		Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -ne 'Disabled' } | ForEach-Object {
+			$val = "0"
+			if ($Restore) { $val = "1" }
+			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*WakeOnMagicPacket" -RegistryValue $val -NoRestart -ErrorAction SilentlyContinue } catch {}
+			try { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*WakeOnPattern" -RegistryValue $val -NoRestart -ErrorAction SilentlyContinue } catch {}
 		}
 	} catch {}
 }
@@ -3243,6 +3258,25 @@ function Get-SophiaTweaksCatalog
 	} { try { return ((Get-Service Themes -ErrorAction SilentlyContinue).StartType -eq 'Manual') } catch { return $false } } "Themes Manual"
 	Add-Reg "EXT64" "WaitToKillServiceTimeout = 2s (shutdown/restart dứt khoát)" $EXT "Windows chỉ chờ service tối đa 2 giây khi tắt máy thay vì 5-20s — chu kỳ restart của máy farm ngắn lại rõ rệt." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control" "WaitToKillServiceTimeout" "2000" "5000" "String"
 
+	Add-Reg "EXT65" "GraphicsDrivers DisablePreemption = 1 (DWM không cướp quyền GPU giữa chừng)" $EXT "Giảm việc Desktop Window Manager tiền chiếm (preempt) hàng đợi GPU khi game/giả lập đang render — frame pacing đều hơn trên máy đa nhiệm." "Moderate" $GAME "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" "DisablePreemption" 1 0
+	Add-Reg "EXT66" "MMCSS 'Games': Clock Rate = 10000 (timer MMCSS chuẩn 1ms)" $EXT "Đồng bộ xung nhịp scheduler multimedia Games về 10000 (đơn vị 100ns = 1ms) khớp với EXT02 Timer Daemon 0.5ms — luồng game được đánh thức đều nhịp." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "Clock Rate" 10000 $null
+	Add-Cmd "EXT67" "Tắt Wake-on-LAN Magic Packet & Pattern trên NIC (farm không tự thức)" $EXT "Card mạng không còn đánh thức máy vì gói magic/pattern lạ trong LAN — kết hợp EXT33 cho máy farm ngủ/thức theo đúng ý bạn." "Moderate" $FARM {
+		Set-SophiaNicWakeOff
+	} { Set-SophiaNicWakeOff -Restore } { return $false } "Set-NetAdapterAdvancedProperty *WakeOn* =0"
+	Add-Cmd "EXT68" "BITS Service = Manual (chuyển nền chỉ chạy khi thật cần)" $EXT "Background Intelligent Transfer không còn thường trực Automatic: update/launcher vẫn gọi được khi cần nhưng không chiếm process nền 24/7 trên máy farm." "Moderate" ($FARM+$LOW) {
+		Set-Service BITS -StartupType Manual -ErrorAction SilentlyContinue
+	} {
+		Set-Service BITS -StartupType Automatic -ErrorAction SilentlyContinue
+	} { try { return ((Get-Service BITS -ErrorAction SilentlyContinue).StartType -eq 'Manual') } catch { return $false } } "BITS Manual"
+	Add-Cmd "EXT69" "Office ClickToRun Service = Manual (nếu có)" $EXT "ClickToRunSvc của Office chuyển sang Manual: máy farm/game không dùng Office không phải nuôi service cập nhật nền. Tự bỏ qua nếu không cài Office." "Moderate" ($FARM+$LOW) {
+		if (Get-Service ClickToRunSvc -ErrorAction SilentlyContinue) { Set-Service ClickToRunSvc -StartupType Manual -ErrorAction SilentlyContinue }
+	} {
+		if (Get-Service ClickToRunSvc -ErrorAction SilentlyContinue) { Set-Service ClickToRunSvc -StartupType Automatic -ErrorAction SilentlyContinue }
+	} { return $false } "ClickToRunSvc Manual"
+	Add-Reg "EXT70" "Tắt Miracast Wireless Display (PlatformSupportMiracast = 0)" $EXT "Máy bàn/farm không chiếu không dây: tắt hỗ trợ Miracast ở GraphicsDrivers để pipeline hiển thị gọn, bớt thành phần driver chạy nền." "Moderate" $FARM_GAME "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" "PlatformSupportMiracast" 0 1
+	Add-Reg "EXT71" "Tắt Online Speech Recognition (HasAccepted = 0)" $EXT "Nhận dạng giọng nói online không kích hoạt nền — giảm kết nối dịch vụ thoại thừa trên máy chuyên dụng." "Safe" $STD "HKCU:\Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy" "HasAccepted" 0 1
+	Add-Reg "EXT72" "DisableWindowsConsumerFeatures = 1 (Policy cứng, chặn app quảng cáo tự cài)" $EXT "Bản Policy của Consumer Features: Windows không tự tải/cài app gợi ý (Candy Crush, TikTok...) sau mỗi lần update — ổ & Start Menu sạch lâu dài." "Safe" ($STD+$FARM+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" "DisableWindowsConsumerFeatures" 1 0
+
 	return $catalog.ToArray()
 }
 
@@ -3257,7 +3291,7 @@ function Get-SophiaTweaksCatalog
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 176 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 184 tweaks.
 #>
 
 function Get-SophiaModeTweakIds
@@ -3427,7 +3461,7 @@ function Show-SophiaSimpleMenu
 	{
 		Write-Host ""
 		Write-Host "  ╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-		Write-Host "  ║  👑 SOPHIA ULTRA OPTIMIZER — MENU ĐƠN GIẢN (Không cần cài)   ║" -ForegroundColor Magenta
+		Write-Host "  ║  👑 MOLIK_WINLIK by @nggkhaiz — MENU ĐƠN GIẢN (Không cần cài)   ║" -ForegroundColor Magenta
 		Write-Host "  ╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
 		$modes = Get-SophiaOptimizationModes
 		for ($i = 0; $i -lt $modes.Count; $i++)
@@ -3483,7 +3517,7 @@ function Show-SophiaSimpleMenu
 		{
 			try
 			{
-				if (-not $LauncherPath) { $LauncherPath = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex`"" }
+				if (-not $LauncherPath) { $LauncherPath = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`"" }
 				$desktop = [Environment]::GetFolderPath("Desktop")
 				$lnkPath = Join-Path $desktop "Sophia Ultra Optimizer.lnk"
 				$shell = New-Object -ComObject WScript.Shell
@@ -3496,7 +3530,7 @@ function Show-SophiaSimpleMenu
 				else
 				{
 					$lnk.TargetPath = "powershell.exe"
-					$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex`""
+					$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/MOLIK_WINLIK/main/Sophia-Ultra-Portable.ps1 | iex`""
 				}
 				$lnk.Description = "Sophia Ultra Optimizer - Tick-Select CLI (Portable, khong can cai)"
 				$lnk.Save()
@@ -3545,7 +3579,7 @@ function Show-SophiaOptimizerUI
 
 		# Header
 		Write-Host "  ╔══════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-		Write-Host "  ║  👑 SOPHIA ULTRA OPTIMIZER — Tối Ưu Sâu Windows: Giả Lập 24/7 • Game • FPS  ║" -ForegroundColor Magenta
+		Write-Host "  ║  👑 MOLIK_WINLIK — SOPHIA ULTRA OPTIMIZER by @nggkhaiz: Giả Lập 24/7 • Game • FPS  ║" -ForegroundColor Magenta
 		Write-Host "  ╚══════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
 		if ($Snapshot)
 		{
