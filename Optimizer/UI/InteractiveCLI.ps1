@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 112 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 120 tweaks.
 #>
 
 function Get-SophiaModeTweakIds
@@ -119,6 +119,109 @@ function Invoke-EmulatorAutoBooster
 	Write-Host "  [✓] Emulator Booster: đã boost $found process giả lập (AboveNormal + affinity tránh Core 0) + purge RAM." -ForegroundColor Green
 }
 
+function Save-SophiaSelectionProfile
+{
+	param([string]$ModeKey, [string[]]$SelectedIds, [string]$Path)
+	if (-not $Path)
+	{
+		$dir = "$env:SystemDrive\Sophia_Backups\Profiles"
+		New-Item -Path $dir -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
+		$Path = Join-Path $dir ("profile_{0}_{1}.json" -f $ModeKey, (Get-Date -Format "yyyyMMdd_HHmmss"))
+	}
+	$obj = [ordered]@{ Mode = $ModeKey; CreatedAt = (Get-Date -Format "yyyy-MM-dd HH:mm:ss"); TweakIds = @($SelectedIds) }
+	$obj | ConvertTo-Json | Set-Content -Path $Path -Encoding UTF8 -Force
+	Write-Host "  [✓] Đã lưu Profile ($($SelectedIds.Count) tweak, Mode $ModeKey): $Path" -ForegroundColor Green
+	return $Path
+}
+
+function Get-SophiaSelectionProfile
+{
+	param([Parameter(Mandatory)][string]$Path)
+	if (-not (Test-Path $Path)) { Write-Host "  [!] Không tìm thấy profile: $Path" -ForegroundColor Red; return $null }
+	try
+	{
+		$obj = Get-Content -Path $Path -Raw | ConvertFrom-Json
+		return $obj
+	}
+	catch
+	{
+		Write-Host "  [!] Profile lỗi định dạng JSON: $($_.Exception.Message)" -ForegroundColor Red
+		return $null
+	}
+}
+
+function Show-SophiaSimpleMenu
+{
+	# Menu số đơn giản: chạy được ở mọi host (ISE, VSCode, input bị redirect...) nơi ReadKey không khả dụng.
+	param($Catalog, $Snapshot, [string]$LauncherPath = "")
+
+	while ($true)
+	{
+		Write-Host ""
+		Write-Host "  ╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
+		Write-Host "  ║  👑 SOPHIA ULTRA OPTIMIZER — MENU ĐƠN GIẢN (Không cần cài)   ║" -ForegroundColor Magenta
+		Write-Host "  ╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+		$modes = Get-SophiaOptimizationModes
+		for ($i = 0; $i -lt $modes.Count; $i++)
+		{
+			$m = $modes[$i]
+			$cnt = (Get-SophiaModeTweakIds -ModeKey $m.Key -Catalog $Catalog).Count
+			Write-Host ("   {0}. {1} {2} ({3} tweak)" -f ($i + 1), $m.Icon, $m.Name, $cnt) -ForegroundColor Cyan
+			Write-Host ("      {0}" -f $m.Description) -ForegroundColor Gray
+		}
+		Write-Host "   7. 🎛️  Mở giao diện TICK-CHỌN đầy đủ (phím ↑↓/SPACE)" -ForegroundColor Green
+		Write-Host "   8. 🧠 Purge RAM ngay          9. 🖥️ Boost giả lập ngay" -ForegroundColor Green
+		Write-Host "   T. 📊 Benchmark (Before/After)   C. 📈 So sánh Benchmark" -ForegroundColor Green
+		Write-Host "   R. ↩️  Restore mặc định        S. 💾 Tạo Shortcut Desktop" -ForegroundColor Green
+		Write-Host "   0. Thoát" -ForegroundColor Yellow
+		$choice = Read-Host "  Chọn (0-9/T/C/R/S)"
+		if ($choice -match '^[1-6]$')
+		{
+			$m = $modes[[int]::Parse($choice) - 1]
+			$ids = Get-SophiaModeTweakIds -ModeKey $m.Key -Catalog $Catalog
+			$go = Read-Host "  Áp dụng $($ids.Count) tweak của mode $($m.Name)? (Y/N)"
+			if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids }
+		}
+		elseif ($choice -eq '7') { Show-SophiaOptimizerUI -Catalog $Catalog -Snapshot $Snapshot }
+		elseif ($choice -eq '8') { if (Get-Command Invoke-SophiaRamPurge -ErrorAction SilentlyContinue) { Invoke-SophiaRamPurge } }
+		elseif ($choice -eq '9') { Invoke-EmulatorAutoBooster }
+		elseif ($choice -eq 'T' -or $choice -eq 't') { if (Get-Command Invoke-SophiaBenchmark -ErrorAction SilentlyContinue) { Invoke-SophiaBenchmark -Label "Menu" | Out-Null } }
+		elseif ($choice -eq 'C' -or $choice -eq 'c') { if (Get-Command Compare-SophiaBenchmarks -ErrorAction SilentlyContinue) { Compare-SophiaBenchmarks } }
+		elseif ($choice -eq 'R' -or $choice -eq 'r')
+		{
+			$confirm = Read-Host "  Khôi phục MẶC ĐỊNH toàn bộ? (yes/no)"
+			if ($confirm -eq 'yes') { Invoke-SophiaRestoreTweaks -Catalog $Catalog }
+		}
+		elseif ($choice -eq 'S' -or $choice -eq 's')
+		{
+			try
+			{
+				if (-not $LauncherPath) { $LauncherPath = "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex`"" }
+				$desktop = [Environment]::GetFolderPath("Desktop")
+				$lnkPath = Join-Path $desktop "Sophia Ultra Optimizer.lnk"
+				$shell = New-Object -ComObject WScript.Shell
+				$lnk = $shell.CreateShortcut($lnkPath)
+				if ($LauncherPath -match '\.ps1"?$')
+				{
+					$lnk.TargetPath = "powershell.exe"
+					$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -File $LauncherPath"
+				}
+				else
+				{
+					$lnk.TargetPath = "powershell.exe"
+					$lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex`""
+				}
+				$lnk.Description = "Sophia Ultra Optimizer - Tick-Select CLI (Portable, khong can cai)"
+				$lnk.Save()
+				Write-Host "  [✓] Đã tạo shortcut Desktop: $lnkPath (từ nay double-click là chạy, không cần cài)" -ForegroundColor Green
+			}
+			catch { Write-Host "  [!] Không tạo được shortcut: $($_.Exception.Message)" -ForegroundColor Yellow }
+		}
+		elseif ($choice -eq '0') { return }
+		else { Write-Host "  Lựa chọn không hợp lệ." -ForegroundColor Yellow }
+	}
+}
+
 function Show-SophiaOptimizerUI
 {
 	param($Catalog, $Snapshot, [string]$InitialMode = "EmulatorFarm")
@@ -178,7 +281,8 @@ function Show-SophiaOptimizerUI
 		Write-Host ("  Đã tick: {0}/{1} tweak | Hiển thị: {2} | Tìm kiếm: '{3}'" -f $selectedCount, $Catalog.Count, $filtered.Count, $searchTerm) -ForegroundColor Cyan
 		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 		Write-Host "  [↑↓/KJ] Chọn  [SPACE] Tick  [1-6] Mode  [A]ll  [N]one  [/] Tìm  [P] Purge RAM  [E] Boost Giả Lập" -ForegroundColor Gray
-		Write-Host "  [B] Backup  [R] Restore Mặc Định  [ENTER] ÁP DỤNG  [Q] Thoát" -ForegroundColor Gray
+		Write-Host "  [V] Check đã áp dụng (●)  [T] Benchmark  [S] Lưu Profile  [L] Nạp Profile  [B] Backup" -ForegroundColor Gray
+		Write-Host "  [R] Restore Mặc Định  [ENTER] ÁP DỤNG  [Q] Thoát" -ForegroundColor Gray
 		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 
 		$lastCategory = ""
@@ -284,6 +388,30 @@ function Show-SophiaOptimizerUI
 			try { [Console]::CursorVisible = $true } catch {}
 			if (Get-Command Invoke-SophiaBenchmark -ErrorAction SilentlyContinue) { Invoke-SophiaBenchmark -Label "Manual" | Out-Null }
 			else { Write-Host "  [!] Không tìm thấy module Benchmark." -ForegroundColor Yellow }
+			Read-Host "  Nhấn ENTER để tiếp tục"
+		}
+		elseif ($ch -eq 's' -or $ch -eq 'S') {
+			try { [Console]::CursorVisible = $true } catch {}
+			$ids = @($selected.Keys | Where-Object { $selected[$_] })
+			Save-SophiaSelectionProfile -ModeKey $currentMode -SelectedIds $ids | Out-Null
+			Read-Host "  Nhấn ENTER để tiếp tục"
+		}
+		elseif ($ch -eq 'l' -or $ch -eq 'L') {
+			try { [Console]::CursorVisible = $true } catch {}
+			$dir = "$env:SystemDrive\Sophia_Backups\Profiles"
+			$latest = Get-ChildItem -Path $dir -Filter "*.json" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+			if ($latest)
+			{
+				$profile = Get-SophiaSelectionProfile -Path $latest.FullName
+				if ($profile)
+				{
+					$selected = @{}
+					foreach ($id in $profile.TweakIds) { $selected[[string]$id] = $true }
+					if ($profile.Mode) { $currentMode = [string]$profile.Mode }
+					Write-Host "  [✓] Đã nạp Profile: $($latest.Name) ($($profile.TweakIds.Count) tweak, Mode $currentMode)" -ForegroundColor Green
+				}
+			}
+			else { Write-Host "  [!] Chưa có Profile nào trong $dir — dùng phím S để lưu." -ForegroundColor Yellow }
 			Read-Host "  Nhấn ENTER để tiếp tục"
 		}
 		elseif ($ch -eq 'b' -or $ch -eq 'B') {

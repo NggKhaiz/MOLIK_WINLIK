@@ -1,6 +1,6 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer - Deep Tweaks Catalog (112 tweaks, 9 categories incl. EXTREME LAB, 6 modes)
+	Sophia Ultra Optimizer - Deep Tweaks Catalog (120 tweaks, 9 categories incl. EXTREME LAB, 6 modes)
 
 	.DESCRIPTION
 	Every tweak: Id, Name, Category, Description, Risk, Modes, ApplyScript, RestoreScript, CheckScript.
@@ -417,6 +417,23 @@ function Get-SophiaTweaksCatalog
 	Add-Reg "EXT23" "GlobalTimerResolutionRequests = 1 (Win11: timer 0.5ms áp TOÀN CỤC)" $EXT "Từ Win11 22H2, timer request bị giới hạn trong cửa sổ foreground. Registry kernel này khôi phục hành vi áp toàn hệ thống — bắt buộc để EXT02 phát huy tối đa." "Extreme" $GAME "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" "GlobalTimerResolutionRequests" 1 $null
 	Add-Reg "EXT24" "LanmanServer IRPStackSize = 32 (nhiều kết nối đồng thời)" $EXT "Tăng IRP stack cho Server service: farm mở hàng trăm kết nối/launcher/ADB song song không nghẽn stack mạng nội bộ." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters" "IRPStackSize" 32 15
 	Add-Reg "EXT25" "Tắt Game Presence Writer & GameInput nền" $EXT "GameInputService/Presence writer chạy nền theo dõi tay cầm & trạng thái game — tắt ghi nền thừa cho máy farm/chỉ dùng phím chuột." "Safe" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\GameInputSvc" "Start" 4 3
+
+	Add-Reg "EXT26" "Windows Update KHÔNG tự restart khi đang đăng nhập (treo farm an toàn)" $EXT "NoAutoRebootWithLoggedOnUsers=1: update tải xong không bao giờ tự khởi động lại giữa đêm làm chết farm — bạn chủ động restart khi rảnh." "Moderate" $FARM "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" "NoAutoRebootWithLoggedOnUsers" 1 0
+	Add-Cmd "EXT27" "Tắt Scheduled Defrag/Optimize Drives nền" $EXT "Task chống phân mảnh chạy nền định kỳ giành I/O trên máy farm dùng SSD/NVMe (vốn không cần defrag). TRIM vẫn hoạt động bình thường qua EXT11." "Moderate" ($FARM+$LOW) {
+		Disable-ScheduledTask -TaskPath "\Microsoft\Windows\Defrag\" -TaskName "ScheduledDefrag" -ErrorAction SilentlyContinue | Out-Null
+	} {
+		Enable-ScheduledTask -TaskPath "\Microsoft\Windows\Defrag\" -TaskName "ScheduledDefrag" -ErrorAction SilentlyContinue | Out-Null
+	} { return $false } "Disable-ScheduledTask ScheduledDefrag"
+	Add-Reg "EXT28" "Tắt kéo-thả cửa sổ hiện nội dung (DragFullWindows = 0)" $EXT "Kéo/resize 20+ cửa sổ giả lập không phải render lại toàn bộ nội dung theo thời gian thực — thao tác đa cửa sổ nhẹ hẳn trên máy yếu." "Safe" ($FARM+$LOW) "HKCU:\Control Panel\Desktop" "DragFullWindows" "0" "1" "String"
+	Add-Reg "EXT29" "Tắt Bing Search trong Start Menu (tìm kiếm local thuần)" $EXT "BingSearchEnabled=0: gõ Start chỉ tìm app/file trên máy — nhanh hơn, không gọi web, không gợi ý quảng cáo." "Safe" ($STD+$LOW) "HKCU:\Software\Policies\Microsoft\Windows\Explorer" "DisableSearchBoxSuggestions" 1 0
+	Add-Reg "EXT30" "Tắt Widgets / News & Interests (giảm WebView nền)" $EXT "AllowNewsAndInterests=0 qua Policy: bảng tin thời tiết/widget không tải WebView chạy nền ăn RAM/mạng." "Safe" ($STD+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Feeds" "EnableFeeds" 0 1
+	Add-Reg "EXT31" "Tắt Chat/Teams consumer trên Taskbar" $EXT "TaskbarMn=0: ẩn & không nạp Teams cá nhân nền trên Windows 11 — farm/game không cần, tiết kiệm ~100MB RAM." "Safe" ($STD+$LOW+$FARM) "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarMn" 0 1
+	Add-Reg "EXT32" "Explorer mở 'This PC' thay Quick Access + ẩn Recent" $EXT "LaunchTo=1: mở Explorer là vào thẳng ổ đĩa quản lý file instance, không tải danh sách gần đây." "Safe" $STD "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "LaunchTo" 1 2
+	Add-Cmd "EXT33" "Tắt Wake Timers trên AC (không tác nhân nào tự đánh thức máy)" $EXT "RTCWAKE=0 qua powercfg: hết cảnh máy tự thức dậy nửa đêm vì update/task lạ rồi chạy quạt ầm ĩ — kết hợp EXT26 cho farm ngủ yên (khi bạn cho ngủ)." "Moderate" $FARM {
+		Set-SophiaPowerSetting "238c9fa8-0aad-41ed-83f4-97be242c8f20" "bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d" 0; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
+	} {
+		Set-SophiaPowerSetting "238c9fa8-0aad-41ed-83f4-97be242c8f20" "bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d" 1; & powercfg /setactive SCHEME_CURRENT 2>$null | Out-Null
+	} { return $false } "powercfg RTCWAKE=0"
 
 	return $catalog.ToArray()
 }

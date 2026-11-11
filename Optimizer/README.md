@@ -1,18 +1,26 @@
 # 👑 Sophia Ultra Optimizer — Tick-Select CLI
 
-Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **112 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
+Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **120 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
 
-## 🚀 Chạy nhanh
+## 🚀 Chạy nhanh — KHÔNG CẦN CÀI ĐẶT
 
 ```powershell
-# Cách 1: double-click
-Run-Sophia-Optimizer.bat
+# Cách 0 (TIỆN NHẤT): double-click file Sophia-1Click.bat
+#   -> tự tải bản Portable 1 file vào %TEMP% rồi chạy ngay, không cài gì vào máy
 
-# Cách 2: PowerShell (tự nâng quyền Admin)
+# Cách 1: 1 lệnh, không cần clone/cài
+irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex
+
+# Cách 2: tải đúng 1 file Sophia-Ultra-Portable.ps1 (141KB, chứa toàn bộ engine)
+#   về bất kỳ đâu (USB, Desktop, TEMP...) rồi chạy:
+.\Sophia-Ultra-Portable.ps1
+.\Sophia-Ultra-Portable.ps1 -Mode HardcoreGaming
+.\Sophia-Ultra-Portable.ps1 -Menu        # menu số đơn giản, host nào cũng chạy được
+
+# Cách 3: trong repo (double-click Run-Sophia-Optimizer.bat hoặc):
 .\Sophia-Optimizer.ps1
 
-# Cách 3: 1 lệnh từ xa (không cần clone)
-irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Standalone.ps1 | iex
+# Bản Portable được sinh tự động từ nguồn bằng: .\Optimizer\Build-Portable.ps1
 ```
 
 ## 🎛️ 6 Mode tối ưu riêng cho từng nhu cầu
@@ -24,7 +32,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/So
 | `3` | 🎬 **WORKSTATION / STREAM** | Render/OBS/compile: mạnh nhưng giữ ổn định & mitigations, ưu tiên GPU encode/foreground |
 | `4` | 🥔 **LOW-SPEC / POTATO PC** | Máy yếu RAM ≤8GB: tắt visual effects, services/background apps/telemetry thừa |
 | `5` | 🛡️ **SOPHIA STANDARD** | Privacy + gọn gàng an toàn chuẩn Sophia gốc, không đụng kernel/BCD |
-| `6` | 👑 **GOD MODE** | Toàn bộ 112 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
+| `6` | 👑 **GOD MODE** | Toàn bộ 120 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
 
 ## ⌨️ Điều khiển trong CLI
 
@@ -48,7 +56,7 @@ irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/So
 .\Sophia-Optimizer.ps1 -Mode EmulatorFarm -Apply -Yes   # áp dụng thẳng 1 mode
 .\Sophia-Optimizer.ps1 -Mode HardcoreGaming              # mở CLI đã tick sẵn mode Gaming
 .\Sophia-Optimizer.ps1 -ListModes                        # xem 6 mode
-.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 112 tweak
+.\Sophia-Optimizer.ps1 -ListTweaks                       # liệt kê 120 tweak
 .\Sophia-Optimizer.ps1 -PurgeRAM                         # dọn RAM ngay
 .\Sophia-Optimizer.ps1 -BoostEmulators                   # boost process giả lập
 .\Sophia-Optimizer.ps1 -ExportReport                     # xuất JSON báo cáo phần cứng + catalog
@@ -71,7 +79,7 @@ Optimizer/
   Core/Benchmark.ps1            # Benchmark CPU/Disk/RAM Before-After + so sánh %
   Core/SophiaBridge.ps1         # Bridge vào Sophia.psm1 gốc theo đúng edition Win10/11/LTSC/ARM/PS7
                                 # (bỏ qua chặn cứng LGPO/UBR của InitialActions.ps1)
-  Catalog/TweaksCatalog.ps1     # 112 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
+  Catalog/TweaksCatalog.ps1     # 120 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
   UI/InteractiveCLI.ps1         # TUI tick-chọn [✓]/[ ], tìm kiếm, thực thi & log
 ```
 
@@ -101,7 +109,7 @@ Optimizer/
 .\Sophia-Optimizer.ps1 -Mode EmulatorFarm -Apply -DryRun    # xem trước, chưa thực thi
 ```
 
-Trong CLI: phím `V` = kiểm tra tweak nào đã áp dụng (●), `T` = chạy benchmark.
+Trong CLI: phím `V` = kiểm tra tweak nào đã áp dụng (●), `T` = chạy benchmark, `S`/`L` = lưu/nạp Profile tick chọn (JSON, mang sang máy khác áp y hệt: `-Profile file.json`). Host không hỗ trợ phím trực tiếp sẽ tự chuyển sang **Menu đơn giản** (hoặc cờ `-Menu`), trong menu có sẵn mục tạo **Shortcut Desktop** để lần sau double-click là chạy.
 
 ## 🛟 An toàn & khôi phục
 

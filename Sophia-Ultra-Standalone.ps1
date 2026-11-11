@@ -1,13 +1,13 @@
 ﻿<#
 	.SYNOPSIS
-	Sophia Ultra Optimizer — Single-file launcher (irm | iex)
+	Sophia Ultra Optimizer — Chạy NGAY không cần cài đặt (tải bản Portable 1 file vào %TEMP% rồi chạy)
 
 	.DESCRIPTION
-	Chạy 1 lệnh từ bất kỳ máy Windows nào, không cần clone repo thủ công:
 	  irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Standalone.ps1 | iex
-	File này tự tải bản Sophia Script + Ultra Optimizer mới nhất từ GitHub của bạn,
-	giải nén vào %TEMP%\SophiaUltraOptimizer và mở giao diện tick-chọn CLI.
-	Nếu máy đã có sẵn Sophia-Optimizer.ps1 ở thư mục hiện tại thì chạy trực tiếp, không tải lại.
+	Script này chỉ tải đúng 1 file Sophia-Ultra-Portable.ps1 (141KB, chứa toàn bộ engine)
+	vào thư mục tạm %TEMP%, chạy nó với tham số của bạn, KHÔNG cài đặt, KHÔNG giải nén,
+	KHÔNG cần clone repo. File tạm có thể xóa bất cứ lúc nào.
+	Nếu thư mục hiện tại đã có Sophia-Ultra-Portable.ps1 / Sophia-Optimizer.ps1 thì chạy luôn bản local.
 
 	.EXAMPLE
 	& ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Standalone.ps1'))) -Mode HardcoreGaming
@@ -18,56 +18,38 @@ param(
 	[ValidateSet("EmulatorFarm","HardcoreGaming","Workstation","LowSpec","SophiaStandard","GodMode")]
 	[string]$Mode = "EmulatorFarm",
 	[switch]$Apply,
-	[switch]$Yes
+	[switch]$Yes,
+	[switch]$Menu,
+	[switch]$Benchmark
 )
 
 $ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
-# Self-elevate
-try
+# 1) Có sẵn bản local? Chạy luôn, khỏi tải.
+foreach ($localName in @("Sophia-Ultra-Portable.ps1", "Sophia-Optimizer.ps1"))
 {
-	$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-	if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
+	$local = Join-Path (Get-Location).Path $localName
+	if (Test-Path $local)
 	{
-		Write-Host "  [!] Đang nâng quyền Administrator..." -ForegroundColor Yellow
-		$cmd = "irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Standalone.ps1 | iex"
-		Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $cmd) -Verb RunAs
+		& $local -Mode $Mode -Apply:$Apply -Yes:$Yes -Menu:$Menu -Benchmark:$Benchmark
 		return
 	}
-} catch {}
-
-# 1) Đã ở trong repo? Chạy trực tiếp.
-$localLauncher = Join-Path (Get-Location).Path "Sophia-Optimizer.ps1"
-if (Test-Path $localLauncher)
-{
-	& $localLauncher -Mode $Mode -Apply:$Apply -Yes:$Yes
-	return
 }
 
-# 2) Tải repo mới nhất
-$workDir = Join-Path $env:TEMP "SophiaUltraOptimizer"
-$zipPath = Join-Path $env:TEMP "SophiaUltraOptimizer.zip"
-$zipUrl  = "https://codeload.github.com/NggKhaiz/Sophia-Script-for-Windows/zip/refs/heads/main"
-
-Write-Host "  Đang tải Sophia Ultra Optimizer từ GitHub (NggKhaiz/Sophia-Script-for-Windows)..." -ForegroundColor Cyan
+# 2) Tải đúng 1 file Portable vào TEMP rồi chạy (không cài đặt)
+$portablePath = Join-Path $env:TEMP "Sophia-Ultra-Portable.ps1"
+$portableUrl = "https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1"
+Write-Host "  Đang tải Sophia Ultra Optimizer PORTABLE (1 file, không cần cài đặt)..." -ForegroundColor Cyan
 try
 {
 	[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-	Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing -ErrorAction Stop
-	if (Test-Path $workDir) { Remove-Item $workDir -Recurse -Force -ErrorAction SilentlyContinue }
-	Expand-Archive -Path $zipPath -DestinationPath $workDir -Force
-	$root = Get-ChildItem $workDir -Directory | Select-Object -First 1
-	$launcher = Join-Path $root.FullName "Sophia-Optimizer.ps1"
-	if (Test-Path $launcher)
-	{
-		Push-Location $root.FullName
-		try { & $launcher -Mode $Mode -Apply:$Apply -Yes:$Yes } finally { Pop-Location }
-	}
-	else { Write-Host "  [!] Không tìm thấy Sophia-Optimizer.ps1 trong gói đã tải." -ForegroundColor Red }
+	Invoke-WebRequest -Uri $portableUrl -OutFile $portablePath -UseBasicParsing -ErrorAction Stop
+	Write-Host "  [✓] Đã tải: $portablePath — đang khởi chạy..." -ForegroundColor Green
+	& $portablePath -Mode $Mode -Apply:$Apply -Yes:$Yes -Menu:$Menu -Benchmark:$Benchmark
 }
 catch
 {
 	Write-Host "  [X] Tải thất bại: $($_.Exception.Message)" -ForegroundColor Red
-	Write-Host "  Hãy clone thủ công: git clone https://github.com/NggKhaiz/Sophia-Script-for-Windows rồi chạy .\Sophia-Optimizer.ps1" -ForegroundColor Yellow
+	Write-Host "  Cách khác: tải thủ công 1 file Sophia-Ultra-Portable.ps1 từ https://github.com/NggKhaiz/Sophia-Script-for-Windows rồi chạy .\Sophia-Ultra-Portable.ps1" -ForegroundColor Yellow
 }

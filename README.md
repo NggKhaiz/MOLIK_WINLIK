@@ -107,11 +107,12 @@ href="https://trendshift.io/repositories/17603"><img src="https://trendshift.io/
 
 ## 👑 Sophia Ultra Optimizer (Fork Add-on — Tick-Select CLI)
 
-> 🇻🇳 Tool tối ưu sâu do fork này bổ sung, nằm ngoài module Sophia gốc (`src/` giữ nguyên 100%): **112 tweak cực mạnh**, **6 mode riêng** cho từng nhu cầu và giao diện **tick-chọn CLI** `[✓]/[ ]`.
+> 🇻🇳 Tool tối ưu sâu do fork này bổ sung, nằm ngoài module Sophia gốc (`src/` giữ nguyên 100%): **120 tweak cực mạnh**, **6 mode riêng** cho từng nhu cầu và giao diện **tick-chọn CLI** `[✓]/[ ]`.
 
 ```powershell
-.\Sophia-Optimizer.ps1            # mở CLI tick-chọn (hoặc double-click Run-Sophia-Optimizer.bat)
-irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Standalone.ps1 | iex
+# KHÔNG CẦN CÀI ĐẶT: double-click Sophia-1Click.bat (tự tải bản Portable vào %TEMP% rồi chạy)
+irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex
+.\Sophia-Optimizer.ps1            # hoặc mở CLI tick-chọn trong repo (Run-Sophia-Optimizer.bat)
 ```
 
 | Mode | Nhu cầu |

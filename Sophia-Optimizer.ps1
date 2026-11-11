@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
 	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 112 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	(src/Sophia_Script_for_Windows_*) + 120 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -41,6 +41,8 @@ param(
 	[string]$BenchmarkLabel = "Manual",
 	[switch]$CompareBenchmarks,
 	[switch]$DryRun,
+	[string]$Profile = "",
+	[switch]$Menu,
 	[switch]$ExportReport,
 	[string]$Search = ""
 )
@@ -55,13 +57,26 @@ try
 	if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 	{
 		Write-Host "  [!] Tool cần quyền Administrator — đang tự nâng quyền (UAC)..." -ForegroundColor Yellow
-		$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
+		$argList = @()
+		if ($PSCommandPath)
+		{
+			$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
+		}
+		else
+		{
+			# Đang chạy qua irm | iex (không có file trên đĩa): nâng quyền bằng cách gọi lại bản Portable từ xa
+			$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex")
+			Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
+			exit
+		}
 		if ($Mode) { $argList += @("-Mode", $Mode) }
 		if ($Apply) { $argList += "-Apply" }
 		if ($Yes) { $argList += "-Yes" }
 		if ($Benchmark) { $argList += "-Benchmark" }
 		if ($DryRun) { $argList += "-DryRun" }
 		if ($PurgeRAM) { $argList += "-PurgeRAM" }
+		if ($Profile) { $argList += @("-Profile", "`"$Profile`"") }
+		if ($Menu) { $argList += "-Menu" }
 		if ($BoostEmulators) { $argList += "-BoostEmulators" }
 		if ($RestoreDefaults) { $argList += "-RestoreDefaults" }
 		Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
@@ -151,6 +166,25 @@ if ($RestoreDefaults)
 	Invoke-SophiaRestoreTweaks -Catalog $catalog
 	return
 }
+if ($Profile)
+{
+	$profileObj = Get-SophiaSelectionProfile -Path $Profile
+	if (-not $profileObj) { return }
+	$ids = @($profileObj.TweakIds | ForEach-Object { [string]$_ } | Where-Object { $catalog.Id -contains $_ })
+	Write-Host "  Profile: $($ids.Count) tweak (Mode $($profileObj.Mode))" -ForegroundColor Yellow
+	if ($DryRun)
+	{
+		$catalog | Where-Object { $ids -contains $_.Id } | ForEach-Object { Write-Host ("    [{0}] [{1}] {2}" -f $_.Id, $_.Risk, $_.Name) }
+		return
+	}
+	if (-not $Yes)
+	{
+		$confirm = Read-Host "  Áp dụng Profile này? (Y/N)"
+		if ($confirm -notmatch '^[Yy]') { Write-Host "  Đã hủy."; return }
+	}
+	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup -Force:$Yes
+	return
+}
 if ($Apply)
 {
 	$ids = Get-SophiaModeTweakIds -ModeKey $Mode -Catalog $catalog
@@ -171,5 +205,19 @@ if ($Apply)
 	return
 }
 
-# ── Interactive tick-select UI ────────────────────────────────────────────────
-Show-SophiaOptimizerUI -Catalog $catalog -Snapshot $snapshot -InitialMode $Mode
+# ── Interactive tick-select UI (tự fallback Menu đơn giản nếu host không hỗ trợ ReadKey) ──
+if ($Menu)
+{
+	Show-SophiaSimpleMenu -Catalog $catalog -Snapshot $snapshot -LauncherPath $PSCommandPath
+	return
+}
+try
+{
+	if ([Console]::IsInputRedirected) { throw "Input redirected" }
+	Show-SophiaOptimizerUI -Catalog $catalog -Snapshot $snapshot -InitialMode $Mode
+}
+catch
+{
+	Write-Host "  [!] Host hiện tại không hỗ trợ giao diện phím trực tiếp ($($_.Exception.Message)) — chuyển sang MENU ĐƠN GIẢN." -ForegroundColor Yellow
+	Show-SophiaSimpleMenu -Catalog $catalog -Snapshot $snapshot -LauncherPath $PSCommandPath
+}
