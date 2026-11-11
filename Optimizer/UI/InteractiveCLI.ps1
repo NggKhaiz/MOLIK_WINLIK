@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 170 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 176 tweaks.
 #>
 
 function Get-SophiaModeTweakIds

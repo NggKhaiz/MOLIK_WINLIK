@@ -1,7 +1,7 @@
 ﻿<#
 	Sophia Ultra Optimizer — PORTABLE (1 file duy nhất, KHÔNG CẦN CÀI ĐẶT, offline: đã gộp cả data winutil)
+	Dung ONLINE nhu winutil: irm "https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/win.ps1" | iex
 	File này được sinh tự động bởi Optimizer\Build-Portable.ps1 — đừng sửa tay, hãy sửa nguồn trong Optimizer/ rồi build lại.
-	Chạy: .\Sophia-Ultra-Portable.ps1  |  irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex
 #>
 <#
 	.SYNOPSIS
@@ -10,7 +10,7 @@
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
 	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 170 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	(src/Sophia_Script_for_Windows_*) + 176 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -78,7 +78,7 @@ try
 			# Đang chạy qua irm | iex (không có file trên đĩa): nâng quyền bằng cách gọi lại bản Portable từ xa
 			$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex")
 			Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
-			exit
+			return
 		}
 		if ($Mode) { $argList += @("-Mode", $Mode) }
 		if ($Apply) { $argList += "-Apply" }
@@ -97,7 +97,7 @@ try
 		if ($BoostEmulators) { $argList += "-BoostEmulators" }
 		if ($RestoreDefaults) { $argList += "-RestoreDefaults" }
 		Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
-		exit
+		return
 	}
 } catch {}
 
@@ -3224,6 +3224,25 @@ function Get-SophiaTweaksCatalog
 	Add-Reg "EXT57" "Tắt Program Inventory (TurnOffProgramInventory = 1)" $EXT "AppCompat không còn quét/thống kê ứng dụng đã cài chạy nền định kỳ — bớt một nguồn I/O và telemetry tương thích thừa trên máy farm." "Safe" ($STD+$FARM) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat" "TurnOffProgramInventory" 1 0
 	Add-Reg "EXT58" "TcpFinWait2Delay = 30s (đóng kết nối TCP dứt điểm nhanh)" $EXT "Đi cùng NET09: giảm thời gian chờ FIN_WAIT_2 từ mặc định 100s xuống 30s — launcher/ADB/giả lập đóng-mở nghìn kết nối không bị treo cổng chờ." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "TcpFinWait2Delay" 30000 100000
 
+	Add-Reg "EXT59" "MMCSS 'Games': Background Only = False (luồng game chạy cả khi alt-tab)" $EXT "MMCSS không hạ ưu tiên luồng game khi cửa sổ mất focus — alt-tab ra ngoài check tin nhắn mà game/stream vẫn giữ hiệu năng." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "Background Only" "False" "True" "String"
+	Add-Reg "EXT60" "Tắt Thumbnail Cache (không tạo thumbs.db, giảm I/O thư mục)" $EXT "Explorer không ghi file thumbs.db vào mọi thư mục chứa ảnh/video — duyệt thư mục chứa hàng nghìn file instance/screenshot nhẹ & sạch hơn." "Safe" ($FARM+$LOW) "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "DisableThumbnailCache" 1 0
+	Add-Cmd "EXT61" "Đóng app treo NHANH (AutoEndTasks + timeout 1-2s)" $EXT "Bộ 3 giá trị Desktop: app treo tự bị đóng sau 1s, chờ kill 2s — restart máy farm/game nhanh gọn, không kẹt 'Waiting for programs to close'." "Moderate" $FARM_GAME {
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value "1" -Type "String"
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Desktop" -Name "HungAppTimeout" -Value "1000" -Type "String"
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Desktop" -Name "WaitToKillAppTimeout" -Value "2000" -Type "String"
+	} {
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value "0" -Type "String"
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Desktop" -Name "HungAppTimeout" -Value "5000" -Type "String"
+		Set-SophiaRegValue -Path "HKCU:\Control Panel\Desktop" -Name "WaitToKillAppTimeout" -Value "20000" -Type "String"
+	} { return ((Get-SophiaRegValue -Path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks") -eq "1") } "Desktop AutoEndTasks/HungAppTimeout/WaitToKillAppTimeout"
+	Add-Reg "EXT62" "Tắt Remote Assistance (fAllowToGetHelp = 0)" $EXT "Không cho phép phiên hỗ trợ từ xa không mời — đóng một bề mặt mạng thừa trên máy farm/game chuyên dụng." "Safe" ($FARM+$STD) "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services" "fAllowToGetHelp" 0 1
+	Add-Cmd "EXT63" "Themes Service = Manual (máy yếu không nạp theme nền)" $EXT "Service Themes chỉ chạy khi cần thay vì Automatic thường trực — hợp với máy đã tắt transparency/animation ở GAM11/EXT19. Cần hiệu ứng đẹp thì đừng tick." "Moderate" $LOW {
+		Set-Service Themes -StartupType Manual -ErrorAction SilentlyContinue
+	} {
+		Set-Service Themes -StartupType Automatic -ErrorAction SilentlyContinue; Start-Service Themes -ErrorAction SilentlyContinue
+	} { try { return ((Get-Service Themes -ErrorAction SilentlyContinue).StartType -eq 'Manual') } catch { return $false } } "Themes Manual"
+	Add-Reg "EXT64" "WaitToKillServiceTimeout = 2s (shutdown/restart dứt khoát)" $EXT "Windows chỉ chờ service tối đa 2 giây khi tắt máy thay vì 5-20s — chu kỳ restart của máy farm ngắn lại rõ rệt." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control" "WaitToKillServiceTimeout" "2000" "5000" "String"
+
 	return $catalog.ToArray()
 }
 
@@ -3238,7 +3257,7 @@ function Get-SophiaTweaksCatalog
 	.DESCRIPTION
 	Keyboard: ↑/↓ (or K/J) move, SPACE tick/untick, A all, N none, 1-6 quick Mode,
 	M cycle Mode, / search, P purge RAM now, E Emulator Booster, B backup, R restore defaults,
-	ENTER apply selected, Q/Esc quit. Category headers group 170 tweaks.
+	ENTER apply selected, Q/Esc quit. Category headers group 176 tweaks.
 #>
 
 function Get-SophiaModeTweakIds

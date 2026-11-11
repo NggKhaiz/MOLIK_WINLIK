@@ -5,7 +5,7 @@
 	.DESCRIPTION
 	Tool tick-chọn [✓]/[ ] tối ưu Windows cực sâu cho Treo Giả Lập 24/7, Hardcore Gaming,
 	Workstation/Streaming, Low-Spec và Sophia Standard/Privacy. Xây trên Sophia Script gốc
-	(src/Sophia_Script_for_Windows_*) + 170 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
+	(src/Sophia_Script_for_Windows_*) + 176 tweak kernel/BCD/MSI/timer/GPU/network riêng (Optimizer/).
 
 	.EXAMPLE
 	.\Sophia-Optimizer.ps1
@@ -73,7 +73,7 @@ try
 			# Đang chạy qua irm | iex (không có file trên đĩa): nâng quyền bằng cách gọi lại bản Portable từ xa
 			$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm https://raw.githubusercontent.com/NggKhaiz/Sophia-Script-for-Windows/main/Sophia-Ultra-Portable.ps1 | iex")
 			Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
-			exit
+			return
 		}
 		if ($Mode) { $argList += @("-Mode", $Mode) }
 		if ($Apply) { $argList += "-Apply" }
@@ -92,7 +92,7 @@ try
 		if ($BoostEmulators) { $argList += "-BoostEmulators" }
 		if ($RestoreDefaults) { $argList += "-RestoreDefaults" }
 		Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
-		exit
+		return
 	}
 } catch {}
 
