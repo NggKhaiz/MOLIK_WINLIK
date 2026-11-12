@@ -25,7 +25,8 @@ function Get-SophiaSmartRecommendation
 
 	$hasEmulator = ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0)
 	$isLaptop = $false
-	try { $isLaptop = [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue) } catch {}
+	if ($Snapshot -and ($Snapshot.PSObject.Properties.Name -contains "IsLaptop")) { $isLaptop = [bool]$Snapshot.IsLaptop }
+	else { try { $isLaptop = [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue) } catch {} }
 
 	if ($hasEmulator)
 	{

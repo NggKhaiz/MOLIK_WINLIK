@@ -180,7 +180,14 @@ function Get-SophiaTweaksCatalog
 	} { try { return ((& powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE 2>$null) -match '0x00000000') } catch { return $false } } "powercfg standby/hibernate/USB/ASPM"
 	Add-Reg "EMU10" "Tăng Desktop Heap & Session View Size (nhiều cửa sổ instance)" $EMU "Mở 10-30 instance dễ hết desktop heap ('failed to create window'). Tăng SharedSection 1024,20480,2048 cho session đồ họa." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\SubSystems" "Windows" "%SystemRoot%\system32\csrss.exe ObjectDirectory=\Windows SharedSection=1024,20480,2048 Windows=On SubSystemType=Windows ServerDll=basesrv,1 ServerDll=winsrv:UserServerDllInitialization,3 ServerDll=sxssrv,4 ProfileControl=Off MaxRequestThreads=16" "%SystemRoot%\system32\csrss.exe ObjectDirectory=\Windows SharedSection=1024,20480,768 Windows=On SubSystemType=Windows ServerDll=basesrv,1 ServerDll=winsrv:UserServerDllInitialization,3 ServerDll=sxssrv,4 ProfileControl=Off MaxRequestThreads=16" "String"
 	Add-Reg "EMU11" "Ưu tiên foreground cho process giả lập (Win32PrioritySeparation=38)" $EMU "Phân bổ quantum CPU ưu tiên ứng dụng foreground (giả lập đang focus) — giảm giật khi nhiều instance tranh CPU." "Moderate" $FARM_GAME "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" "Win32PrioritySeparation" 38 2
-	Add-Reg "EMU12" "Tắt Windows Search Indexing (chống disk 100% khi farm)" $EMU "Search indexer quét liên tục thư mục instance gây disk/CPU spike ngẫu nhiên. Tắt service WSearch cho máy farm/game." "Moderate" ($FARM+$GAME+$LOW) "HKLM:\SYSTEM\CurrentControlSet\Services\WSearch" "Start" 4 2
+	Add-Cmd "EMU12" "Tắt Windows Search Indexing (chống disk 100% khi farm)" $EMU "Search indexer quét liên tục thư mục instance gây disk/CPU spike ngẫu nhiên. Dừng hẳn service WSearch + Disabled (không chỉ ghi registry như trước). Cần tìm file bằng Everything/app khác thay thế." "Moderate" ($FARM+$GAME+$LOW) {
+		Stop-Service WSearch -Force -ErrorAction SilentlyContinue; Set-Service WSearch -StartupType Disabled -ErrorAction SilentlyContinue
+		Set-SophiaRegValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WSearch" -Name "Start" -Value 4 -Type "DWord"
+	} {
+		Set-SophiaRegValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WSearch" -Name "Start" -Value 2 -Type "DWord"
+		Set-SophiaRegValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WSearch" -Name "DelayedAutoStart" -Value 1 -Type "DWord"
+		Start-Service WSearch -ErrorAction SilentlyContinue
+	} { try { return ((Get-Service WSearch -ErrorAction SilentlyContinue).StartType -eq 'Disabled') } catch { return $false } } "WSearch Stop + Disabled"
 	Add-Cmd "EMU13" "Đặt CPU Priority cao cho process giả lập đang chạy" $EMU "Nâng priority LdVBoxHeadless/HD-Player/Nox/MuMu/Nemu lên AboveNormal để scheduler ưu tiên khi full-load multi-instance." "Moderate" $FARM {
 		@("LdVBoxHeadless","HD-Player","Nox","NoxVMHandle","MuMuPlayer","NemuHeadless","MEmuHeadless","VBoxHeadless") | ForEach-Object { Get-Process -Name $_ -ErrorAction SilentlyContinue | ForEach-Object { try { $_.PriorityClass = "AboveNormal" } catch {} } }
 	} {
@@ -603,5 +610,20 @@ function Get-SophiaTweaksCatalog
 	} { return $false } "Disable-ScheduledTask MemoryDiagnostic"
 	Add-Reg "EXT79" "Tắt WaaSMedicSvc (Update không tự kích hoạt lại nền)" $EXT "WaaSMedic là service chuyên tự sửa/kích hoạt lại các thành phần Windows Update bị tắt — nguyên nhân farm hay 'tự nhiên' quét update lại. Start=4 cho máy chuyên dụng đã chủ động quản lý update (đi cặp EXT53). Muốn update Windows bình thường thì Restore trước." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\WaaSMedicSvc" "Start" 4 3
 	Add-Reg "EXT80" "Tắt UsoSvc — Update Orchestrator Service (farm chủ động update)" $EXT "UsoSvc điều phối quét/tải update nền. Start=4 cùng EXT53+EXT79 tạo bộ ba khóa update nền triệt để cho máy treo 24/7: không spike CPU/disk, không tự restart (EXT26). Cập nhật thủ công qua Settings vẫn mở được sau khi Restore." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\UsoSvc" "Start" 4 2
+	Add-Reg "EXT81" "Chặn Windows Update tự thay Driver (ExcludeWUDriversInQualityUpdate = 1)" $EXT "Update không còn tự cài đè driver GPU/NIC/VT-x qua Quality Update — nguyên nhân kinh điển làm farm mất VT-x hoặc game drop FPS sau 1 đêm. Bạn vẫn cài driver thủ công từ hãng như bình thường." "Moderate" ($FARM+$GAME) "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate" "ExcludeWUDriversInQualityUpdate" 1 0
+	Add-Cmd "EXT82" "Tắt Windows Biometric Service (WbioSrvc) — máy không dùng vân tay/Face ID phụ" $EXT "Service sinh trắc học chạy nền dù máy farm/game chỉ đăng nhập bằng mật khẩu/PIN local. Disabled để giảm service nền; đăng nhập Windows Hello bằng vân tay/khuôn mặt sẽ ngừng hoạt động (PIN vẫn dùng được)." "Moderate" ($FARM+$LOW) {
+		Stop-Service WbioSrvc -Force -ErrorAction SilentlyContinue; Set-Service WbioSrvc -StartupType Disabled -ErrorAction SilentlyContinue
+	} {
+		Set-Service WbioSrvc -StartupType Manual -ErrorAction SilentlyContinue
+	} { try { return ((Get-Service WbioSrvc -ErrorAction SilentlyContinue).StartType -eq "Disabled") } catch { return $false } } "WbioSrvc Disabled"
+	Add-Reg "EXT83" "Tắt Agent Activation Runtime (AarSvc) — di sản kích hoạt giọng nói Cortana" $EXT "AarSvc là runtime kích hoạt agent bằng giọng nói (thời Cortana) vẫn được nạp dạng per-user service trên Windows 11. Start=4 ở template để mọi user đều không nạp — giảm tiến trình nền vô hình." "Moderate" ($FARM+$LOW) "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\AarSvc" "Start" 4 3
+	Add-Reg "EXT84" "Tắt Automatic Restart Sign-On (không tự đăng nhập sau update restart)" $EXT "DisableAutomaticRestartSignOn=1: sau khi Windows Update tự restart, máy không tự đăng nhập phiên user (ARSO) — farm an toàn hơn và bạn chủ động kiểm soát lần đăng nhập đầu tiên." "Safe" ($FARM+$STD) "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" "DisableAutomaticRestartSignOn" 1 0
+	Add-Cmd "PRI11" "Tắt Clipboard History & đồng bộ clipboard đám mây" $PRI "AllowClipboardHistory=0 + AllowCrossDeviceClipboard=0: Windows không lưu lịch sử sao chép và không đồng bộ clipboard qua tài khoản Microsoft — bớt rò rỉ dữ liệu nhạy cảm (mật khẩu/token) trên máy farm dùng chung." "Safe" ($STD+$LOW) {
+		Set-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "AllowClipboardHistory" -Value 0 -Type "DWord"
+		Set-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "AllowCrossDeviceClipboard" -Value 0 -Type "DWord"
+	} {
+		Set-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "AllowClipboardHistory" -Value 1 -Type "DWord"
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "AllowCrossDeviceClipboard" -Force -ErrorAction SilentlyContinue
+	} { return ((Get-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "AllowClipboardHistory") -eq 0) } "ClipboardHistory/CrossDevice = 0"
 	return $catalog.ToArray()
 }

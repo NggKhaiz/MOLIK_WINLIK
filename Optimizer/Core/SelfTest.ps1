@@ -125,13 +125,41 @@ function Test-SophiaOptimizerHealth
 		{
 			$content = Get-Content $portable -Raw
 			$markers = ([regex]::Matches($content, "PORTABLE-INLINE")).Count
-			if ($markers -ge 10 -and $content -match "Get-WinUtilConvertedTweaks" -and $content -match "EXT80") { Report "PASS" "Portable: $markers module inline, du WinUtil + EXT80 (offline)" }
+			if ($markers -ge 10 -and $content -match "Get-WinUtilConvertedTweaks" -and $content -match "EXT84") { Report "PASS" "Portable: $markers module inline, du WinUtil + EXT84 (offline)" }
 			else { Report "WARN" "Portable co ve thieu module (markers=$markers) - chay Optimizer\\Build-Portable.ps1 de sinh lai" }
 			$scanText = (($content -split "`n") | Where-Object { $_ -notmatch "OFFLINE guard|-match|-notmatch" }) -join "`n"
 			if ($scanText -match "Invoke-RestMethod|Invoke-WebRequest|DownloadString") { Report "FAIL" "OFFLINE guard: Portable chua cmdlet tai code tu Internet!" }
 			else { Report "PASS" "OFFLINE guard: Portable khong tai code khi chay (chi winget tuy chon cho app)" }
 		}
 	}
+
+	# 7) Presets + Report Engine
+	try
+	{
+		if (Get-Command Get-MolikPresets -ErrorAction SilentlyContinue)
+		{
+			$presetFail = @()
+			foreach ($preset in (Get-MolikPresets))
+			{
+				$resolved = Resolve-MolikPreset -Preset $preset -Catalog $Catalog
+				if ($resolved.Count -eq 0) { $presetFail += $preset.Name }
+			}
+			if ($presetFail.Count -eq 0) { Report "PASS" "Presets: $((Get-MolikPresets).Count) preset deu giai ra danh sach tweak hop le" }
+			else { Report "FAIL" "Preset giai rong: $($presetFail -join ', ')" }
+		}
+	}
+	catch { Report "FAIL" "Presets loi: $($_.Exception.Message)" }
+	try
+	{
+		if (Get-Command Export-MolikHtmlReport -ErrorAction SilentlyContinue)
+		{
+			$tmpReport = Join-Path $env:TEMP "MolikWinlik-SelfTest-Report.html"
+			Export-MolikHtmlReport -Snapshot $null -Catalog $Catalog -Path $tmpReport -SkipStatus | Out-Null
+			if ((Test-Path $tmpReport) -and ((Get-Content $tmpReport -Raw) -match "MOLIK WINLIK")) { Report "PASS" "Report Engine: xuat HTML Dashboard thanh cong (file tam, da xoa)" } else { Report "FAIL" "Report Engine: file HTML khong hop le" }
+			Remove-Item $tmpReport -Force -ErrorAction SilentlyContinue
+		}
+	}
+	catch { Report "FAIL" "Report Engine loi: $($_.Exception.Message)" }
 
 	Write-Host ""
 	Write-Host ("  ══════════ KẾT QUẢ: {0} PASS / {1} FAIL / {2} WARN ══════════" -f $script:pass, $script:fail, $script:warn) -ForegroundColor Cyan

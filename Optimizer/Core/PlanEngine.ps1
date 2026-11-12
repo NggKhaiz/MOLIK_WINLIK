@@ -94,7 +94,8 @@ function Get-SophiaOptimizationPlan
 
 	# ── Context warnings ──────────────────────────────────────────────────────
 	$isLaptop = $false
-	try { $isLaptop = [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue) } catch {}
+	if ($Snapshot -and ($Snapshot.PSObject.Properties.Name -contains "IsLaptop")) { $isLaptop = [bool]$Snapshot.IsLaptop }
+	else { try { $isLaptop = [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue) } catch {} }
 	if ($isLaptop -and ($ids -match 'EXT08|EXT07|CPU03'))
 	{
 		$warnings += "Máy có pin (laptop): nhóm khóa xung/idle (EXT07/EXT08/CPU03) sẽ RẤT NÓNG và hao pin — cân nhắc bỏ tick nếu không cắm điện cố định."

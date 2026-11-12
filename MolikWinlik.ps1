@@ -1,4 +1,4 @@
-<#
+﻿<#
 	.SYNOPSIS
 	MOLIK WINLIK — Interactive Tick-Select CLI (Tối ưu sâu Windows)
 
@@ -58,15 +58,24 @@ param(
 	[switch]$SelfTest,
 	[switch]$ExportReport,
 	[switch]$LoadNativeSophia,
+	[switch]$Version,
+	[switch]$ListPresets,
+	[string]$Preset = "",
+	[string]$ApplyIds = "",
+	[string]$RestoreIds = "",
+	[string]$Status = "__none__",
+	[switch]$BackupOnly,
+	[switch]$RestoreBackup,
 	[string]$Search = ""
 )
 
 $ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+$Global:MolikWinlikVersion = "3.0.0"
 
 # ── Self-elevate to Administrator (chi khi thao tac that su can Admin) ───────
 # Cac lenh chi-doc duoi day chay ngay khong can UAC cho khoi dong nhanh:
-$readOnlyRequest = ($ListModes -or $ListTweaks -or $ListApps -or $SelfTest -or $Plan -or $CompareBenchmarks)
+$readOnlyRequest = ($ListModes -or $ListTweaks -or $ListApps -or $SelfTest -or $Plan -or $CompareBenchmarks -or $Version -or $ListPresets -or ($Status -ne "__none__"))
 if (-not $readOnlyRequest)
 {
 	try
@@ -102,6 +111,11 @@ if (-not $readOnlyRequest)
 			if ($RestoreDefaults) { $argList += "-RestoreDefaults" }
 			if ($ExportReport) { $argList += "-ExportReport" }
 			if ($LoadNativeSophia) { $argList += "-LoadNativeSophia" }
+			if ($Preset) { $argList += @("-Preset", "`"$Preset`"") }
+			if ($ApplyIds) { $argList += @("-ApplyIds", "`"$ApplyIds`"") }
+			if ($RestoreIds) { $argList += @("-RestoreIds", "`"$RestoreIds`"") }
+			if ($BackupOnly) { $argList += "-BackupOnly" }
+			if ($RestoreBackup) { $argList += "-RestoreBackup" }
 			if ($Search) { $argList += @("-Search", "`"$Search`"") }
 			Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
 			return
@@ -119,6 +133,8 @@ $engineFiles = @(
 	"Optimizer\Core\Benchmark.ps1",
 	"Optimizer\Core\PlanEngine.ps1",
 	"Optimizer\Core\SmartAdvisor.ps1",
+	"Optimizer\Core\Presets.ps1",
+	"Optimizer\Core\ReportEngine.ps1",
 	"Optimizer\Core\WinUtilBridge.ps1",
 	"Optimizer\Core\AppInstaller.ps1",
 	"Optimizer\Data\WinUtilTweaks.ps1",
@@ -174,6 +190,54 @@ if ($SelfTest)
 	Test-SophiaOptimizerHealth -RepoRoot $RepoRoot -Catalog $catalog | Out-Null
 	return
 }
+if ($Version)
+{
+	Write-Host "  MOLIK WINLIK v$Global:MolikWinlikVersion by @nggkhaiz - OFFLINE optimizer" -ForegroundColor Cyan
+	Write-Host "  Catalog: $($catalog.Count) tweak | 6 Mode | $(if (Get-Command Get-MolikPresets -ErrorAction SilentlyContinue) { (Get-MolikPresets).Count } else { 0 }) Preset | 239 app (winutil data, winget)" -ForegroundColor Gray
+	return
+}
+if ($ListPresets)
+{
+	Write-Host ""
+	if (Get-Command Get-MolikPresets -ErrorAction SilentlyContinue)
+	{
+		foreach ($preset in (Get-MolikPresets))
+		{
+			$resolved = Resolve-MolikPreset -Preset $preset -Catalog $catalog
+			Write-Host ("  [{0}] {1} {2} ({3} tweak, Mode {4})" -f $preset.Name, $preset.Icon, $preset.Title, $resolved.Count, $preset.Mode) -ForegroundColor Cyan
+			Write-Host "      $($preset.Description)" -ForegroundColor Gray
+		}
+		Write-Host ""
+		Write-Host "  Dung: .\MolikWinlik.ps1 -Preset <ten> -Plan   hoac   -Preset <ten> -Apply -Yes" -ForegroundColor Yellow
+	}
+	return
+}
+if ($Status -ne "__none__")
+{
+	$statusIds = @($Status -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+	if (Get-Command Get-MolikAppliedStatus -ErrorAction SilentlyContinue)
+	{
+		$map = Get-MolikAppliedStatus -Catalog $catalog -Ids $statusIds
+		$applied = @($map.Keys | Where-Object { $map[$_] }).Count
+		$catalog | Where-Object { $map.ContainsKey($_.Id) } | Group-Object Category | ForEach-Object {
+			Write-Host ""; Write-Host "  $($_.Name)" -ForegroundColor Magenta
+			$_.Group | ForEach-Object { $mark = if ($map[$_.Id]) { "[DA AP ]" } else { "[CHUA  ]" }; Write-Host ("    {0} {1} [{2}] {3}" -f $mark, $_.Id, $_.Risk, $_.Name) }
+		}
+		Write-Host ""; Write-Host "  Tong: $applied/$($map.Count) tweak dang o trang thai DA AP DUNG" -ForegroundColor Cyan
+	}
+	return
+}
+if ($BackupOnly)
+{
+	if (Get-Command New-SophiaSystemBackup -ErrorAction SilentlyContinue) { New-SophiaSystemBackup -Label "Manual MOLIK WINLIK backup" | Out-Null }
+	return
+}
+if ($RestoreBackup)
+{
+	if (-not $Yes) { $c = Read-Host "  Khoi phuc Registry/BCD tu backup moi nhat? (Y/N)"; if ($c -notmatch '^[Yy]') { Write-Host "  Da huy."; return } }
+	if (Get-Command Restore-SophiaLatestBackup -ErrorAction SilentlyContinue) { Restore-SophiaLatestBackup | Out-Null }
+	return
+}
 if ($ListModes)
 {
 	Write-Host ""
@@ -195,7 +259,12 @@ if ($ExportReport)
 	$reportPath = Join-Path $RepoRoot ("MolikWinlik-System-Report-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
 	$reportObj = @{ Snapshot = $snapshot; Modes = $modes; TweakCount = $catalog.Count; Catalog = @($catalog | Select-Object Id, Name, Category, Risk, Modes, Detail) }
 	$reportObj | ConvertTo-Json -Depth 6 | Set-Content $reportPath -Encoding UTF8
-	Write-Host "  [✓] Đã xuất báo cáo: $reportPath" -ForegroundColor Green
+	Write-Host "  [✓] Đã xuất báo cáo JSON: $reportPath" -ForegroundColor Green
+	if (Get-Command Export-MolikHtmlReport -ErrorAction SilentlyContinue)
+	{
+		$htmlPath = [System.IO.Path]::ChangeExtension($reportPath, "html")
+		Export-MolikHtmlReport -Snapshot $snapshot -Catalog $catalog -Path $htmlPath | Out-Null
+	}
 	return
 }
 if ($ListApps)
@@ -263,7 +332,73 @@ if ($Profile)
 		$confirm = Read-Host "  Áp dụng Profile này? (Y/N)"
 		if ($confirm -notmatch '^[Yy]') { Write-Host "  Đã hủy."; return }
 	}
-	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup -Force:$Yes
+	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup -Force:$Yes -Snapshot $snapshot
+	return
+}
+if ($Preset)
+{
+	if ($Profile) { Write-Host "  [!] Không dùng đồng thời -Preset và -Profile. Hãy chọn 1 nguồn danh sách tweak." -ForegroundColor Red; return }
+	$presetObj = $null
+	if (Get-Command Get-MolikPresets -ErrorAction SilentlyContinue) { $presetObj = Get-MolikPresets | Where-Object { $_.Name -eq $Preset } | Select-Object -First 1 }
+	if (-not $presetObj)
+	{
+		Write-Host "  [!] Không tìm thấy Preset '$Preset'. Chạy -ListPresets để xem danh sách." -ForegroundColor Red
+		return
+	}
+	$presetIds = Resolve-MolikPreset -Preset $presetObj -Catalog $catalog
+	Write-Host "  Preset: $($presetObj.Icon) $($presetObj.Title) - $($presetIds.Count) tweak (Mode nền $($presetObj.Mode))" -ForegroundColor Yellow
+	Write-Host "  $($presetObj.Description)" -ForegroundColor Gray
+	if ($Plan)
+	{
+		$presetPlan = Get-SophiaOptimizationPlan -Catalog $catalog -SelectedIds $presetIds -Snapshot $snapshot
+		Show-SophiaOptimizationPlan -Plan $presetPlan -Title "KE HOACH PRESET $($presetObj.Name) (chua ap dung)"
+		return
+	}
+	if ($DryRun)
+	{
+		$catalog | Where-Object { $presetIds -contains $_.Id } | ForEach-Object { Write-Host ("    [{0}] [{1}] {2}" -f $_.Id, $_.Risk, $_.Name) }
+		return
+	}
+	if (-not $Apply)
+	{
+		Write-Host "  Them -Apply de thuc thi Preset nay (hoac -Plan/-DryRun de xem truoc)." -ForegroundColor Yellow
+		return
+	}
+	if (-not $Yes) { $c = Read-Host "  Ap dung Preset nay? (Y/N)"; if ($c -notmatch '^[Yy]') { Write-Host "  Da huy."; return } }
+	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $presetIds -SkipBackup:$NoBackup -Force:$Yes -Snapshot $snapshot
+	return
+}
+if ($ApplyIds)
+{
+	$wanted = @($ApplyIds -split ',' | ForEach-Object { $_.Trim().ToUpper() } | Where-Object { $_ })
+	$unknown = @($wanted | Where-Object { $catalog.Id -notcontains $_ })
+	if ($unknown.Count -gt 0) { Write-Host "  [!] ID khong ton tai: $($unknown -join ', ') - chay -ListTweaks de tra cuu." -ForegroundColor Red; return }
+	if ($Plan)
+	{
+		$idsPlan = Get-SophiaOptimizationPlan -Catalog $catalog -SelectedIds $wanted -Snapshot $snapshot
+		Show-SophiaOptimizationPlan -Plan $idsPlan -Title "KE HOACH ApplyIds (chua ap dung)"
+		return
+	}
+	if ($DryRun)
+	{
+		$catalog | Where-Object { $wanted -contains $_.Id } | ForEach-Object { Write-Host ("    [{0}] [{1}] {2}" -f $_.Id, $_.Risk, $_.Name) }
+		return
+	}
+	if (-not $Yes) { $c = Read-Host "  Ap dung $($wanted.Count) tweak theo ID? (Y/N)"; if ($c -notmatch '^[Yy]') { Write-Host "  Da huy."; return } }
+	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $wanted -SkipBackup:$NoBackup -Force:$Yes -Snapshot $snapshot
+	return
+}
+if ($RestoreIds)
+{
+	$wanted = @($RestoreIds -split ',' | ForEach-Object { $_.Trim().ToUpper() } | Where-Object { $_ })
+	$unknown = @($wanted | Where-Object { $catalog.Id -notcontains $_ })
+	if ($unknown.Count -gt 0) { Write-Host "  [!] ID khong ton tai: $($unknown -join ', ')" -ForegroundColor Red; return }
+	if (-not $Yes) { $c = Read-Host "  Khoi phuc mac dinh $($wanted.Count) tweak theo ID? (Y/N)"; if ($c -notmatch '^[Yy]') { Write-Host "  Da huy."; return } }
+	foreach ($tweak in ($catalog | Where-Object { $wanted -contains $_.Id }))
+	{
+		try { & $tweak.RestoreScript; Write-Host "  [✓] Da khoi phuc $($tweak.Id) $($tweak.Name)" -ForegroundColor Green }
+		catch { Write-Host "  [X] $($tweak.Id): $($_.Exception.Message)" -ForegroundColor Red }
+	}
 	return
 }
 if ($Apply)
@@ -283,7 +418,7 @@ if ($Apply)
 		$catalog | Where-Object { $ids -contains $_.Id } | ForEach-Object { Write-Host ("    [{0}] [{1}] {2}" -f $_.Id, $_.Risk, $_.Name) }
 		return
 	}
-	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup -Force:$Yes
+	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup -Force:$Yes -Snapshot $snapshot
 	return
 }
 

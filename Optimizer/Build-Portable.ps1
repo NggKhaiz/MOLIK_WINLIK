@@ -32,6 +32,8 @@ $engineFiles = @(
 	"Core\Benchmark.ps1",
 	"Core\PlanEngine.ps1",
 	"Core\SmartAdvisor.ps1",
+	"Core\Presets.ps1",
+	"Core\ReportEngine.ps1",
 	"Core\WinUtilBridge.ps1",
 	"Core\AppInstaller.ps1",
 	"Data\WinUtilTweaks.ps1",
