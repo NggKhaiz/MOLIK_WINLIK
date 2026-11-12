@@ -48,6 +48,8 @@ function Get-SophiaSystemSnapshot
 		ActivePowerPlan      = "Balanced"
 		ProcessCount         = 0
 		InstalledEmulators   = @()
+		PendingReboot        = $false
+		IsLaptop             = $false
 		EmulatorExePaths     = @()
 		EmulatorFolders      = @()
 	}
@@ -217,6 +219,19 @@ function Get-SophiaSystemSnapshot
 				$Snapshot.ActivePowerPlan = $Matches[1]
 			}
 		}
+	}
+	catch {}
+
+	# Laptop form factor + Pending reboot (dung cho UI canh bao va Smart/Plan)
+	try
+	{
+		$Snapshot.IsLaptop = [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue)
+		$pending = $false
+		if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") { $pending = $true }
+		if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") { $pending = $true }
+		$pfro = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name PendingFileRenameOperations -ErrorAction SilentlyContinue).PendingFileRenameOperations
+		if ($pfro) { $pending = $true }
+		$Snapshot.PendingReboot = $pending
 	}
 	catch {}
 

@@ -1,5 +1,5 @@
 ﻿<#
-	MOLIK WINLIK by @nggkhaiz - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)
+	MOLIK WINLIK by @nggkhaiz v3.0.0 - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)
 	Chay: double-click MOLIK_WINLIK.bat (tu xin Admin), hoac powershell -ExecutionPolicy Bypass -File .\MolikWinlik-Portable.ps1
 	File nay duoc sinh tu dong boi Optimizer\Build-Portable.ps1 - dung sua tay, hay sua nguon trong Optimizer/ roi build lai.
 #>
@@ -63,15 +63,24 @@ param(
 	[switch]$SelfTest,
 	[switch]$ExportReport,
 	[switch]$LoadNativeSophia,
+	[switch]$Version,
+	[switch]$ListPresets,
+	[string]$Preset = "",
+	[string]$ApplyIds = "",
+	[string]$RestoreIds = "",
+	[string]$Status = "__none__",
+	[switch]$BackupOnly,
+	[switch]$RestoreBackup,
 	[string]$Search = ""
 )
 
 $ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+$Global:MolikWinlikVersion = "3.0.0"
 
 # ── Self-elevate to Administrator (chi khi thao tac that su can Admin) ───────
 # Cac lenh chi-doc duoi day chay ngay khong can UAC cho khoi dong nhanh:
-$readOnlyRequest = ($ListModes -or $ListTweaks -or $ListApps -or $SelfTest -or $Plan -or $CompareBenchmarks)
+$readOnlyRequest = ($ListModes -or $ListTweaks -or $ListApps -or $SelfTest -or $Plan -or $CompareBenchmarks -or $Version -or $ListPresets -or ($Status -ne "__none__"))
 if (-not $readOnlyRequest)
 {
 	try
@@ -107,6 +116,11 @@ if (-not $readOnlyRequest)
 			if ($RestoreDefaults) { $argList += "-RestoreDefaults" }
 			if ($ExportReport) { $argList += "-ExportReport" }
 			if ($LoadNativeSophia) { $argList += "-LoadNativeSophia" }
+			if ($Preset) { $argList += @("-Preset", "`"$Preset`"") }
+			if ($ApplyIds) { $argList += @("-ApplyIds", "`"$ApplyIds`"") }
+			if ($RestoreIds) { $argList += @("-RestoreIds", "`"$RestoreIds`"") }
+			if ($BackupOnly) { $argList += "-BackupOnly" }
+			if ($RestoreBackup) { $argList += "-RestoreBackup" }
 			if ($Search) { $argList += @("-Search", "`"$Search`"") }
 			Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
 			return
@@ -172,6 +186,8 @@ function Get-SophiaSystemSnapshot
 		ActivePowerPlan      = "Balanced"
 		ProcessCount         = 0
 		InstalledEmulators   = @()
+		PendingReboot        = $false
+		IsLaptop             = $false
 		EmulatorExePaths     = @()
 		EmulatorFolders      = @()
 	}
@@ -341,6 +357,19 @@ function Get-SophiaSystemSnapshot
 				$Snapshot.ActivePowerPlan = $Matches[1]
 			}
 		}
+	}
+	catch {}
+
+	# Laptop form factor + Pending reboot (dung cho UI canh bao va Smart/Plan)
+	try
+	{
+		$Snapshot.IsLaptop = [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue)
+		$pending = $false
+		if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") { $pending = $true }
+		if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired") { $pending = $true }
+		$pfro = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name PendingFileRenameOperations -ErrorAction SilentlyContinue).PendingFileRenameOperations
+		if ($pfro) { $pending = $true }
+		$Snapshot.PendingReboot = $pending
 	}
 	catch {}
 
@@ -1522,7 +1551,8 @@ function Get-SophiaOptimizationPlan
 
 	# ── Context warnings ──────────────────────────────────────────────────────
 	$isLaptop = $false
-	try { $isLaptop = [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue) } catch {}
+	if ($Snapshot -and ($Snapshot.PSObject.Properties.Name -contains "IsLaptop")) { $isLaptop = [bool]$Snapshot.IsLaptop }
+	else { try { $isLaptop = [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue) } catch {} }
 	if ($isLaptop -and ($ids -match 'EXT08|EXT07|CPU03'))
 	{
 		$warnings += "Máy có pin (laptop): nhóm khóa xung/idle (EXT07/EXT08/CPU03) sẽ RẤT NÓNG và hao pin — cân nhắc bỏ tick nếu không cắm điện cố định."
@@ -1633,7 +1663,8 @@ function Get-SophiaSmartRecommendation
 
 	$hasEmulator = ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0)
 	$isLaptop = $false
-	try { $isLaptop = [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue) } catch {}
+	if ($Snapshot -and ($Snapshot.PSObject.Properties.Name -contains "IsLaptop")) { $isLaptop = [bool]$Snapshot.IsLaptop }
+	else { try { $isLaptop = [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue) } catch {} }
 
 	if ($hasEmulator)
 	{
@@ -1684,6 +1715,241 @@ function Get-SophiaSmartRecommendation
 		Warnings = $warnings
 		IsLaptop = $isLaptop
 	}
+}
+
+
+# ============================================================
+# [PORTABLE-INLINE] Optimizer\Core\Presets.ps1
+# ============================================================
+<#
+	.SYNOPSIS
+	MOLIK WINLIK - Built-in Presets (goi toi uu theo kich ban co san)
+
+	.DESCRIPTION
+	Moi Preset = 1 Mode nen + tweak cong them (ExtraIds) + tweak loai tru
+	(ExcludeIds / ExcludeRisks), duoc Resolve-MolikPreset giai ra danh sach
+	ID cuoi cung theo dung thu tu Catalog. Dung qua:
+	  .\MolikWinlik.ps1 -ListPresets
+	  .\MolikWinlik.ps1 -Preset esports-fps -Plan
+	  .\MolikWinlik.ps1 -Preset farm-max -Apply -Yes
+	hoac phim X trong Menu don gian. ID duoc kiem tra ton tai trong SelfTest.
+#>
+
+function Get-MolikPresets
+{
+	return @(
+		[PSCustomObject]@{
+			Name = "farm-max"; Icon = "🖥️"; Mode = "EmulatorFarm"
+			Title = "FARM CỰC HẠN (multi-instance 24/7)"
+			Description = "Mode Treo Giả Lập + MSI Mode cho GPU/NVMe (EXT01), khóa driver qua Update (EXT81), tắt ARSO (EXT84). Dành cho dàn farm cắm điện cố định đã có backup."
+			ExtraIds = @("EXT01", "EXT81", "EXT84"); ExcludeIds = @(); ExcludeRisks = @()
+		},
+		[PSCustomObject]@{
+			Name = "farm-safe-247"; Icon = "🛡️"; Mode = "EmulatorFarm"
+			Title = "FARM AN TOÀN 24/7 (không Extreme)"
+			Description = "Toàn bộ Mode Treo Giả Lập nhưng loại mọi tweak rủi ro Extreme (không tắt VBS/HVCI/Spectre, không khóa idle). Treo ổn định lâu dài cho máy còn dùng việc khác."
+			ExtraIds = @("EXT81", "EXT84"); ExcludeIds = @(); ExcludeRisks = @("Extreme")
+		},
+		[PSCustomObject]@{
+			Name = "esports-fps"; Icon = "🎮"; Mode = "HardcoreGaming"
+			Title = "ESPORTS FPS (latency tối thiểu, giữ mát)"
+			Description = "Hardcore Gaming nhưng loại EXT08 (khóa C-State gây nóng) và EXT44 (tắt HWP tự trị) — giữ frame-time ổn định cho thi đấu dài thay vì ép xung nhiệt."
+			ExtraIds = @("EXT76", "EXT81"); ExcludeIds = @("EXT08", "EXT44"); ExcludeRisks = @()
+		},
+		[PSCustomObject]@{
+			Name = "streamer-workstation"; Icon = "🎬"; Mode = "Workstation"
+			Title = "STREAMER / WORKSTATION"
+			Description = "Workstation + SystemResponsiveness=0 (GAM07) + MMCSS Games High (EXT16) cho OBS/game capture mượt, vẫn giữ mitigations và độ ổn định khi render dài."
+			ExtraIds = @("GAM07", "EXT16", "EXT40"); ExcludeIds = @(); ExcludeRisks = @("Extreme")
+		},
+		[PSCustomObject]@{
+			Name = "potato-plus"; Icon = "🥔"; Mode = "LowSpec"
+			Title = "POTATO PLUS (máy yếu hồi sinh)"
+			Description = "LowSpec + mở app Startup tức thì (EXT76) + tắt Biometric/Agent nền (EXT82/EXT83). Cho máy RAM <=8GB, ổ chậm, cần nhẹ tối đa mà vẫn an toàn."
+			ExtraIds = @("EXT76", "EXT82", "EXT83"); ExcludeIds = @(); ExcludeRisks = @("Extreme")
+		},
+		[PSCustomObject]@{
+			Name = "privacy-max"; Icon = "🔒"; Mode = "SophiaStandard"
+			Title = "PRIVACY MAX (riêng tư tối đa, không đụng hiệu năng)"
+			Description = "MOLIK Standard + chặn app nền bằng Policy (EXT49), tắt CEIP/Program Inventory (EXT56/EXT57), chặn app quảng cáo tự cài (EXT72), tắt Clipboard đám mây (PRI11)."
+			ExtraIds = @("EXT49", "EXT56", "EXT57", "EXT72", "PRI11"); ExcludeIds = @(); ExcludeRisks = @()
+		},
+		[PSCustomObject]@{
+			Name = "god-safe"; Icon = "👑"; Mode = "GodMode"
+			Title = "GOD SAFE (toàn bộ tweak an toàn toàn catalog)"
+			Description = "Mọi tweak trong catalog trừ nhóm Extreme — gói 'quét sạch an toàn' cho người muốn tối ưu tối đa mà không đánh đổi bảo mật/ổn định kernel."
+			ExtraIds = @(); ExcludeIds = @(); ExcludeRisks = @("Extreme")
+		}
+	)
+}
+
+function Resolve-MolikPreset
+{
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory)]$Preset,
+		[Parameter(Mandatory)]$Catalog
+	)
+
+	$ids = @(Get-SophiaModeTweakIds -ModeKey $Preset.Mode -Catalog $Catalog)
+	foreach ($extra in @($Preset.ExtraIds))
+	{
+		if (($Catalog.Id -contains $extra) -and ($ids -notcontains $extra)) { $ids += $extra }
+	}
+	if (@($Preset.ExcludeIds).Count -gt 0)
+	{
+		$ids = @($ids | Where-Object { $Preset.ExcludeIds -notcontains $_ })
+	}
+	if (@($Preset.ExcludeRisks).Count -gt 0)
+	{
+		$riskById = @{}
+		foreach ($t in $Catalog) { $riskById[$t.Id] = $t.Risk }
+		$ids = @($ids | Where-Object { $Preset.ExcludeRisks -notcontains $riskById[$_] })
+	}
+	# Tra ve theo thu tu Catalog de UI/Plan de doc
+	return @($Catalog | Where-Object { $ids -contains $_.Id } | ForEach-Object { $_.Id })
+}
+
+
+# ============================================================
+# [PORTABLE-INLINE] Optimizer\Core\ReportEngine.ps1
+# ============================================================
+<#
+	.SYNOPSIS
+	MOLIK WINLIK - HTML Dashboard Report Engine (offline, 1 file HTML doc lap)
+
+	.DESCRIPTION
+	Xuat bao cao he thong + trang thai toi uu dang HTML tu chua (CSS nhung san)
+	de mo bang trinh duyet, gui cho ky thuat vien hoac luu ho so may:
+	  .\MolikWinlik.ps1 -ExportReport     (sinh ca JSON lan HTML)
+	Trong giao dien tick-chon: phim H. Trong Menu don gian: phim H.
+	Khong can Internet, khong tai tai nguyen ngoai.
+#>
+
+function Get-MolikAppliedStatus
+{
+	[CmdletBinding()]
+	param([Parameter(Mandatory)]$Catalog, [string[]]$Ids)
+
+	$targets = @($Catalog)
+	if ($Ids -and $Ids.Count -gt 0) { $targets = @($Catalog | Where-Object { $Ids -contains $_.Id }) }
+	$status = @{}
+	foreach ($t in $targets)
+	{
+		try { $status[$t.Id] = [bool](& $t.CheckScript) } catch { $status[$t.Id] = $false }
+	}
+	return $status
+}
+
+function Export-MolikHtmlReport
+{
+	[CmdletBinding()]
+	param(
+		$Snapshot,
+		[Parameter(Mandatory)]$Catalog,
+		[string]$Path = "",
+		[switch]$SkipStatus
+	)
+
+	if (-not $Path)
+	{
+		$dir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Reports"
+		New-Item -Path $dir -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
+		$Path = Join-Path $dir ("MolikWinlik-Report-{0}.html" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
+	}
+
+	$enc = { param($v) if ($null -eq $v) { return "" } return [System.Net.WebUtility]::HtmlEncode([string]$v) }
+	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "3.0.0" }
+	$now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
+	$status = @{}
+	$appliedCount = -1
+	if (-not $SkipStatus)
+	{
+		$status = Get-MolikAppliedStatus -Catalog $Catalog
+		$appliedCount = @($status.Keys | Where-Object { $status[$_] }).Count
+	}
+
+	$osName = & $enc $Snapshot.OSName
+	$cpu = & $enc $Snapshot.CPUName
+	$gpu = & $enc $Snapshot.GPUName
+	$ram = & $enc $Snapshot.RAMTotalGB
+	$drive = & $enc $Snapshot.SystemDriveType
+	$admin = if ($Snapshot.IsAdmin) { "Administrator" } else { "Standard User" }
+	$emu = if ($Snapshot.InstalledEmulators) { & $enc ($Snapshot.InstalledEmulators -join ", ") } else { "—" }
+	$reboot = if ($Snapshot.PendingReboot) { '<span class="badge ext">PENDING REBOOT</span>' } else { '<span class="badge safe">OK</span>' }
+	$appliedText = if ($appliedCount -ge 0) { "$appliedCount / $($Catalog.Count)" } else { "— (bỏ qua kiểm tra)" }
+
+	$modeRows = ""
+	foreach ($m in (Get-SophiaOptimizationModes))
+	{
+		$mIds = @(Get-SophiaModeTweakIds -ModeKey $m.Key -Catalog $Catalog)
+		$impact = "—"
+		try
+		{
+			if (Get-Command Get-SophiaOptimizationPlan -ErrorAction SilentlyContinue)
+			{
+				$plan = Get-SophiaOptimizationPlan -Catalog $Catalog -SelectedIds $mIds
+				$impact = "$($plan.ImpactScore) ($($plan.Level))"
+			}
+		} catch {}
+		$modeRows += "<tr><td>$(& $enc $m.Icon) $(& $enc $m.Name)</td><td>$(& $enc $m.Sub)</td><td>$($mIds.Count)</td><td>$impact</td></tr>`n"
+	}
+
+	$tweakRows = ""
+	foreach ($t in $Catalog)
+	{
+		$riskClass = "safe"
+		if ($t.Risk -eq "Extreme") { $riskClass = "ext" } elseif ($t.Risk -eq "Moderate") { $riskClass = "mod" }
+		$applied = "—"
+		if ($status.ContainsKey($t.Id)) { $applied = if ($status[$t.Id]) { "● Đã áp" } else { "○ Chưa" } }
+		$tweakRows += "<tr><td><code>$(& $enc $t.Id)</code></td><td>$(& $enc $t.Name)</td><td>$(& $enc $t.Category)</td><td><span class=`"badge $riskClass`">$(& $enc $t.Risk)</span></td><td>$applied</td></tr>`n"
+	}
+
+	$html = @"
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MOLIK WINLIK Report - $osName</title>
+<style>
+ body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e6edf3;margin:0;padding:24px}
+ h1{color:#f778ba;margin:0} h2{color:#58a6ff;border-bottom:1px solid #30363d;padding-bottom:6px}
+ .sub{color:#8b949e} .cards{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0}
+ .card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px 18px;min-width:170px}
+ .card b{font-size:20px;color:#fff;display:block}
+ table{border-collapse:collapse;width:100%;margin:12px 0} th,td{border:1px solid #30363d;padding:7px 10px;text-align:left;font-size:14px}
+ th{background:#1f242e} code{color:#ffa657}
+ .badge{padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600}
+ .safe{background:#238636;color:#fff}.mod{background:#9e6a03;color:#fff}.ext{background:#da3633;color:#fff}
+ footer{color:#8b949e;font-size:13px;margin-top:24px}
+</style></head><body>
+<h1>👑 MOLIK WINLIK <span class="sub">v$ver — by @nggkhaiz</span></h1>
+<div class="sub">Báo cáo hệ thống &amp; tối ưu — tạo lúc $now (offline)</div>
+<div class="cards">
+ <div class="card">Hệ điều hành<b>$osName</b></div>
+ <div class="card">CPU<b>$cpu</b></div>
+ <div class="card">RAM (GB)<b>$ram</b></div>
+ <div class="card">GPU<b>$gpu</b></div>
+ <div class="card">Ổ hệ thống<b>$drive</b></div>
+ <div class="card">Quyền chạy<b>$admin</b></div>
+ <div class="card">Tweak đã áp dụng<b>$appliedText</b></div>
+ <div class="card">Chờ restart<b>$reboot</b></div>
+</div>
+<p>🖥️ Giả lập phát hiện: <b>$emu</b></p>
+<h2>🎛️ 6 Mode tối ưu</h2>
+<table><tr><th>Mode</th><th>Mô tả</th><th>Số tweak</th><th>Impact Score</th></tr>
+$modeRows</table>
+<h2>🧩 Toàn bộ catalog ($($Catalog.Count) tweak)</h2>
+<table><tr><th>ID</th><th>Tên tweak</th><th>Nhóm</th><th>Rủi ro</th><th>Trạng thái</th></tr>
+$tweakRows</table>
+<footer>MOLIK WINLIK by @nggkhaiz — Báo cáo tĩnh, không chứa dữ liệu cá nhân ngoài thông số phần cứng trên. Backup: C:\MOLIK_WINLIK_Backups\</footer>
+</body></html>
+"@
+
+	$html | Set-Content -Path $Path -Encoding UTF8 -Force
+	Write-Host "  [✓] Đã xuất báo cáo HTML Dashboard: $Path" -ForegroundColor Green
+	Write-Host "      Mở bằng trình duyệt để xem (offline, gửi kèm khi cần hỗ trợ)." -ForegroundColor Gray
+	return $Path
 }
 
 
@@ -2463,13 +2729,41 @@ function Test-SophiaOptimizerHealth
 		{
 			$content = Get-Content $portable -Raw
 			$markers = ([regex]::Matches($content, "PORTABLE-INLINE")).Count
-			if ($markers -ge 10 -and $content -match "Get-WinUtilConvertedTweaks" -and $content -match "EXT80") { Report "PASS" "Portable: $markers module inline, du WinUtil + EXT80 (offline)" }
+			if ($markers -ge 10 -and $content -match "Get-WinUtilConvertedTweaks" -and $content -match "EXT84") { Report "PASS" "Portable: $markers module inline, du WinUtil + EXT84 (offline)" }
 			else { Report "WARN" "Portable co ve thieu module (markers=$markers) - chay Optimizer\\Build-Portable.ps1 de sinh lai" }
 			$scanText = (($content -split "`n") | Where-Object { $_ -notmatch "OFFLINE guard|-match|-notmatch" }) -join "`n"
 			if ($scanText -match "Invoke-RestMethod|Invoke-WebRequest|DownloadString") { Report "FAIL" "OFFLINE guard: Portable chua cmdlet tai code tu Internet!" }
 			else { Report "PASS" "OFFLINE guard: Portable khong tai code khi chay (chi winget tuy chon cho app)" }
 		}
 	}
+
+	# 7) Presets + Report Engine
+	try
+	{
+		if (Get-Command Get-MolikPresets -ErrorAction SilentlyContinue)
+		{
+			$presetFail = @()
+			foreach ($preset in (Get-MolikPresets))
+			{
+				$resolved = Resolve-MolikPreset -Preset $preset -Catalog $Catalog
+				if ($resolved.Count -eq 0) { $presetFail += $preset.Name }
+			}
+			if ($presetFail.Count -eq 0) { Report "PASS" "Presets: $((Get-MolikPresets).Count) preset deu giai ra danh sach tweak hop le" }
+			else { Report "FAIL" "Preset giai rong: $($presetFail -join ', ')" }
+		}
+	}
+	catch { Report "FAIL" "Presets loi: $($_.Exception.Message)" }
+	try
+	{
+		if (Get-Command Export-MolikHtmlReport -ErrorAction SilentlyContinue)
+		{
+			$tmpReport = Join-Path $env:TEMP "MolikWinlik-SelfTest-Report.html"
+			Export-MolikHtmlReport -Snapshot $null -Catalog $Catalog -Path $tmpReport -SkipStatus | Out-Null
+			if ((Test-Path $tmpReport) -and ((Get-Content $tmpReport -Raw) -match "MOLIK WINLIK")) { Report "PASS" "Report Engine: xuat HTML Dashboard thanh cong (file tam, da xoa)" } else { Report "FAIL" "Report Engine: file HTML khong hop le" }
+			Remove-Item $tmpReport -Force -ErrorAction SilentlyContinue
+		}
+	}
+	catch { Report "FAIL" "Report Engine loi: $($_.Exception.Message)" }
 
 	Write-Host ""
 	Write-Host ("  ══════════ KẾT QUẢ: {0} PASS / {1} FAIL / {2} WARN ══════════" -f $script:pass, $script:fail, $script:warn) -ForegroundColor Cyan
@@ -2965,7 +3259,14 @@ function Get-SophiaTweaksCatalog
 	} { try { return ((& powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE 2>$null) -match '0x00000000') } catch { return $false } } "powercfg standby/hibernate/USB/ASPM"
 	Add-Reg "EMU10" "Tăng Desktop Heap & Session View Size (nhiều cửa sổ instance)" $EMU "Mở 10-30 instance dễ hết desktop heap ('failed to create window'). Tăng SharedSection 1024,20480,2048 cho session đồ họa." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\SubSystems" "Windows" "%SystemRoot%\system32\csrss.exe ObjectDirectory=\Windows SharedSection=1024,20480,2048 Windows=On SubSystemType=Windows ServerDll=basesrv,1 ServerDll=winsrv:UserServerDllInitialization,3 ServerDll=sxssrv,4 ProfileControl=Off MaxRequestThreads=16" "%SystemRoot%\system32\csrss.exe ObjectDirectory=\Windows SharedSection=1024,20480,768 Windows=On SubSystemType=Windows ServerDll=basesrv,1 ServerDll=winsrv:UserServerDllInitialization,3 ServerDll=sxssrv,4 ProfileControl=Off MaxRequestThreads=16" "String"
 	Add-Reg "EMU11" "Ưu tiên foreground cho process giả lập (Win32PrioritySeparation=38)" $EMU "Phân bổ quantum CPU ưu tiên ứng dụng foreground (giả lập đang focus) — giảm giật khi nhiều instance tranh CPU." "Moderate" $FARM_GAME "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" "Win32PrioritySeparation" 38 2
-	Add-Reg "EMU12" "Tắt Windows Search Indexing (chống disk 100% khi farm)" $EMU "Search indexer quét liên tục thư mục instance gây disk/CPU spike ngẫu nhiên. Tắt service WSearch cho máy farm/game." "Moderate" ($FARM+$GAME+$LOW) "HKLM:\SYSTEM\CurrentControlSet\Services\WSearch" "Start" 4 2
+	Add-Cmd "EMU12" "Tắt Windows Search Indexing (chống disk 100% khi farm)" $EMU "Search indexer quét liên tục thư mục instance gây disk/CPU spike ngẫu nhiên. Dừng hẳn service WSearch + Disabled (không chỉ ghi registry như trước). Cần tìm file bằng Everything/app khác thay thế." "Moderate" ($FARM+$GAME+$LOW) {
+		Stop-Service WSearch -Force -ErrorAction SilentlyContinue; Set-Service WSearch -StartupType Disabled -ErrorAction SilentlyContinue
+		Set-SophiaRegValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WSearch" -Name "Start" -Value 4 -Type "DWord"
+	} {
+		Set-SophiaRegValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WSearch" -Name "Start" -Value 2 -Type "DWord"
+		Set-SophiaRegValue -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WSearch" -Name "DelayedAutoStart" -Value 1 -Type "DWord"
+		Start-Service WSearch -ErrorAction SilentlyContinue
+	} { try { return ((Get-Service WSearch -ErrorAction SilentlyContinue).StartType -eq 'Disabled') } catch { return $false } } "WSearch Stop + Disabled"
 	Add-Cmd "EMU13" "Đặt CPU Priority cao cho process giả lập đang chạy" $EMU "Nâng priority LdVBoxHeadless/HD-Player/Nox/MuMu/Nemu lên AboveNormal để scheduler ưu tiên khi full-load multi-instance." "Moderate" $FARM {
 		@("LdVBoxHeadless","HD-Player","Nox","NoxVMHandle","MuMuPlayer","NemuHeadless","MEmuHeadless","VBoxHeadless") | ForEach-Object { Get-Process -Name $_ -ErrorAction SilentlyContinue | ForEach-Object { try { $_.PriorityClass = "AboveNormal" } catch {} } }
 	} {
@@ -3388,6 +3689,21 @@ function Get-SophiaTweaksCatalog
 	} { return $false } "Disable-ScheduledTask MemoryDiagnostic"
 	Add-Reg "EXT79" "Tắt WaaSMedicSvc (Update không tự kích hoạt lại nền)" $EXT "WaaSMedic là service chuyên tự sửa/kích hoạt lại các thành phần Windows Update bị tắt — nguyên nhân farm hay 'tự nhiên' quét update lại. Start=4 cho máy chuyên dụng đã chủ động quản lý update (đi cặp EXT53). Muốn update Windows bình thường thì Restore trước." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\WaaSMedicSvc" "Start" 4 3
 	Add-Reg "EXT80" "Tắt UsoSvc — Update Orchestrator Service (farm chủ động update)" $EXT "UsoSvc điều phối quét/tải update nền. Start=4 cùng EXT53+EXT79 tạo bộ ba khóa update nền triệt để cho máy treo 24/7: không spike CPU/disk, không tự restart (EXT26). Cập nhật thủ công qua Settings vẫn mở được sau khi Restore." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\UsoSvc" "Start" 4 2
+	Add-Reg "EXT81" "Chặn Windows Update tự thay Driver (ExcludeWUDriversInQualityUpdate = 1)" $EXT "Update không còn tự cài đè driver GPU/NIC/VT-x qua Quality Update — nguyên nhân kinh điển làm farm mất VT-x hoặc game drop FPS sau 1 đêm. Bạn vẫn cài driver thủ công từ hãng như bình thường." "Moderate" ($FARM+$GAME) "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate" "ExcludeWUDriversInQualityUpdate" 1 0
+	Add-Cmd "EXT82" "Tắt Windows Biometric Service (WbioSrvc) — máy không dùng vân tay/Face ID phụ" $EXT "Service sinh trắc học chạy nền dù máy farm/game chỉ đăng nhập bằng mật khẩu/PIN local. Disabled để giảm service nền; đăng nhập Windows Hello bằng vân tay/khuôn mặt sẽ ngừng hoạt động (PIN vẫn dùng được)." "Moderate" ($FARM+$LOW) {
+		Stop-Service WbioSrvc -Force -ErrorAction SilentlyContinue; Set-Service WbioSrvc -StartupType Disabled -ErrorAction SilentlyContinue
+	} {
+		Set-Service WbioSrvc -StartupType Manual -ErrorAction SilentlyContinue
+	} { try { return ((Get-Service WbioSrvc -ErrorAction SilentlyContinue).StartType -eq "Disabled") } catch { return $false } } "WbioSrvc Disabled"
+	Add-Reg "EXT83" "Tắt Agent Activation Runtime (AarSvc) — di sản kích hoạt giọng nói Cortana" $EXT "AarSvc là runtime kích hoạt agent bằng giọng nói (thời Cortana) vẫn được nạp dạng per-user service trên Windows 11. Start=4 ở template để mọi user đều không nạp — giảm tiến trình nền vô hình." "Moderate" ($FARM+$LOW) "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\AarSvc" "Start" 4 3
+	Add-Reg "EXT84" "Tắt Automatic Restart Sign-On (không tự đăng nhập sau update restart)" $EXT "DisableAutomaticRestartSignOn=1: sau khi Windows Update tự restart, máy không tự đăng nhập phiên user (ARSO) — farm an toàn hơn và bạn chủ động kiểm soát lần đăng nhập đầu tiên." "Safe" ($FARM+$STD) "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" "DisableAutomaticRestartSignOn" 1 0
+	Add-Cmd "PRI11" "Tắt Clipboard History & đồng bộ clipboard đám mây" $PRI "AllowClipboardHistory=0 + AllowCrossDeviceClipboard=0: Windows không lưu lịch sử sao chép và không đồng bộ clipboard qua tài khoản Microsoft — bớt rò rỉ dữ liệu nhạy cảm (mật khẩu/token) trên máy farm dùng chung." "Safe" ($STD+$LOW) {
+		Set-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "AllowClipboardHistory" -Value 0 -Type "DWord"
+		Set-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "AllowCrossDeviceClipboard" -Value 0 -Type "DWord"
+	} {
+		Set-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "AllowClipboardHistory" -Value 1 -Type "DWord"
+		Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "AllowCrossDeviceClipboard" -Force -ErrorAction SilentlyContinue
+	} { return ((Get-SophiaRegValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "AllowClipboardHistory") -eq 0) } "ClipboardHistory/CrossDevice = 0"
 	return $catalog.ToArray()
 }
 
@@ -3414,7 +3730,7 @@ function Get-SophiaModeTweakIds
 
 function Invoke-SophiaSelectedTweaks
 {
-	param($Catalog, [string[]]$SelectedIds, [switch]$SkipBackup, [switch]$Force)
+	param($Catalog, [string[]]$SelectedIds, [switch]$SkipBackup, [switch]$Force, $Snapshot = $null, [switch]$NoRestartPrompt)
 
 	$selected = @($Catalog | Where-Object { $SelectedIds -contains $_.Id })
 	if ($selected.Count -eq 0)
@@ -3428,7 +3744,7 @@ function Invoke-SophiaSelectedTweaks
 	{
 		try
 		{
-			$plan = Get-SophiaOptimizationPlan -Catalog $Catalog -SelectedIds $SelectedIds
+			$plan = Get-SophiaOptimizationPlan -Catalog $Catalog -SelectedIds $SelectedIds -Snapshot $Snapshot
 			if (Get-Command Show-SophiaOptimizationPlan -ErrorAction SilentlyContinue) { Show-SophiaOptimizationPlan -Plan $plan }
 			if ($plan.Count -ne $selected.Count)
 			{
@@ -3490,8 +3806,15 @@ function Invoke-SophiaSelectedTweaks
 	Write-Host ""
 	Write-Host "  ══════════ HOÀN TẤT: $ok OK / $fail FAIL — Log: $logFile ══════════" -ForegroundColor Cyan
 	Write-Host "  [!] Nhiều tweak (HAGS, VBS, BCD, Pagefile) cần RESTART để có hiệu lực." -ForegroundColor Yellow
-	$restart = Read-Host "  Khởi động lại ngay bây giờ? (Y/N)"
-	if ($restart -match '^[Yy]') { Restart-Computer -Force }
+	if (-not $Force -and -not $NoRestartPrompt)
+	{
+		$restart = Read-Host "  Khởi động lại ngay bây giờ? (Y/N)"
+		if ($restart -match '^[Yy]') { Restart-Computer -Force }
+	}
+	else
+	{
+		Write-Host "  (Che do tu dong: bo qua hoi restart - hay khoi dong lai may khi tien.)" -ForegroundColor DarkGray
+	}
 }
 
 function Invoke-SophiaRestoreTweaks
@@ -3562,6 +3885,56 @@ function Get-SophiaSelectionProfile
 	}
 }
 
+function Get-MolikUiVersion
+{
+	if ($Global:MolikWinlikVersion) { return [string]$Global:MolikWinlikVersion }
+	return "3.0.0"
+}
+
+function Format-MolikTruncate
+{
+	param([string]$Text, [int]$Max = 80)
+	if ([string]::IsNullOrEmpty($Text)) { return "" }
+	if ($Max -lt 8) { $Max = 8 }
+	if ($Text.Length -le $Max) { return $Text }
+	return $Text.Substring(0, $Max - 3) + "..."
+}
+
+function Get-MolikRiskBadge
+{
+	param([string]$Risk)
+	switch ($Risk)
+	{
+		"Extreme"  { return "[EXT ]" }
+		"Moderate" { return "[MOD ]" }
+		default    { return "[SAFE]" }
+	}
+}
+
+function Get-MolikWrappedLines
+{
+	param([string]$Text, [int]$Width = 100, [int]$MaxLines = 2)
+	if ([string]::IsNullOrWhiteSpace($Text)) { return @("") }
+	if ($Width -lt 20) { $Width = 20 }
+	$words = $Text -split '\s+'
+	$lines = @()
+	$current = ""
+	foreach ($w in $words)
+	{
+		if (($current.Length + $w.Length + 1) -le $Width) { $current = if ($current) { "$current $w" } else { $w } }
+		else
+		{
+			if ($current) { $lines += $current }
+			if ($lines.Count -ge $MaxLines) { break }
+			$current = $w
+		}
+	}
+	if ($current -and $lines.Count -lt $MaxLines) { $lines += $current }
+	if ($lines.Count -gt $MaxLines) { $lines = $lines[0..($MaxLines - 1)] }
+	if ($lines.Count -eq $MaxLines -and ($Text.Length -gt (($lines -join " ").Length + 4))) { $lines[-1] = Format-MolikTruncate $lines[-1] ($Width) }
+	return $lines
+}
+
 function Show-SophiaSimpleMenu
 {
 	# Menu số đơn giản: chạy được ở mọi host (ISE, VSCode, input bị redirect...) nơi ReadKey không khả dụng.
@@ -3571,8 +3944,13 @@ function Show-SophiaSimpleMenu
 	{
 		Write-Host ""
 		Write-Host "  ╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-		Write-Host "  ║  👑 MOLIK_WINLIK by @nggkhaiz — MENU ĐƠN GIẢN (Không cần cài)   ║" -ForegroundColor Magenta
+		Write-Host "  ║  👑 MOLIK WINLIK v$(Get-MolikUiVersion) by @nggkhaiz - MENU (Offline)  ║" -ForegroundColor Magenta
 		Write-Host "  ╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+		if ($Snapshot)
+		{
+			Write-Host ("  {0} | {1} | RAM {2}GB | GPU {3} | Admin: {4}{5}" -f $Snapshot.OSName, $Snapshot.CPUName, $Snapshot.RAMTotalGB, $Snapshot.GPUName, $Snapshot.IsAdmin, $(if ($Snapshot.PendingReboot) { " | [!] DANG CHO RESTART" } else { "" })) -ForegroundColor DarkCyan
+			if ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0) { Write-Host ("  Gia lap: {0}" -f ($Snapshot.InstalledEmulators -join ", ")) -ForegroundColor Green }
+		}
 		$modes = Get-SophiaOptimizationModes
 		for ($i = 0; $i -lt $modes.Count; $i++)
 		{
@@ -3588,8 +3966,10 @@ function Show-SophiaSimpleMenu
 		Write-Host "   R. ↩️  Restore mặc định        S. 💾 Tạo Shortcut Desktop" -ForegroundColor Green
 		Write-Host "   A. 📦 Cài ứng dụng qua winget (kiểu winutil, 239 app)" -ForegroundColor Green
 		Write-Host "   D. 🩺 SELF-TEST / DEBUG toàn diện (kiểm tra tool, không đổi hệ thống)" -ForegroundColor Green
+		Write-Host "   X. 🎁 PRESETS — gói tối ưu theo kịch bản (Farm/Esports/Privacy...)" -ForegroundColor Green
+		Write-Host "   H. 📄 Báo cáo HTML Dashboard      B. 💾 Tạo Backup ngay" -ForegroundColor Green
 		Write-Host "   0. Thoát" -ForegroundColor Yellow
-		$choice = Read-Host "  Chọn (0-9/G/A/T/C/R/S)"
+		$choice = Read-Host "  Chọn (0-9/G/A/T/C/R/S/D/X/H/B)"
 		if ($choice -match '^[1-6]$')
 		{
 			$m = $modes[[int]::Parse($choice) - 1]
@@ -3655,6 +4035,45 @@ function Show-SophiaSimpleMenu
 			}
 			catch { Write-Host "  [!] Không tạo được shortcut: $($_.Exception.Message)" -ForegroundColor Yellow }
 		}
+		elseif ($choice -eq 'X' -or $choice -eq 'x')
+		{
+			if (Get-Command Get-MolikPresets -ErrorAction SilentlyContinue)
+			{
+				$presets = @(Get-MolikPresets)
+				for ($i = 0; $i -lt $presets.Count; $i++)
+				{
+					$resolved = Resolve-MolikPreset -Preset $presets[$i] -Catalog $Catalog
+					Write-Host ("   {0}. {1} {2} ({3} tweak)" -f ($i + 1), $presets[$i].Icon, $presets[$i].Title, $resolved.Count) -ForegroundColor Cyan
+					Write-Host "      $($presets[$i].Description)" -ForegroundColor Gray
+				}
+				$pick = Read-Host "  Chọn Preset (1-$($presets.Count), ENTER = quay lại)"
+				if ($pick -match '^\d+$' -and [int]$pick -ge 1 -and [int]$pick -le $presets.Count)
+				{
+					$chosen = $presets[[int]$pick - 1]
+					$presetIds = Resolve-MolikPreset -Preset $chosen -Catalog $Catalog
+					if (Get-Command Get-SophiaOptimizationPlan -ErrorAction SilentlyContinue)
+					{
+						$presetPlan = Get-SophiaOptimizationPlan -Catalog $Catalog -SelectedIds $presetIds -Snapshot $Snapshot
+						Show-SophiaOptimizationPlan -Plan $presetPlan -Title "KE HOACH PRESET $($chosen.Name)"
+					}
+					$go = Read-Host "  Áp dụng $($presetIds.Count) tweak của Preset $($chosen.Title)? (Y/N)"
+					if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $presetIds -Snapshot $Snapshot }
+				}
+			}
+		}
+		elseif ($choice -eq 'H' -or $choice -eq 'h')
+		{
+			if (Get-Command Export-MolikHtmlReport -ErrorAction SilentlyContinue)
+			{
+				Write-Host "  Đang kiểm tra trạng thái tweak và xuất báo cáo HTML..." -ForegroundColor Cyan
+				Export-MolikHtmlReport -Snapshot $Snapshot -Catalog $Catalog | Out-Null
+				Read-Host '  Nhấn ENTER để quay lại menu'
+			}
+		}
+		elseif ($choice -eq 'B' -or $choice -eq 'b')
+		{
+			if (Get-Command New-SophiaSystemBackup -ErrorAction SilentlyContinue) { New-SophiaSystemBackup | Out-Null; Read-Host '  Nhấn ENTER để quay lại menu' }
+		}
 		elseif ($choice -eq '0') { return }
 		else { Write-Host "  Lựa chọn không hợp lệ." -ForegroundColor Yellow }
 	}
@@ -3671,32 +4090,54 @@ function Show-SophiaOptimizerUI
 	$selected = @{}
 	foreach ($id in (Get-SophiaModeTweakIds -ModeKey $currentMode -Catalog $Catalog)) { $selected[$id] = $true }
 
+	# Trang thai da ap dung (phim V de quet) - PHAI khoi tao truoc khi render,
+	# ban cu thieu dong nay nen TUI vang loi ngay khung hinh dau tien.
+	$appliedStatus = @{}
+	$smartRec = $null
+	try { if (Get-Command Get-SophiaSmartRecommendation -ErrorAction SilentlyContinue) { $smartRec = Get-SophiaSmartRecommendation -Snapshot $Snapshot -Catalog $Catalog } } catch {}
+
 	$searchTerm = ""
+	$filterMode = "All"
+	$firstFrame = $true
+	$rebootIds = @()
+	try { if (Get-Command Get-SophiaRebootTweakIds -ErrorAction SilentlyContinue) { $rebootIds = @(Get-SophiaRebootTweakIds) } } catch {}
 	$cursor = 0
 	$pageSize = 18
 	try { $pageSize = [Math]::Max(10, [Console]::WindowHeight - 16) } catch {}
 
 	$getFiltered = {
-		if ([string]::IsNullOrWhiteSpace($searchTerm)) { return @($Catalog) }
-		$term = $searchTerm.ToLower()
-		return @($Catalog | Where-Object { $_.Name.ToLower().Contains($term) -or $_.Id.ToLower().Contains($term) -or $_.Category.ToLower().Contains($term) -or $_.Description.ToLower().Contains($term) })
+		$list = @($Catalog)
+		if (-not [string]::IsNullOrWhiteSpace($searchTerm))
+		{
+			$term = $searchTerm.ToLower()
+			$list = @($list | Where-Object { $_.Name.ToLower().Contains($term) -or $_.Id.ToLower().Contains($term) -or $_.Category.ToLower().Contains($term) -or $_.Description.ToLower().Contains($term) })
+		}
+		if ($filterMode -eq "Selected") { $list = @($list | Where-Object { $selected.ContainsKey($_.Id) -and $selected[$_.Id] }) }
+		elseif ($filterMode -eq "Extreme") { $list = @($list | Where-Object { $_.Risk -eq "Extreme" }) }
+		elseif ($filterMode -eq "NotApplied") { $list = @($list | Where-Object { -not ($appliedStatus.ContainsKey($_.Id) -and $appliedStatus[$_.Id]) }) }
+		return $list
 	}
 
 	while ($true)
 	{
 		$filtered = & $getFiltered
-		if ($filtered.Count -eq 0) { $filtered = @($Catalog); $searchTerm = "" }
+		if ($filtered.Count -eq 0) { $filtered = @($Catalog); $searchTerm = ""; $filterMode = "All" }
 		if ($cursor -ge $filtered.Count) { $cursor = $filtered.Count - 1 }
 		if ($cursor -lt 0) { $cursor = 0 }
 		$pageStart = [Math]::Floor($cursor / $pageSize) * $pageSize
 		$pageEnd = [Math]::Min($pageStart + $pageSize - 1, $filtered.Count - 1)
 		$selectedCount = @($selected.Keys | Where-Object { $selected[$_] }).Count
 
-		try { [Console]::Clear(); [Console]::CursorVisible = $false } catch { Clear-Host }
+		try
+		{
+			if ($firstFrame) { [Console]::Clear(); $firstFrame = $false }
+			else { [Console]::SetCursorPosition(0, 0) }
+			[Console]::CursorVisible = $false
+		} catch { Clear-Host }
 
 		# Header
 		Write-Host "  ╔══════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-		Write-Host "  ║  👑 MOLIK_WINLIK — MOLIK WINLIK by @nggkhaiz: Giả Lập 24/7 • Game • FPS  ║" -ForegroundColor Magenta
+		Write-Host "  ║  👑 MOLIK WINLIK v$(Get-MolikUiVersion) by @nggkhaiz — OFFLINE OPTIMIZER          ║" -ForegroundColor Magenta
 		Write-Host "  ╚══════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
 		if ($Snapshot)
 		{
@@ -3718,11 +4159,12 @@ function Show-SophiaOptimizerUI
 		$modeObj = $modes | Where-Object Key -eq $currentMode | Select-Object -First 1
 		if ($modeObj) { Write-Host "  $($modeObj.Icon) $($modeObj.Description)" -ForegroundColor DarkYellow }
 		if ($smartRec) { Write-Host "  🤖 Smart Advisor (phím G): khuyên dùng Mode $($smartRec.Mode) + $($smartRec.ExtraIds.Count) tweak theo phần cứng máy này" -ForegroundColor Green }
-		Write-Host ("  Đã tick: {0}/{1} tweak | Hiển thị: {2} | Tìm kiếm: '{3}'" -f $selectedCount, $Catalog.Count, $filtered.Count, $searchTerm) -ForegroundColor Cyan
+		$appliedKnown = @($appliedStatus.Keys | Where-Object { $appliedStatus[$_] }).Count
+		Write-Host ("  Đã tick: {0}/{1} tweak | Đã áp (đã quét): {2} | Hiển thị: {3} | Lọc: {4} | Tìm kiếm: '{5}'" -f $selectedCount, $Catalog.Count, $appliedKnown, $filtered.Count, $filterMode, $searchTerm) -ForegroundColor Cyan
 		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 		Write-Host "  [↑↓/KJ] Chọn  [SPACE] Tick  [1-6] Mode  [A]ll  [N]one  [/] Tìm  [P] Purge RAM  [E] Boost Giả Lập" -ForegroundColor Gray
-		Write-Host "  [G] Smart Auto (AI khuyên dùng)  [V] Check đã áp dụng (●)  [T] Benchmark  [S] Lưu Profile" -ForegroundColor Gray
-		Write-Host "  [L] Nạp Profile  [B] Backup" -ForegroundColor Gray
+		Write-Host "  [G] Smart Auto (AI khuyên dùng)  [V] Check đã áp dụng (●)  [T] Benchmark  [S] Lưu Profile  [F] Đổi bộ lọc" -ForegroundColor Gray
+		Write-Host "  [L] Nạp Profile  [B] Backup  [H] Báo cáo HTML  [?] Trợ giúp đầy đủ" -ForegroundColor Gray
 		Write-Host "  [R] Restore Mặc Định  [ENTER] ÁP DỤNG  [Q] Thoát" -ForegroundColor Gray
 		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 
@@ -3741,12 +4183,16 @@ function Show-SophiaOptimizerUI
 			if ($appliedStatus.ContainsKey($t.Id) -and $appliedStatus[$t.Id]) { $box += "●" }
 			$riskColor = "Green"
 			if ($t.Risk -eq "Extreme") { $riskColor = "Red" } elseif ($t.Risk -eq "Moderate") { $riskColor = "Yellow" }
-			$line = "  {0} {1} {2} [{3}]" -f $box, $t.Id, $t.Name, $t.Risk
+			$uiWidth = 110
+			try { $uiWidth = [Console]::WindowWidth } catch {}
+			$nameMax = [Math]::Max(30, $uiWidth - 32)
+			$line = "{0} {1} {2} {3}" -f $box, $t.Id, (Get-MolikRiskBadge $t.Risk), (Format-MolikTruncate $t.Name $nameMax)
 			if ($idx -eq $cursor)
 			{
 				Write-Host "  ▶ $line" -ForegroundColor White -BackgroundColor DarkBlue
-				Write-Host "      └─ $($t.Description)" -ForegroundColor Cyan
-				Write-Host "         $($t.Detail)" -ForegroundColor DarkGray
+				foreach ($descLine in (Get-MolikWrappedLines $t.Description ([Math]::Max(40, $uiWidth - 10)) 2)) { Write-Host "      $descLine" -ForegroundColor Cyan }
+				$rebootTag = if ($rebootIds -contains $t.Id) { " | Cần RESTART" } else { "" }
+				Write-Host (Format-MolikTruncate "      Chi tiết: $($t.Detail)$rebootTag" ([Math]::Max(40, $uiWidth - 2))) -ForegroundColor DarkGray
 			}
 			else
 			{
@@ -3876,6 +4322,32 @@ function Show-SophiaOptimizerUI
 			if (Get-Command New-SophiaSystemBackup -ErrorAction SilentlyContinue) { New-SophiaSystemBackup | Out-Null }
 			Read-Host "  Nhấn ENTER để tiếp tục"
 		}
+		elseif ($ch -eq 'f' -or $ch -eq 'F') {
+			$filterModes = @("All", "Selected", "Extreme", "NotApplied")
+			$filterMode = $filterModes[([array]::IndexOf($filterModes, $filterMode) + 1) % $filterModes.Count]
+			$cursor = 0
+		}
+		elseif ($ch -eq '?') {
+			try { [Console]::CursorVisible = $true; [Console]::Clear() } catch {}
+			Write-Host ""
+			Write-Host "  ══════ MOLIK WINLIK - TRO GIUP PHIM TAT ══════" -ForegroundColor Magenta
+			Write-Host "  ↑/↓ hoac K/J: di chuyen | SPACE: tick/bo tick | ENTER: AP DUNG cac tweak da tick" -ForegroundColor Gray
+			Write-Host "  1-6/M: doi Mode | A: tick tat ca (dang loc) | N: bo tick tat ca | /: tim kiem" -ForegroundColor Gray
+			Write-Host "  F: doi bo loc All -> Selected -> Extreme -> NotApplied (bam V truoc de quyet trang thai)" -ForegroundColor Gray
+			Write-Host "  G: Smart Auto theo phan cung | V: quet tweak da ap dung (●) | T: Benchmark" -ForegroundColor Gray
+			Write-Host "  P: Purge RAM | E: Boost gia lap | S/L: luu/nap Profile | B: Backup" -ForegroundColor Gray
+			Write-Host "  H: xuat bao cao HTML Dashboard | R: Restore mac dinh | Q/Esc: thoat" -ForegroundColor Gray
+			Write-Host "  Badge: [SAFE] an toan - [MOD ] trung binh - [EXT ] cuc han (doc mo ta truoc khi tick)" -ForegroundColor Yellow
+			Write-Host "  Bam phim bat ky de quay lai..." -ForegroundColor Cyan
+			[Console]::ReadKey($true) | Out-Null
+			$firstFrame = $true
+		}
+		elseif ($ch -eq 'h' -or $ch -eq 'H') {
+			try { [Console]::CursorVisible = $true } catch {}
+			if (Get-Command Export-MolikHtmlReport -ErrorAction SilentlyContinue) { Export-MolikHtmlReport -Snapshot $Snapshot -Catalog $Catalog | Out-Null }
+			else { Write-Host "  [!] Khong tim thay Report Engine." -ForegroundColor Yellow }
+			Read-Host "  Nhấn ENTER để tiếp tục"
+		}
 		elseif ($ch -eq 'r' -or $ch -eq 'R') {
 			try { [Console]::CursorVisible = $true } catch {}
 			$confirm = Read-Host "  Khôi phục MẶC ĐỊNH toàn bộ tweak? (yes/no)"
@@ -3926,6 +4398,54 @@ if ($SelfTest)
 	Test-SophiaOptimizerHealth -RepoRoot $RepoRoot -Catalog $catalog | Out-Null
 	return
 }
+if ($Version)
+{
+	Write-Host "  MOLIK WINLIK v$Global:MolikWinlikVersion by @nggkhaiz - OFFLINE optimizer" -ForegroundColor Cyan
+	Write-Host "  Catalog: $($catalog.Count) tweak | 6 Mode | $(if (Get-Command Get-MolikPresets -ErrorAction SilentlyContinue) { (Get-MolikPresets).Count } else { 0 }) Preset | 239 app (winutil data, winget)" -ForegroundColor Gray
+	return
+}
+if ($ListPresets)
+{
+	Write-Host ""
+	if (Get-Command Get-MolikPresets -ErrorAction SilentlyContinue)
+	{
+		foreach ($preset in (Get-MolikPresets))
+		{
+			$resolved = Resolve-MolikPreset -Preset $preset -Catalog $catalog
+			Write-Host ("  [{0}] {1} {2} ({3} tweak, Mode {4})" -f $preset.Name, $preset.Icon, $preset.Title, $resolved.Count, $preset.Mode) -ForegroundColor Cyan
+			Write-Host "      $($preset.Description)" -ForegroundColor Gray
+		}
+		Write-Host ""
+		Write-Host "  Dung: .\MolikWinlik.ps1 -Preset <ten> -Plan   hoac   -Preset <ten> -Apply -Yes" -ForegroundColor Yellow
+	}
+	return
+}
+if ($Status -ne "__none__")
+{
+	$statusIds = @($Status -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+	if (Get-Command Get-MolikAppliedStatus -ErrorAction SilentlyContinue)
+	{
+		$map = Get-MolikAppliedStatus -Catalog $catalog -Ids $statusIds
+		$applied = @($map.Keys | Where-Object { $map[$_] }).Count
+		$catalog | Where-Object { $map.ContainsKey($_.Id) } | Group-Object Category | ForEach-Object {
+			Write-Host ""; Write-Host "  $($_.Name)" -ForegroundColor Magenta
+			$_.Group | ForEach-Object { $mark = if ($map[$_.Id]) { "[DA AP ]" } else { "[CHUA  ]" }; Write-Host ("    {0} {1} [{2}] {3}" -f $mark, $_.Id, $_.Risk, $_.Name) }
+		}
+		Write-Host ""; Write-Host "  Tong: $applied/$($map.Count) tweak dang o trang thai DA AP DUNG" -ForegroundColor Cyan
+	}
+	return
+}
+if ($BackupOnly)
+{
+	if (Get-Command New-SophiaSystemBackup -ErrorAction SilentlyContinue) { New-SophiaSystemBackup -Label "Manual MOLIK WINLIK backup" | Out-Null }
+	return
+}
+if ($RestoreBackup)
+{
+	if (-not $Yes) { $c = Read-Host "  Khoi phuc Registry/BCD tu backup moi nhat? (Y/N)"; if ($c -notmatch '^[Yy]') { Write-Host "  Da huy."; return } }
+	if (Get-Command Restore-SophiaLatestBackup -ErrorAction SilentlyContinue) { Restore-SophiaLatestBackup | Out-Null }
+	return
+}
 if ($ListModes)
 {
 	Write-Host ""
@@ -3947,7 +4467,12 @@ if ($ExportReport)
 	$reportPath = Join-Path $RepoRoot ("MolikWinlik-System-Report-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
 	$reportObj = @{ Snapshot = $snapshot; Modes = $modes; TweakCount = $catalog.Count; Catalog = @($catalog | Select-Object Id, Name, Category, Risk, Modes, Detail) }
 	$reportObj | ConvertTo-Json -Depth 6 | Set-Content $reportPath -Encoding UTF8
-	Write-Host "  [✓] Đã xuất báo cáo: $reportPath" -ForegroundColor Green
+	Write-Host "  [✓] Đã xuất báo cáo JSON: $reportPath" -ForegroundColor Green
+	if (Get-Command Export-MolikHtmlReport -ErrorAction SilentlyContinue)
+	{
+		$htmlPath = [System.IO.Path]::ChangeExtension($reportPath, "html")
+		Export-MolikHtmlReport -Snapshot $snapshot -Catalog $catalog -Path $htmlPath | Out-Null
+	}
 	return
 }
 if ($ListApps)
@@ -4015,7 +4540,73 @@ if ($Profile)
 		$confirm = Read-Host "  Áp dụng Profile này? (Y/N)"
 		if ($confirm -notmatch '^[Yy]') { Write-Host "  Đã hủy."; return }
 	}
-	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup -Force:$Yes
+	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup -Force:$Yes -Snapshot $snapshot
+	return
+}
+if ($Preset)
+{
+	if ($Profile) { Write-Host "  [!] Không dùng đồng thời -Preset và -Profile. Hãy chọn 1 nguồn danh sách tweak." -ForegroundColor Red; return }
+	$presetObj = $null
+	if (Get-Command Get-MolikPresets -ErrorAction SilentlyContinue) { $presetObj = Get-MolikPresets | Where-Object { $_.Name -eq $Preset } | Select-Object -First 1 }
+	if (-not $presetObj)
+	{
+		Write-Host "  [!] Không tìm thấy Preset '$Preset'. Chạy -ListPresets để xem danh sách." -ForegroundColor Red
+		return
+	}
+	$presetIds = Resolve-MolikPreset -Preset $presetObj -Catalog $catalog
+	Write-Host "  Preset: $($presetObj.Icon) $($presetObj.Title) - $($presetIds.Count) tweak (Mode nền $($presetObj.Mode))" -ForegroundColor Yellow
+	Write-Host "  $($presetObj.Description)" -ForegroundColor Gray
+	if ($Plan)
+	{
+		$presetPlan = Get-SophiaOptimizationPlan -Catalog $catalog -SelectedIds $presetIds -Snapshot $snapshot
+		Show-SophiaOptimizationPlan -Plan $presetPlan -Title "KE HOACH PRESET $($presetObj.Name) (chua ap dung)"
+		return
+	}
+	if ($DryRun)
+	{
+		$catalog | Where-Object { $presetIds -contains $_.Id } | ForEach-Object { Write-Host ("    [{0}] [{1}] {2}" -f $_.Id, $_.Risk, $_.Name) }
+		return
+	}
+	if (-not $Apply)
+	{
+		Write-Host "  Them -Apply de thuc thi Preset nay (hoac -Plan/-DryRun de xem truoc)." -ForegroundColor Yellow
+		return
+	}
+	if (-not $Yes) { $c = Read-Host "  Ap dung Preset nay? (Y/N)"; if ($c -notmatch '^[Yy]') { Write-Host "  Da huy."; return } }
+	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $presetIds -SkipBackup:$NoBackup -Force:$Yes -Snapshot $snapshot
+	return
+}
+if ($ApplyIds)
+{
+	$wanted = @($ApplyIds -split ',' | ForEach-Object { $_.Trim().ToUpper() } | Where-Object { $_ })
+	$unknown = @($wanted | Where-Object { $catalog.Id -notcontains $_ })
+	if ($unknown.Count -gt 0) { Write-Host "  [!] ID khong ton tai: $($unknown -join ', ') - chay -ListTweaks de tra cuu." -ForegroundColor Red; return }
+	if ($Plan)
+	{
+		$idsPlan = Get-SophiaOptimizationPlan -Catalog $catalog -SelectedIds $wanted -Snapshot $snapshot
+		Show-SophiaOptimizationPlan -Plan $idsPlan -Title "KE HOACH ApplyIds (chua ap dung)"
+		return
+	}
+	if ($DryRun)
+	{
+		$catalog | Where-Object { $wanted -contains $_.Id } | ForEach-Object { Write-Host ("    [{0}] [{1}] {2}" -f $_.Id, $_.Risk, $_.Name) }
+		return
+	}
+	if (-not $Yes) { $c = Read-Host "  Ap dung $($wanted.Count) tweak theo ID? (Y/N)"; if ($c -notmatch '^[Yy]') { Write-Host "  Da huy."; return } }
+	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $wanted -SkipBackup:$NoBackup -Force:$Yes -Snapshot $snapshot
+	return
+}
+if ($RestoreIds)
+{
+	$wanted = @($RestoreIds -split ',' | ForEach-Object { $_.Trim().ToUpper() } | Where-Object { $_ })
+	$unknown = @($wanted | Where-Object { $catalog.Id -notcontains $_ })
+	if ($unknown.Count -gt 0) { Write-Host "  [!] ID khong ton tai: $($unknown -join ', ')" -ForegroundColor Red; return }
+	if (-not $Yes) { $c = Read-Host "  Khoi phuc mac dinh $($wanted.Count) tweak theo ID? (Y/N)"; if ($c -notmatch '^[Yy]') { Write-Host "  Da huy."; return } }
+	foreach ($tweak in ($catalog | Where-Object { $wanted -contains $_.Id }))
+	{
+		try { & $tweak.RestoreScript; Write-Host "  [✓] Da khoi phuc $($tweak.Id) $($tweak.Name)" -ForegroundColor Green }
+		catch { Write-Host "  [X] $($tweak.Id): $($_.Exception.Message)" -ForegroundColor Red }
+	}
 	return
 }
 if ($Apply)
@@ -4035,7 +4626,7 @@ if ($Apply)
 		$catalog | Where-Object { $ids -contains $_.Id } | ForEach-Object { Write-Host ("    [{0}] [{1}] {2}" -f $_.Id, $_.Risk, $_.Name) }
 		return
 	}
-	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup -Force:$Yes
+	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup -Force:$Yes -Snapshot $snapshot
 	return
 }
 

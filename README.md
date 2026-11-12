@@ -105,9 +105,9 @@ href="https://trendshift.io/repositories/17603"><img src="https://trendshift.io/
 
 </div>
 
-## 👑 MOLIK_WINLIK — MOLIK WINLIK by @nggkhaiz (Fork Add-on — Tick-Select CLI)
+## 👑 MOLIK_WINLIK — MOLIK WINLIK v3.0 by @nggkhaiz (Offline Optimizer — Tick-Select CLI)
 
-> 🇻🇳 Tool tối ưu sâu do fork này bổ sung, nằm ngoài module Sophia gốc (`src/` giữ nguyên 100%): **190 tweak cực mạnh**, **6 mode riêng** cho từng nhu cầu và giao diện **tick-chọn CLI** `[✓]/[ ]`.
+> 🇻🇳 Tool tối ưu sâu do fork này bổ sung, nằm ngoài module Sophia gốc (`src/` giữ nguyên 100%): **195 tweak cực mạnh**, **6 mode riêng** cho từng nhu cầu và giao diện **tick-chọn CLI** `[✓]/[ ]`.
 
 ```text
 # OFFLINE 100% (khong con ban irm | iex): tai ZIP repo nay 1 lan, giai nen,
