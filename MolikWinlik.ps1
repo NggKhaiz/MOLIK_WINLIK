@@ -66,16 +66,20 @@ param(
 	[string]$Status = "__none__",
 	[switch]$BackupOnly,
 	[switch]$RestoreBackup,
+	[switch]$Doctor,
+	[switch]$UndoLast,
+	[switch]$ListBackups,
+	[switch]$ListProfiles,
 	[string]$Search = ""
 )
 
 $ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
-$Global:MolikWinlikVersion = "3.0.0"
+$Global:MolikWinlikVersion = "3.1.0"
 
 # ── Self-elevate to Administrator (chi khi thao tac that su can Admin) ───────
 # Cac lenh chi-doc duoi day chay ngay khong can UAC cho khoi dong nhanh:
-$readOnlyRequest = ($ListModes -or $ListTweaks -or $ListApps -or $SelfTest -or $Plan -or $CompareBenchmarks -or $Version -or $ListPresets -or ($Status -ne "__none__"))
+$readOnlyRequest = ($ListModes -or $ListTweaks -or $ListApps -or $SelfTest -or $Plan -or $CompareBenchmarks -or $Version -or $ListPresets -or $Doctor -or $ListBackups -or $ListProfiles -or ($Status -ne "__none__"))
 if (-not $readOnlyRequest)
 {
 	try
@@ -116,6 +120,7 @@ if (-not $readOnlyRequest)
 			if ($RestoreIds) { $argList += @("-RestoreIds", "`"$RestoreIds`"") }
 			if ($BackupOnly) { $argList += "-BackupOnly" }
 			if ($RestoreBackup) { $argList += "-RestoreBackup" }
+			if ($UndoLast) { $argList += "-UndoLast" }
 			if ($Search) { $argList += @("-Search", "`"$Search`"") }
 			Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
 			return
@@ -236,6 +241,40 @@ if ($RestoreBackup)
 {
 	if (-not $Yes) { $c = Read-Host "  Khoi phuc Registry/BCD tu backup moi nhat? (Y/N)"; if ($c -notmatch '^[Yy]') { Write-Host "  Da huy."; return } }
 	if (Get-Command Restore-SophiaLatestBackup -ErrorAction SilentlyContinue) { Restore-SophiaLatestBackup | Out-Null }
+	return
+}
+if ($Doctor)
+{
+	if (Get-Command Show-MolikSystemDoctor -ErrorAction SilentlyContinue) { Show-MolikSystemDoctor -Snapshot $snapshot -Catalog $catalog }
+	return
+}
+if ($UndoLast)
+{
+	if (Get-Command Restore-MolikLastSession -ErrorAction SilentlyContinue) { Restore-MolikLastSession -Catalog $catalog -Force:$Yes | Out-Null }
+	return
+}
+if ($ListBackups)
+{
+	if (Get-Command Show-MolikBackupList -ErrorAction SilentlyContinue) { Show-MolikBackupList }
+	return
+}
+if ($ListProfiles)
+{
+	$profileDir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Profiles"
+	$profiles = Get-ChildItem -Path $profileDir -Filter "*.json" -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+	if (-not $profiles) { Write-Host "  [!] Chưa có Profile nào trong $profileDir (lưu bằng phím S trong giao diện tick-chọn)." -ForegroundColor Yellow }
+	else
+	{
+		Write-Host ""
+		Write-Host "  ══════ PROFILES ĐÃ LƯU ($($profiles.Count)) ══════" -ForegroundColor Cyan
+		foreach ($pf in $profiles)
+		{
+			$info = ""
+			try { $po = Get-Content $pf.FullName -Raw | ConvertFrom-Json; $info = "Mode $($po.Mode), $($po.TweakIds.Count) tweak, $($po.CreatedAt)" } catch {}
+			Write-Host ("  {0}  |  {1}" -f $pf.FullName, $info) -ForegroundColor Gray
+		}
+		Write-Host "  Áp dụng: .\MolikWinlik.ps1 -Profile <duong-dan-file> -Apply -Yes" -ForegroundColor DarkGray
+	}
 	return
 }
 if ($ListModes)
@@ -407,16 +446,16 @@ if ($Apply)
 	if ($Smart -and $smartRec) { $ids = @($ids + $smartRec.ExtraIds | Select-Object -Unique) }
 	$modeObj = $modes | Where-Object Key -eq $Mode | Select-Object -First 1
 	Write-Host "  Mode: $($modeObj.Icon) $($modeObj.Name) — sẽ áp dụng $($ids.Count) tweak." -ForegroundColor Yellow
-	if (-not $Yes)
-	{
-		$confirm = Read-Host "  Tiếp tục? (Y/N)"
-		if ($confirm -notmatch '^[Yy]') { Write-Host "  Đã hủy. Chạy không có -Apply để mở giao diện tick-chọn."; return }
-	}
 	if ($DryRun)
 	{
 		Write-Host "  [DRY-RUN] $($ids.Count) tweak sẽ được áp dụng (chưa thực thi):" -ForegroundColor Cyan
 		$catalog | Where-Object { $ids -contains $_.Id } | ForEach-Object { Write-Host ("    [{0}] [{1}] {2}" -f $_.Id, $_.Risk, $_.Name) }
 		return
+	}
+	if (-not $Yes)
+	{
+		$confirm = Read-Host "  Tiếp tục? (Y/N)"
+		if ($confirm -notmatch '^[Yy]') { Write-Host "  Đã hủy. Chạy không có -Apply để mở giao diện tick-chọn."; return }
 	}
 	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup -Force:$Yes -Snapshot $snapshot
 	return

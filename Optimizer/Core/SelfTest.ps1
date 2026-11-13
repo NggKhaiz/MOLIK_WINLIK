@@ -48,7 +48,8 @@ function Test-SophiaOptimizerHealth
 		[void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tokens, [ref]$errors)
 		if ($errors -and $errors.Count -gt 0) { $parseErrors += $errors.Count; Report "FAIL" "Parse: $($f.Name) có $($errors.Count) lỗi: $($errors[0].Message)" }
 	}
-	if ($parseErrors -eq 0) { Report "PASS" "Cú pháp PowerShell: $($files.Count) file đều parse sạch" }
+	if ($files.Count -eq 0) { Report "WARN" "Cú pháp PowerShell: không tìm thấy file .ps1 nguồn nào để parse (bỏ qua nếu đang chạy bản Portable độc lập)" }
+	elseif ($parseErrors -eq 0) { Report "PASS" "Cú pháp PowerShell: $($files.Count) file đều parse sạch" }
 
 	# 2) Catalog integrity
 	if (-not $Catalog) { $Catalog = Get-SophiaTweaksCatalog }
@@ -143,6 +144,11 @@ function Test-SophiaOptimizerHealth
 			{
 				$resolved = Resolve-MolikPreset -Preset $preset -Catalog $Catalog
 				if ($resolved.Count -eq 0) { $presetFail += $preset.Name }
+				if (@($preset.ExcludeRisks).Count -gt 0)
+				{
+					$violations = @($Catalog | Where-Object { ($resolved -contains $_.Id) -and ($preset.ExcludeRisks -contains $_.Risk) })
+					if ($violations.Count -gt 0) { $presetFail += "$($preset.Name) (chứa $($violations[0].Risk) dù đã loại trừ: $($violations[0].Id))" }
+				}
 			}
 			if ($presetFail.Count -eq 0) { Report "PASS" "Presets: $((Get-MolikPresets).Count) preset deu giai ra danh sach tweak hop le" }
 			else { Report "FAIL" "Preset giai rong: $($presetFail -join ', ')" }
@@ -160,6 +166,17 @@ function Test-SophiaOptimizerHealth
 		}
 	}
 	catch { Report "FAIL" "Report Engine loi: $($_.Exception.Message)" }
+
+	# 8) Tinh nang v3.1: Doctor / Undo / Backup list
+	$missingFn = @()
+	foreach ($fn in @("Show-MolikSystemDoctor", "Restore-MolikLastSession", "Get-MolikBackupFolders", "Show-MolikBackupList"))
+	{
+		if (-not (Get-Command $fn -ErrorAction SilentlyContinue)) { $missingFn += $fn }
+	}
+	if ($missingFn.Count -eq 0) { Report "PASS" "v3.1 core: Doctor + UndoLast + Backup list đều sẵn sàng" }
+	else { Report "FAIL" "Thiếu hàm v3.1: $($missingFn -join ', ')" }
+	# Luu y: SelfTest la CHI DOC - khong bao gio goi Undo/Restore that o day,
+	# chi kiem tra ham ton tai. Logic parse log duoc bao phu boi kiem tra tinh.
 
 	Write-Host ""
 	Write-Host ("  ══════════ KẾT QUẢ: {0} PASS / {1} FAIL / {2} WARN ══════════" -f $script:pass, $script:fail, $script:warn) -ForegroundColor Cyan
