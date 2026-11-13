@@ -176,7 +176,7 @@ function Get-SophiaSelectionProfile
 function Get-MolikUiVersion
 {
 	if ($Global:MolikWinlikVersion) { return [string]$Global:MolikWinlikVersion }
-	return "3.0.0"
+	return "3.1.0"
 }
 
 function Format-MolikTruncate
@@ -256,16 +256,21 @@ function Show-SophiaSimpleMenu
 		Write-Host "   D. 🩺 SELF-TEST / DEBUG toàn diện (kiểm tra tool, không đổi hệ thống)" -ForegroundColor Green
 		Write-Host "   X. 🎁 PRESETS — gói tối ưu theo kịch bản (Farm/Esports/Privacy...)" -ForegroundColor Green
 		Write-Host "   H. 📄 Báo cáo HTML Dashboard      B. 💾 Tạo Backup ngay" -ForegroundColor Green
+		Write-Host "   U. ↩️  HOÀN TÁC phiên áp dụng gần nhất (khôi phục các tweak vừa áp)" -ForegroundColor Green
 		Write-Host "   0. Thoát" -ForegroundColor Yellow
-		$choice = Read-Host "  Chọn (0-9/G/A/T/C/R/S/D/X/H/B)"
+		$choice = Read-Host "  Chọn (0-9/G/A/T/C/R/S/D/X/H/B/U)"
 		if ($choice -match '^[1-6]$')
 		{
 			$m = $modes[[int]::Parse($choice) - 1]
 			$ids = Get-SophiaModeTweakIds -ModeKey $m.Key -Catalog $Catalog
 			$go = Read-Host "  Áp dụng $($ids.Count) tweak của mode $($m.Name)? (Y/N)"
-			if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids }
+			if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids -Snapshot $Snapshot }
 		}
-		elseif ($choice -eq '7') { Show-SophiaOptimizerUI -Catalog $Catalog -Snapshot $Snapshot }
+		elseif ($choice -eq '7')
+		{
+			try { Show-SophiaOptimizerUI -Catalog $Catalog -Snapshot $Snapshot }
+			catch { Write-Host "  [!] Host này không hỗ trợ giao diện phím trực tiếp ($($_.Exception.Message)) — hãy dùng các mục số trong Menu này." -ForegroundColor Yellow }
+		}
 		elseif ($choice -eq 'G' -or $choice -eq 'g')
 		{
 			if (Get-Command Get-SophiaSmartRecommendation -ErrorAction SilentlyContinue)
@@ -277,7 +282,7 @@ function Show-SophiaSimpleMenu
 				$ids = Get-SophiaModeTweakIds -ModeKey $rec.Mode -Catalog $Catalog
 				$ids = @($ids + $rec.ExtraIds | Select-Object -Unique)
 				$go = Read-Host "  Áp dụng $($ids.Count) tweak Smart Auto? (Y/N)"
-				if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids }
+				if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids -Snapshot $Snapshot }
 			}
 		}
 		elseif ($choice -eq '8') { if (Get-Command Invoke-SophiaRamPurge -ErrorAction SilentlyContinue) { Invoke-SophiaRamPurge } }
@@ -290,6 +295,7 @@ function Show-SophiaSimpleMenu
 		{
 			$confirm = Read-Host "  Khôi phục MẶC ĐỊNH toàn bộ? (yes/no)"
 			if ($confirm -eq 'yes') { Invoke-SophiaRestoreTweaks -Catalog $Catalog }
+			$firstFrame = $true
 		}
 		elseif ($choice -eq 'S' -or $choice -eq 's')
 		{
@@ -362,6 +368,10 @@ function Show-SophiaSimpleMenu
 		{
 			if (Get-Command New-SophiaSystemBackup -ErrorAction SilentlyContinue) { New-SophiaSystemBackup | Out-Null; Read-Host '  Nhấn ENTER để quay lại menu' }
 		}
+		elseif ($choice -eq 'U' -or $choice -eq 'u')
+		{
+			if (Get-Command Restore-MolikLastSession -ErrorAction SilentlyContinue) { Restore-MolikLastSession -Catalog $Catalog | Out-Null }
+		}
 		elseif ($choice -eq '0') { return }
 		else { Write-Host "  Lựa chọn không hợp lệ." -ForegroundColor Yellow }
 	}
@@ -387,11 +397,11 @@ function Show-SophiaOptimizerUI
 	$searchTerm = ""
 	$filterMode = "All"
 	$firstFrame = $true
+	$lastFrameLines = 0
 	$rebootIds = @()
 	try { if (Get-Command Get-SophiaRebootTweakIds -ErrorAction SilentlyContinue) { $rebootIds = @(Get-SophiaRebootTweakIds) } } catch {}
 	$cursor = 0
 	$pageSize = 18
-	try { $pageSize = [Math]::Max(10, [Console]::WindowHeight - 16) } catch {}
 
 	$getFiltered = {
 		$list = @($Catalog)
@@ -408,6 +418,7 @@ function Show-SophiaOptimizerUI
 
 	while ($true)
 	{
+		try { $pageSize = [Math]::Max(10, [Console]::WindowHeight - 18) } catch {}
 		$filtered = & $getFiltered
 		if ($filtered.Count -eq 0) { $filtered = @($Catalog); $searchTerm = ""; $filterMode = "All" }
 		if ($cursor -ge $filtered.Count) { $cursor = $filtered.Count - 1 }
@@ -418,10 +429,14 @@ function Show-SophiaOptimizerUI
 
 		try
 		{
-			if ($firstFrame) { [Console]::Clear(); $firstFrame = $false }
+			if ($firstFrame) { [Console]::Clear(); $firstFrame = $false; $lastFrameLines = 0 }
 			else { [Console]::SetCursorPosition(0, 0) }
 			[Console]::CursorVisible = $false
-		} catch { Clear-Host }
+		} catch { Clear-Host; $lastFrameLines = 0 }
+		$snapLines = 0
+		if ($Snapshot) { $snapLines = 1; if ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0) { $snapLines++ } }
+		$frameLines = 11 + $snapLines
+		if ($smartRec) { $frameLines++ }
 
 		# Header
 		Write-Host "  ╔══════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
@@ -452,7 +467,7 @@ function Show-SophiaOptimizerUI
 		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 		Write-Host "  [↑↓/KJ] Chọn  [SPACE] Tick  [1-6] Mode  [A]ll  [N]one  [/] Tìm  [P] Purge RAM  [E] Boost Giả Lập" -ForegroundColor Gray
 		Write-Host "  [G] Smart Auto (AI khuyên dùng)  [V] Check đã áp dụng (●)  [T] Benchmark  [S] Lưu Profile  [F] Đổi bộ lọc" -ForegroundColor Gray
-		Write-Host "  [L] Nạp Profile  [B] Backup  [H] Báo cáo HTML  [?] Trợ giúp đầy đủ" -ForegroundColor Gray
+		Write-Host "  [L] Nạp Profile  [B] Backup  [H] Báo cáo HTML  [U] Hoàn tác phiên gần nhất  [?] Trợ giúp" -ForegroundColor Gray
 		Write-Host "  [R] Restore Mặc Định  [ENTER] ÁP DỤNG  [Q] Thoát" -ForegroundColor Gray
 		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 
@@ -460,9 +475,11 @@ function Show-SophiaOptimizerUI
 		for ($idx = $pageStart; $idx -le $pageEnd; $idx++)
 		{
 			$t = $filtered[$idx]
+			$frameLines++
 			if ($t.Category -ne $lastCategory)
 			{
 				$lastCategory = $t.Category
+				$frameLines += 2
 				Write-Host ""
 				Write-Host "  $lastCategory" -ForegroundColor Magenta
 			}
@@ -478,7 +495,9 @@ function Show-SophiaOptimizerUI
 			if ($idx -eq $cursor)
 			{
 				Write-Host "  ▶ $line" -ForegroundColor White -BackgroundColor DarkBlue
-				foreach ($descLine in (Get-MolikWrappedLines $t.Description ([Math]::Max(40, $uiWidth - 10)) 2)) { Write-Host "      $descLine" -ForegroundColor Cyan }
+				$descUiLines = @(Get-MolikWrappedLines $t.Description ([Math]::Max(40, $uiWidth - 10)) 2)
+				$frameLines += $descUiLines.Count + 1
+				foreach ($descLine in $descUiLines) { Write-Host "      $descLine" -ForegroundColor Cyan }
 				$rebootTag = if ($rebootIds -contains $t.Id) { " | Cần RESTART" } else { "" }
 				Write-Host (Format-MolikTruncate "      Chi tiết: $($t.Detail)$rebootTag" ([Math]::Max(40, $uiWidth - 2))) -ForegroundColor DarkGray
 			}
@@ -488,8 +507,19 @@ function Show-SophiaOptimizerUI
 				else { Write-Host "    $line" -ForegroundColor $riskColor }
 			}
 		}
+		$frameLines += 2
 		Write-Host ""
 		Write-Host ("  Trang {0}/{1} — Mục {2}/{3}" -f ([Math]::Floor($pageStart/$pageSize)+1), ([Math]::Ceiling($filtered.Count/$pageSize)), ($cursor+1), $filtered.Count) -ForegroundColor DarkGray
+		# Xoa phan du cua khung hinh truoc (dai hon) de khong con "rac" phia duoi
+		if ($frameLines -lt $lastFrameLines)
+		{
+			$padWidth = 100
+			try { $padWidth = [Console]::WindowWidth } catch {}
+			$padLine = " " * [Math]::Max(10, $padWidth - 1)
+			for ($pad = $frameLines; $pad -lt $lastFrameLines; $pad++) { Write-Host $padLine }
+			try { [Console]::SetCursorPosition(0, 0) } catch {}
+		}
+		$lastFrameLines = $frameLines
 
 		$key = [Console]::ReadKey($true)
 		$ch = $key.KeyChar
@@ -509,8 +539,9 @@ function Show-SophiaOptimizerUI
 			"Enter" {
 				try { [Console]::CursorVisible = $true } catch {}
 				$ids = @($selected.Keys | Where-Object { $selected[$_] })
-				Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids
+				Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids -Snapshot $Snapshot
 				Read-Host "  Nhấn ENTER để quay lại menu"
+				$firstFrame = $true
 				continue
 			}
 			"Escape" { try { [Console]::CursorVisible = $true } catch {}; return }
@@ -537,16 +568,19 @@ function Show-SophiaOptimizerUI
 			try { [Console]::CursorVisible = $true } catch {}
 			$searchTerm = Read-Host "  Tìm tweak (ENTER trống = xóa lọc)"
 			$cursor = 0
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'p' -or $ch -eq 'P') {
 			try { [Console]::CursorVisible = $true } catch {}
 			if (Get-Command Invoke-SophiaRamPurge -ErrorAction SilentlyContinue) { Invoke-SophiaRamPurge }
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'e' -or $ch -eq 'E') {
 			try { [Console]::CursorVisible = $true } catch {}
 			Invoke-EmulatorAutoBooster
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'v' -or $ch -eq 'V') {
 			try { [Console]::CursorVisible = $true } catch {}
@@ -558,12 +592,14 @@ function Show-SophiaOptimizerUI
 			$appliedCount = @($appliedStatus.Keys | Where-Object { $appliedStatus[$_] }).Count
 			Write-Host "  [✓] Đã áp dụng: $appliedCount/$($filtered.Count) (đánh dấu ● cạnh ô tick). Nhấn phím bất kỳ..." -ForegroundColor Green
 			[Console]::ReadKey($true) | Out-Null
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 't' -or $ch -eq 'T') {
 			try { [Console]::CursorVisible = $true } catch {}
 			if (Get-Command Invoke-SophiaBenchmark -ErrorAction SilentlyContinue) { Invoke-SophiaBenchmark -Label "Manual" | Out-Null }
 			else { Write-Host "  [!] Không tìm thấy module Benchmark." -ForegroundColor Yellow }
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'g' -or $ch -eq 'G') {
 			try { [Console]::CursorVisible = $true } catch {}
@@ -580,12 +616,14 @@ function Show-SophiaOptimizerUI
 			}
 			else { Write-Host "  [!] Smart Advisor không khả dụng (thiếu dữ liệu phần cứng)." -ForegroundColor Yellow }
 			Read-Host "  Nhấn ENTER để xem danh sách đã tick"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 's' -or $ch -eq 'S') {
 			try { [Console]::CursorVisible = $true } catch {}
 			$ids = @($selected.Keys | Where-Object { $selected[$_] })
 			Save-SophiaSelectionProfile -ModeKey $currentMode -SelectedIds $ids | Out-Null
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'l' -or $ch -eq 'L') {
 			try { [Console]::CursorVisible = $true } catch {}
@@ -604,11 +642,13 @@ function Show-SophiaOptimizerUI
 			}
 			else { Write-Host "  [!] Chưa có Profile nào trong $dir — dùng phím S để lưu." -ForegroundColor Yellow }
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'b' -or $ch -eq 'B') {
 			try { [Console]::CursorVisible = $true } catch {}
 			if (Get-Command New-SophiaSystemBackup -ErrorAction SilentlyContinue) { New-SophiaSystemBackup | Out-Null }
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'f' -or $ch -eq 'F') {
 			$filterModes = @("All", "Selected", "Extreme", "NotApplied")
@@ -624,7 +664,7 @@ function Show-SophiaOptimizerUI
 			Write-Host "  F: doi bo loc All -> Selected -> Extreme -> NotApplied (bam V truoc de quyet trang thai)" -ForegroundColor Gray
 			Write-Host "  G: Smart Auto theo phan cung | V: quet tweak da ap dung (●) | T: Benchmark" -ForegroundColor Gray
 			Write-Host "  P: Purge RAM | E: Boost gia lap | S/L: luu/nap Profile | B: Backup" -ForegroundColor Gray
-			Write-Host "  H: xuat bao cao HTML Dashboard | R: Restore mac dinh | Q/Esc: thoat" -ForegroundColor Gray
+			Write-Host "  H: xuat bao cao HTML Dashboard | U: HOAN TAC phien ap dung gan nhat | R: Restore mac dinh | Q/Esc: thoat" -ForegroundColor Gray
 			Write-Host "  Badge: [SAFE] an toan - [MOD ] trung binh - [EXT ] cuc han (doc mo ta truoc khi tick)" -ForegroundColor Yellow
 			Write-Host "  Bam phim bat ky de quay lai..." -ForegroundColor Cyan
 			[Console]::ReadKey($true) | Out-Null
@@ -635,6 +675,14 @@ function Show-SophiaOptimizerUI
 			if (Get-Command Export-MolikHtmlReport -ErrorAction SilentlyContinue) { Export-MolikHtmlReport -Snapshot $Snapshot -Catalog $Catalog | Out-Null }
 			else { Write-Host "  [!] Khong tim thay Report Engine." -ForegroundColor Yellow }
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
+		}
+		elseif ($ch -eq 'u' -or $ch -eq 'U') {
+			try { [Console]::CursorVisible = $true } catch {}
+			if (Get-Command Restore-MolikLastSession -ErrorAction SilentlyContinue) { Restore-MolikLastSession -Catalog $Catalog | Out-Null }
+			else { Write-Host "  [!] Khong tim thay module Backup/Undo." -ForegroundColor Yellow }
+			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'r' -or $ch -eq 'R') {
 			try { [Console]::CursorVisible = $true } catch {}

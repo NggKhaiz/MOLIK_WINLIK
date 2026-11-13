@@ -90,6 +90,14 @@ online cũ) đã bị xóa hẳn.
 .\MolikWinlik.ps1 -RestoreDefaults -Yes             # khôi phục mặc định
 ```
 
+## 🩺 v3.1 — Hoàn thiện & An toàn (đợt CONTINUE)
+
+- **Hoàn tác phiên gần nhất `-UndoLast`** (phím `U` trong cả 2 giao diện): đọc log phiên áp dụng mới nhất, chạy khôi phục mặc định cho đúng các tweak đã áp thành công theo thứ tự ngược — sai một phiên là lùi lại được ngay.
+- **`-Doctor`**: chẩn đoán chỉ-đọc sau tối ưu — chờ restart, VT-x, VBS/HVCI, HAGS/MPO, ổ gần đầy, laptop — kèm danh sách tweak Extreme đang có hiệu lực.
+- **`-ListBackups` / `-ListProfiles`**: liệt kê backup (đúng thư mục `Backup_*`) và profile đã lưu. Đã sửa lỗi bản cũ chọn nhầm thư mục `Logs/Profiles` làm "backup mới nhất" khiến khôi phục rỗng.
+- **TUI mượt hơn nữa**: tự xóa phần dư của khung hình trước (hết rác khi danh sách rút ngắn), vẽ lại sạch sau mỗi phím chức năng, tự thích ứng khi đổi kích thước cửa sổ; mở TUI từ Menu không còn làm sập Menu trên host lạ; mọi đường áp dụng đều truyền đúng Snapshot cho Plan Engine.
+- `-Apply -DryRun` xem trước không còn bị hỏi xác nhận thừa.
+
 ## 🆕 v3.0 — Đa năng & Giao diện chuyên nghiệp
 
 ### 🎁 Presets theo kịch bản (phím `X` trong Menu, hoặc `-Preset`)

@@ -40,7 +40,11 @@ NEU GAP LOI
   - Muon kiem tra tool truoc khi dung: chay
         MOLIK_WINLIK.bat -SelfTest
     (chi kiem tra, khong thay doi he thong, khong can Admin).
-  - Muon khoi phuc mac dinh: mo tool, bam phim R (Restore),
+  - Ap dung xong thay khong on: mo tool, bam phim U de HOAN TAC dung
+    phien vua ap dung gan nhat (khoi phuc cac tweak cua phien do).
+  - Kiem tra nhanh sau toi uu: MOLIK_WINLIK.bat -Doctor
+    (chan doan VT-x, VBS, cho restart, tweak Extreme dang bat...)
+  - Muon khoi phuc mac dinh toan bo: mo tool, bam phim R (Restore),
     hoac restart vao System Restore Point ma tool da tao truoc khi ap dung.
   - Backup cua tool nam o: C:\MOLIK_WINLIK_Backups\
 

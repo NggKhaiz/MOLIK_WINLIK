@@ -43,7 +43,7 @@ function Export-MolikHtmlReport
 	}
 
 	$enc = { param($v) if ($null -eq $v) { return "" } return [System.Net.WebUtility]::HtmlEncode([string]$v) }
-	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "3.0.0" }
+	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "3.1.0" }
 	$now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 	$status = @{}
@@ -134,4 +134,66 @@ $tweakRows</table>
 	Write-Host "  [✓] Đã xuất báo cáo HTML Dashboard: $Path" -ForegroundColor Green
 	Write-Host "      Mở bằng trình duyệt để xem (offline, gửi kèm khi cần hỗ trợ)." -ForegroundColor Gray
 	return $Path
+}
+
+function Show-MolikSystemDoctor
+{
+	# Chan doan nhanh sau toi uu: tong hop Snapshot + trang thai tweak da ap
+	# thanh danh sach PASS / CANH BAO doc ngay tren terminal (khong can Admin
+	# cho phan lon kiem tra; lenh -Doctor chay khong UAC).
+	[CmdletBinding()]
+	param($Snapshot, [Parameter(Mandatory)]$Catalog)
+
+	Write-Host ""
+	Write-Host "  ╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+	Write-Host "  ║  🩺 MOLIK WINLIK DOCTOR — chẩn đoán hệ thống (chỉ đọc)              ║" -ForegroundColor Cyan
+	Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+	if (-not $Snapshot)
+	{
+		Write-Host "  [X] Không đọc được Snapshot phần cứng — không chẩn đoán được." -ForegroundColor Red
+		return
+	}
+	Write-Host ("  {0} | Build {1}.{2} | {3} | {4} luồng | RAM {5}GB (trống {6}GB) | {7} trống {8}GB" -f $Snapshot.OSName, $Snapshot.OSBuild, $Snapshot.OSUBR, $Snapshot.CPUName, $Snapshot.CPUThreads, $Snapshot.RAMTotalGB, $Snapshot.RAMFreeGB, $Snapshot.SystemDriveType, $Snapshot.SystemDriveFreeGB) -ForegroundColor Gray
+	Write-Host ("  GPU: {0} ({1}) | WDDM {2} | Power Plan: {3} | Tiến trình: {4} | Giả lập: {5}" -f $Snapshot.GPUName, $Snapshot.GPUVendor, $Snapshot.WDDMVersion, $Snapshot.ActivePowerPlan, $Snapshot.ProcessCount, $(if ($Snapshot.InstalledEmulators) { $Snapshot.InstalledEmulators -join ", " } else { "không phát hiện" })) -ForegroundColor Gray
+	Write-Host ""
+
+	function DoctorLine([bool]$Ok, [string]$OkText, [string]$WarnText)
+	{
+		if ($Ok) { Write-Host "  [✓] $OkText" -ForegroundColor Green } else { Write-Host "  [!] $WarnText" -ForegroundColor Yellow }
+	}
+
+	DoctorLine (-not $Snapshot.PendingReboot) "Không có cập nhật/file nào đang chờ restart." "Đang CHỜ RESTART (CBS/Windows Update/PendingFileRename) — hãy restart trước khi tối ưu tiếp."
+	DoctorLine ($Snapshot.VTxEnabled) "VT-x/AMD-V đã bật trong BIOS (giả lập chạy được full tốc)." "VT-x CHƯA bật trong BIOS — giả lập sẽ rất chậm dù đã tweak Windows."
+	DoctorLine (-not $Snapshot.VBSRunning -and -not $Snapshot.HVCIEnabled) "VBS/HVCI đang tắt — VT-x không bị tranh (tốt cho farm/giả lập)." "VBS/HVCI đang BẬT: tranh VT-x với giả lập (dùng EMU01/EMU04 nếu là máy farm chuyên dụng)."
+	DoctorLine ($Snapshot.HAGSEnabled) "HAGS (GPU01) đã bật — GPU tự lập lịch, giảm latency." "HAGS chưa bật — tick GPU01 nếu GPU hỗ trợ (WDDM >= 2.7)."
+	DoctorLine ($Snapshot.MPODisabled) "MPO đã tắt (OverlayTestMode=5) — giảm stutter khi nhiều cửa sổ/game." "MPO đang bật mặc định — một số máy bị flicker/stutter sẽ cần tắt MPO trong Catalog GPU."
+	if ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0 -and $Snapshot.HypervisorLaunchType -eq "Off")
+	{
+		Write-Host "  [✓] Hypervisor launch đã Off — giả lập native (LD/MuMu/Nox) dùng VT-x trực tiếp." -ForegroundColor Green
+	}
+	elseif ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0)
+	{
+		Write-Host "  [!] Có giả lập nhưng Hypervisor vẫn '$($Snapshot.HypervisorLaunchType)' — EMU02/EMU03 giúp farm ổn định hơn (đọc kỹ mô tả trước khi tick)." -ForegroundColor Yellow
+	}
+	if ($Snapshot.SystemDriveFreeGB -gt 0 -and $Snapshot.SystemDriveFreeGB -lt 15)
+	{
+		Write-Host "  [!] Ổ hệ thống chỉ còn $($Snapshot.SystemDriveFreeGB)GB trống — Pagefile/Update dễ lỗi, hãy dọn ổ." -ForegroundColor Yellow
+	}
+	if ($Snapshot.IsLaptop)
+	{
+		Write-Host "  [i] Máy laptop: tránh các tweak khóa xung/idle (EXT07/EXT08/CPU03) khi không cắm điện cố định." -ForegroundColor DarkGray
+	}
+
+	Write-Host ""
+	Write-Host "  Đang quét trạng thái $($Catalog.Count) tweak (chỉ đọc)..." -ForegroundColor Cyan
+	$map = Get-MolikAppliedStatus -Catalog $Catalog
+	$applied = @($Catalog | Where-Object { $map[$_.Id] })
+	$extremeOn = @($applied | Where-Object { $_.Risk -eq "Extreme" })
+	Write-Host ("  Đã áp dụng: {0}/{1} tweak | Extreme đang bật: {2}" -f $applied.Count, $Catalog.Count, $extremeOn.Count) -ForegroundColor Cyan
+	if ($extremeOn.Count -gt 0)
+	{
+		Write-Host "  Các tweak Extreme đang có hiệu lực (đánh đổi bảo mật/ổn định — đảm bảo bạn chủ động chọn):" -ForegroundColor Yellow
+		$extremeOn | ForEach-Object { Write-Host "      - [$($_.Id)] $($_.Name)" -ForegroundColor DarkYellow }
+	}
+	Write-Host "  Mẹo: -Status xem toàn bộ danh sách | -UndoLast hoàn tác phiên áp dụng gần nhất | -ExportReport xuất Dashboard HTML." -ForegroundColor DarkGray
 }

@@ -1,5 +1,5 @@
 ﻿<#
-	MOLIK WINLIK by @nggkhaiz v3.0.0 - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)
+	MOLIK WINLIK by @nggkhaiz v3.1.0 - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)
 	Chay: double-click MOLIK_WINLIK.bat (tu xin Admin), hoac powershell -ExecutionPolicy Bypass -File .\MolikWinlik-Portable.ps1
 	File nay duoc sinh tu dong boi Optimizer\Build-Portable.ps1 - dung sua tay, hay sua nguon trong Optimizer/ roi build lai.
 #>
@@ -71,16 +71,20 @@ param(
 	[string]$Status = "__none__",
 	[switch]$BackupOnly,
 	[switch]$RestoreBackup,
+	[switch]$Doctor,
+	[switch]$UndoLast,
+	[switch]$ListBackups,
+	[switch]$ListProfiles,
 	[string]$Search = ""
 )
 
 $ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
-$Global:MolikWinlikVersion = "3.0.0"
+$Global:MolikWinlikVersion = "3.1.0"
 
 # ── Self-elevate to Administrator (chi khi thao tac that su can Admin) ───────
 # Cac lenh chi-doc duoi day chay ngay khong can UAC cho khoi dong nhanh:
-$readOnlyRequest = ($ListModes -or $ListTweaks -or $ListApps -or $SelfTest -or $Plan -or $CompareBenchmarks -or $Version -or $ListPresets -or ($Status -ne "__none__"))
+$readOnlyRequest = ($ListModes -or $ListTweaks -or $ListApps -or $SelfTest -or $Plan -or $CompareBenchmarks -or $Version -or $ListPresets -or $Doctor -or $ListBackups -or $ListProfiles -or ($Status -ne "__none__"))
 if (-not $readOnlyRequest)
 {
 	try
@@ -121,6 +125,7 @@ if (-not $readOnlyRequest)
 			if ($RestoreIds) { $argList += @("-RestoreIds", "`"$RestoreIds`"") }
 			if ($BackupOnly) { $argList += "-BackupOnly" }
 			if ($RestoreBackup) { $argList += "-RestoreBackup" }
+			if ($UndoLast) { $argList += "-UndoLast" }
 			if ($Search) { $argList += @("-Search", "`"$Search`"") }
 			Start-Process -FilePath "powershell.exe" -ArgumentList $argList -Verb RunAs
 			return
@@ -1328,7 +1333,7 @@ function Invoke-SophiaBenchmark
 	param([string]$Label = "After")
 
 	Write-Host ""
-	Write-Host "  ══════════ SOPHIA BENCHMARK [$Label] — đang đo, vui lòng không thao tác... ══════════" -ForegroundColor Cyan
+	Write-Host "  ══════════ MOLIK WINLIK BENCHMARK [$Label] — đang đo, vui lòng không thao tác... ══════════" -ForegroundColor Cyan
 
 	# CPU single-thread: integer/hash loop
 	$swSingle = [System.Diagnostics.Stopwatch]::StartNew()
@@ -1859,7 +1864,7 @@ function Export-MolikHtmlReport
 	}
 
 	$enc = { param($v) if ($null -eq $v) { return "" } return [System.Net.WebUtility]::HtmlEncode([string]$v) }
-	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "3.0.0" }
+	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "3.1.0" }
 	$now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 	$status = @{}
@@ -1950,6 +1955,68 @@ $tweakRows</table>
 	Write-Host "  [✓] Đã xuất báo cáo HTML Dashboard: $Path" -ForegroundColor Green
 	Write-Host "      Mở bằng trình duyệt để xem (offline, gửi kèm khi cần hỗ trợ)." -ForegroundColor Gray
 	return $Path
+}
+
+function Show-MolikSystemDoctor
+{
+	# Chan doan nhanh sau toi uu: tong hop Snapshot + trang thai tweak da ap
+	# thanh danh sach PASS / CANH BAO doc ngay tren terminal (khong can Admin
+	# cho phan lon kiem tra; lenh -Doctor chay khong UAC).
+	[CmdletBinding()]
+	param($Snapshot, [Parameter(Mandatory)]$Catalog)
+
+	Write-Host ""
+	Write-Host "  ╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+	Write-Host "  ║  🩺 MOLIK WINLIK DOCTOR — chẩn đoán hệ thống (chỉ đọc)              ║" -ForegroundColor Cyan
+	Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+	if (-not $Snapshot)
+	{
+		Write-Host "  [X] Không đọc được Snapshot phần cứng — không chẩn đoán được." -ForegroundColor Red
+		return
+	}
+	Write-Host ("  {0} | Build {1}.{2} | {3} | {4} luồng | RAM {5}GB (trống {6}GB) | {7} trống {8}GB" -f $Snapshot.OSName, $Snapshot.OSBuild, $Snapshot.OSUBR, $Snapshot.CPUName, $Snapshot.CPUThreads, $Snapshot.RAMTotalGB, $Snapshot.RAMFreeGB, $Snapshot.SystemDriveType, $Snapshot.SystemDriveFreeGB) -ForegroundColor Gray
+	Write-Host ("  GPU: {0} ({1}) | WDDM {2} | Power Plan: {3} | Tiến trình: {4} | Giả lập: {5}" -f $Snapshot.GPUName, $Snapshot.GPUVendor, $Snapshot.WDDMVersion, $Snapshot.ActivePowerPlan, $Snapshot.ProcessCount, $(if ($Snapshot.InstalledEmulators) { $Snapshot.InstalledEmulators -join ", " } else { "không phát hiện" })) -ForegroundColor Gray
+	Write-Host ""
+
+	function DoctorLine([bool]$Ok, [string]$OkText, [string]$WarnText)
+	{
+		if ($Ok) { Write-Host "  [✓] $OkText" -ForegroundColor Green } else { Write-Host "  [!] $WarnText" -ForegroundColor Yellow }
+	}
+
+	DoctorLine (-not $Snapshot.PendingReboot) "Không có cập nhật/file nào đang chờ restart." "Đang CHỜ RESTART (CBS/Windows Update/PendingFileRename) — hãy restart trước khi tối ưu tiếp."
+	DoctorLine ($Snapshot.VTxEnabled) "VT-x/AMD-V đã bật trong BIOS (giả lập chạy được full tốc)." "VT-x CHƯA bật trong BIOS — giả lập sẽ rất chậm dù đã tweak Windows."
+	DoctorLine (-not $Snapshot.VBSRunning -and -not $Snapshot.HVCIEnabled) "VBS/HVCI đang tắt — VT-x không bị tranh (tốt cho farm/giả lập)." "VBS/HVCI đang BẬT: tranh VT-x với giả lập (dùng EMU01/EMU04 nếu là máy farm chuyên dụng)."
+	DoctorLine ($Snapshot.HAGSEnabled) "HAGS (GPU01) đã bật — GPU tự lập lịch, giảm latency." "HAGS chưa bật — tick GPU01 nếu GPU hỗ trợ (WDDM >= 2.7)."
+	DoctorLine ($Snapshot.MPODisabled) "MPO đã tắt (OverlayTestMode=5) — giảm stutter khi nhiều cửa sổ/game." "MPO đang bật mặc định — một số máy bị flicker/stutter sẽ cần tắt MPO trong Catalog GPU."
+	if ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0 -and $Snapshot.HypervisorLaunchType -eq "Off")
+	{
+		Write-Host "  [✓] Hypervisor launch đã Off — giả lập native (LD/MuMu/Nox) dùng VT-x trực tiếp." -ForegroundColor Green
+	}
+	elseif ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0)
+	{
+		Write-Host "  [!] Có giả lập nhưng Hypervisor vẫn '$($Snapshot.HypervisorLaunchType)' — EMU02/EMU03 giúp farm ổn định hơn (đọc kỹ mô tả trước khi tick)." -ForegroundColor Yellow
+	}
+	if ($Snapshot.SystemDriveFreeGB -gt 0 -and $Snapshot.SystemDriveFreeGB -lt 15)
+	{
+		Write-Host "  [!] Ổ hệ thống chỉ còn $($Snapshot.SystemDriveFreeGB)GB trống — Pagefile/Update dễ lỗi, hãy dọn ổ." -ForegroundColor Yellow
+	}
+	if ($Snapshot.IsLaptop)
+	{
+		Write-Host "  [i] Máy laptop: tránh các tweak khóa xung/idle (EXT07/EXT08/CPU03) khi không cắm điện cố định." -ForegroundColor DarkGray
+	}
+
+	Write-Host ""
+	Write-Host "  Đang quét trạng thái $($Catalog.Count) tweak (chỉ đọc)..." -ForegroundColor Cyan
+	$map = Get-MolikAppliedStatus -Catalog $Catalog
+	$applied = @($Catalog | Where-Object { $map[$_.Id] })
+	$extremeOn = @($applied | Where-Object { $_.Risk -eq "Extreme" })
+	Write-Host ("  Đã áp dụng: {0}/{1} tweak | Extreme đang bật: {2}" -f $applied.Count, $Catalog.Count, $extremeOn.Count) -ForegroundColor Cyan
+	if ($extremeOn.Count -gt 0)
+	{
+		Write-Host "  Các tweak Extreme đang có hiệu lực (đánh đổi bảo mật/ổn định — đảm bảo bạn chủ động chọn):" -ForegroundColor Yellow
+		$extremeOn | ForEach-Object { Write-Host "      - [$($_.Id)] $($_.Name)" -ForegroundColor DarkYellow }
+	}
+	Write-Host "  Mẹo: -Status xem toàn bộ danh sách | -UndoLast hoàn tác phiên áp dụng gần nhất | -ExportReport xuất Dashboard HTML." -ForegroundColor DarkGray
 }
 
 
@@ -2652,7 +2719,8 @@ function Test-SophiaOptimizerHealth
 		[void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tokens, [ref]$errors)
 		if ($errors -and $errors.Count -gt 0) { $parseErrors += $errors.Count; Report "FAIL" "Parse: $($f.Name) có $($errors.Count) lỗi: $($errors[0].Message)" }
 	}
-	if ($parseErrors -eq 0) { Report "PASS" "Cú pháp PowerShell: $($files.Count) file đều parse sạch" }
+	if ($files.Count -eq 0) { Report "WARN" "Cú pháp PowerShell: không tìm thấy file .ps1 nguồn nào để parse (bỏ qua nếu đang chạy bản Portable độc lập)" }
+	elseif ($parseErrors -eq 0) { Report "PASS" "Cú pháp PowerShell: $($files.Count) file đều parse sạch" }
 
 	# 2) Catalog integrity
 	if (-not $Catalog) { $Catalog = Get-SophiaTweaksCatalog }
@@ -2747,6 +2815,11 @@ function Test-SophiaOptimizerHealth
 			{
 				$resolved = Resolve-MolikPreset -Preset $preset -Catalog $Catalog
 				if ($resolved.Count -eq 0) { $presetFail += $preset.Name }
+				if (@($preset.ExcludeRisks).Count -gt 0)
+				{
+					$violations = @($Catalog | Where-Object { ($resolved -contains $_.Id) -and ($preset.ExcludeRisks -contains $_.Risk) })
+					if ($violations.Count -gt 0) { $presetFail += "$($preset.Name) (chứa $($violations[0].Risk) dù đã loại trừ: $($violations[0].Id))" }
+				}
 			}
 			if ($presetFail.Count -eq 0) { Report "PASS" "Presets: $((Get-MolikPresets).Count) preset deu giai ra danh sach tweak hop le" }
 			else { Report "FAIL" "Preset giai rong: $($presetFail -join ', ')" }
@@ -2764,6 +2837,17 @@ function Test-SophiaOptimizerHealth
 		}
 	}
 	catch { Report "FAIL" "Report Engine loi: $($_.Exception.Message)" }
+
+	# 8) Tinh nang v3.1: Doctor / Undo / Backup list
+	$missingFn = @()
+	foreach ($fn in @("Show-MolikSystemDoctor", "Restore-MolikLastSession", "Get-MolikBackupFolders", "Show-MolikBackupList"))
+	{
+		if (-not (Get-Command $fn -ErrorAction SilentlyContinue)) { $missingFn += $fn }
+	}
+	if ($missingFn.Count -eq 0) { Report "PASS" "v3.1 core: Doctor + UndoLast + Backup list đều sẵn sàng" }
+	else { Report "FAIL" "Thiếu hàm v3.1: $($missingFn -join ', ')" }
+	# Luu y: SelfTest la CHI DOC - khong bao gio goi Undo/Restore that o day,
+	# chi kiem tra ham ton tai. Logic parse log duoc bao phu boi kiem tra tinh.
 
 	Write-Host ""
 	Write-Host ("  ══════════ KẾT QUẢ: {0} PASS / {1} FAIL / {2} WARN ══════════" -f $script:pass, $script:fail, $script:warn) -ForegroundColor Cyan
@@ -2865,34 +2949,108 @@ function New-SophiaSystemBackup
 	return $BackupRoot
 }
 
+function Get-MolikBackupFolders
+{
+	# Chi lay cac thu muc Backup_<timestamp> that (truoc day ham Restore lay ca
+	# Logs/Profiles/Benchmarks lam "backup moi nhat" -> khoi phuc rong ma van bao xong).
+	$BackupsDir = "$env:SystemDrive\MOLIK_WINLIK_Backups"
+	if (-not (Test-Path $BackupsDir) -and (Test-Path "$env:SystemDrive\Sophia_Backups")) { $BackupsDir = "$env:SystemDrive\Sophia_Backups" }
+	if (-not (Test-Path $BackupsDir)) { return @() }
+	return @(Get-ChildItem -Path $BackupsDir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "Backup_*" } | Sort-Object LastWriteTime -Descending)
+}
+
+function Show-MolikBackupList
+{
+	$folders = Get-MolikBackupFolders
+	if ($folders.Count -eq 0)
+	{
+		Write-Host "  [!] Chưa có backup nào trong $env:SystemDrive\MOLIK_WINLIK_Backups (chạy -BackupOnly hoặc áp dụng tweak để tạo)." -ForegroundColor Yellow
+		return
+	}
+	Write-Host ""
+	Write-Host "  ══════ DANH SÁCH BACKUP MOLIK WINLIK ($($folders.Count) bản, mới nhất trước) ══════" -ForegroundColor Cyan
+	foreach ($f in $folders)
+	{
+		$regCount = @(Get-ChildItem -Path $f.FullName -Filter "*.reg" -File -ErrorAction SilentlyContinue).Count
+		$hasBcd = Test-Path (Join-Path $f.FullName "bcd_backup.bcd")
+		Write-Host ("  {0}  |  {1} file .reg  |  BCD: {2}" -f $f.FullName, $regCount, $(if ($hasBcd) { "có" } else { "không" })) -ForegroundColor Gray
+	}
+	Write-Host "  Khôi phục bản mới nhất: -RestoreBackup (chỉ nạp Registry; file bcd_backup.bcd dùng bcdedit /import khi cần)." -ForegroundColor DarkGray
+}
+
 function Restore-SophiaLatestBackup
 {
 	[CmdletBinding()]
 	param()
 
-	$BackupsDir = "$env:SystemDrive\MOLIK_WINLIK_Backups"
-	if (-not (Test-Path $BackupsDir) -and (Test-Path "$env:SystemDrive\Sophia_Backups")) { $BackupsDir = "$env:SystemDrive\Sophia_Backups" }
-	if (-not (Test-Path $BackupsDir))
-	{
-		Write-Host "  [!] Chưa tìm thấy thư mục sao lưu tại $BackupsDir. Đang chạy khôi phục mặc định qua Catalog..." -ForegroundColor Yellow
-		return $false
-	}
-
-	$LatestBackup = Get-ChildItem -Path $BackupsDir -Directory | Sort-Object CreationTime -Descending | Select-Object -First 1
+	$LatestBackup = Get-MolikBackupFolders | Select-Object -First 1
 	if (-not $LatestBackup)
 	{
-		Write-Host "  [!] Không tìm thấy bản sao lưu nào trong $BackupsDir." -ForegroundColor Yellow
+		Write-Host "  [!] Không tìm thấy bản sao lưu Backup_* nào trong $env:SystemDrive\MOLIK_WINLIK_Backups." -ForegroundColor Yellow
 		return $false
 	}
 
 	Write-Host "  [*] Đang khôi phục Registry từ bản sao lưu: $($LatestBackup.FullName) ..." -ForegroundColor Cyan
 	$RegFiles = Get-ChildItem -Path $LatestBackup.FullName -Filter "*.reg" -File
+	if ($RegFiles.Count -eq 0)
+	{
+		Write-Host "  [!] Bản backup mới nhất không chứa file .reg nào — không khôi phục được gì." -ForegroundColor Red
+		return $false
+	}
 	foreach ($RegFile in $RegFiles)
 	{
 		& "$env:SystemRoot\System32\reg.exe" import "$($RegFile.FullName)" 2>$null | Out-Null
 		Write-Host "      + Đã nạp lại: $($RegFile.Name)" -ForegroundColor Green
 	}
+	if (Test-Path (Join-Path $LatestBackup.FullName "bcd_backup.bcd"))
+	{
+		Write-Host "  [i] BCD không tự nạp (tránh rủi ro boot). Khi cần: bcdedit /import `"$($LatestBackup.FullName)\bcd_backup.bcd`"" -ForegroundColor DarkGray
+	}
 
+	return $true
+}
+
+function Restore-MolikLastSession
+{
+	# Hoan tac phien ap dung gan nhat: doc log MOLIK_*.log moi nhat, chay
+	# RestoreScript cho tung tweak da "OK" theo thu tu NGUOC lai.
+	[CmdletBinding()]
+	param([Parameter(Mandatory)]$Catalog, [switch]$Force)
+
+	$logDir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Logs"
+	$latestLog = Get-ChildItem -Path $logDir -Filter "MOLIK_*.log" -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+	if (-not $latestLog)
+	{
+		Write-Host "  [!] Không tìm thấy log phiên áp dụng nào trong $logDir — chưa có gì để hoàn tác." -ForegroundColor Yellow
+		return $false
+	}
+	$okIds = @()
+	foreach ($line in (Get-Content $latestLog.FullName -ErrorAction SilentlyContinue))
+	{
+		if ($line -match '^OK\s+(\S+)') { $okIds += $Matches[1] }
+	}
+	$okIds = @($okIds | Select-Object -Unique)
+	if ($okIds.Count -eq 0)
+	{
+		Write-Host "  [!] Log gần nhất ($($latestLog.Name)) không có tweak nào áp dụng thành công." -ForegroundColor Yellow
+		return $false
+	}
+	Write-Host "  Phiên gần nhất: $($latestLog.Name) — $($okIds.Count) tweak đã áp dụng thành công." -ForegroundColor Cyan
+	if (-not $Force)
+	{
+		$c = Read-Host "  Chạy Restore (mặc định gốc) cho $($okIds.Count) tweak này theo thứ tự ngược? (Y/N)"
+		if ($c -notmatch '^[Yy]') { Write-Host "  Đã hủy hoàn tác."; return $false }
+	}
+	[array]::Reverse($okIds)
+	$done = 0
+	foreach ($id in $okIds)
+	{
+		$tweak = $Catalog | Where-Object { $_.Id -eq $id } | Select-Object -First 1
+		if (-not $tweak) { continue }
+		try { & $tweak.RestoreScript; Write-Host "  [✓] Đã khôi phục $id $($tweak.Name)" -ForegroundColor Green; $done++ }
+		catch { Write-Host "  [X] $id : $($_.Exception.Message)" -ForegroundColor Red }
+	}
+	Write-Host "  ══════ HOÀN TÁC XONG: $done/$($okIds.Count) tweak — hãy RESTART máy để có hiệu lực hoàn toàn. ══════" -ForegroundColor Cyan
 	return $true
 }
 
@@ -3888,7 +4046,7 @@ function Get-SophiaSelectionProfile
 function Get-MolikUiVersion
 {
 	if ($Global:MolikWinlikVersion) { return [string]$Global:MolikWinlikVersion }
-	return "3.0.0"
+	return "3.1.0"
 }
 
 function Format-MolikTruncate
@@ -3968,16 +4126,21 @@ function Show-SophiaSimpleMenu
 		Write-Host "   D. 🩺 SELF-TEST / DEBUG toàn diện (kiểm tra tool, không đổi hệ thống)" -ForegroundColor Green
 		Write-Host "   X. 🎁 PRESETS — gói tối ưu theo kịch bản (Farm/Esports/Privacy...)" -ForegroundColor Green
 		Write-Host "   H. 📄 Báo cáo HTML Dashboard      B. 💾 Tạo Backup ngay" -ForegroundColor Green
+		Write-Host "   U. ↩️  HOÀN TÁC phiên áp dụng gần nhất (khôi phục các tweak vừa áp)" -ForegroundColor Green
 		Write-Host "   0. Thoát" -ForegroundColor Yellow
-		$choice = Read-Host "  Chọn (0-9/G/A/T/C/R/S/D/X/H/B)"
+		$choice = Read-Host "  Chọn (0-9/G/A/T/C/R/S/D/X/H/B/U)"
 		if ($choice -match '^[1-6]$')
 		{
 			$m = $modes[[int]::Parse($choice) - 1]
 			$ids = Get-SophiaModeTweakIds -ModeKey $m.Key -Catalog $Catalog
 			$go = Read-Host "  Áp dụng $($ids.Count) tweak của mode $($m.Name)? (Y/N)"
-			if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids }
+			if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids -Snapshot $Snapshot }
 		}
-		elseif ($choice -eq '7') { Show-SophiaOptimizerUI -Catalog $Catalog -Snapshot $Snapshot }
+		elseif ($choice -eq '7')
+		{
+			try { Show-SophiaOptimizerUI -Catalog $Catalog -Snapshot $Snapshot }
+			catch { Write-Host "  [!] Host này không hỗ trợ giao diện phím trực tiếp ($($_.Exception.Message)) — hãy dùng các mục số trong Menu này." -ForegroundColor Yellow }
+		}
 		elseif ($choice -eq 'G' -or $choice -eq 'g')
 		{
 			if (Get-Command Get-SophiaSmartRecommendation -ErrorAction SilentlyContinue)
@@ -3989,7 +4152,7 @@ function Show-SophiaSimpleMenu
 				$ids = Get-SophiaModeTweakIds -ModeKey $rec.Mode -Catalog $Catalog
 				$ids = @($ids + $rec.ExtraIds | Select-Object -Unique)
 				$go = Read-Host "  Áp dụng $($ids.Count) tweak Smart Auto? (Y/N)"
-				if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids }
+				if ($go -match '^[Yy]') { Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids -Snapshot $Snapshot }
 			}
 		}
 		elseif ($choice -eq '8') { if (Get-Command Invoke-SophiaRamPurge -ErrorAction SilentlyContinue) { Invoke-SophiaRamPurge } }
@@ -4002,6 +4165,7 @@ function Show-SophiaSimpleMenu
 		{
 			$confirm = Read-Host "  Khôi phục MẶC ĐỊNH toàn bộ? (yes/no)"
 			if ($confirm -eq 'yes') { Invoke-SophiaRestoreTweaks -Catalog $Catalog }
+			$firstFrame = $true
 		}
 		elseif ($choice -eq 'S' -or $choice -eq 's')
 		{
@@ -4074,6 +4238,10 @@ function Show-SophiaSimpleMenu
 		{
 			if (Get-Command New-SophiaSystemBackup -ErrorAction SilentlyContinue) { New-SophiaSystemBackup | Out-Null; Read-Host '  Nhấn ENTER để quay lại menu' }
 		}
+		elseif ($choice -eq 'U' -or $choice -eq 'u')
+		{
+			if (Get-Command Restore-MolikLastSession -ErrorAction SilentlyContinue) { Restore-MolikLastSession -Catalog $Catalog | Out-Null }
+		}
 		elseif ($choice -eq '0') { return }
 		else { Write-Host "  Lựa chọn không hợp lệ." -ForegroundColor Yellow }
 	}
@@ -4099,11 +4267,11 @@ function Show-SophiaOptimizerUI
 	$searchTerm = ""
 	$filterMode = "All"
 	$firstFrame = $true
+	$lastFrameLines = 0
 	$rebootIds = @()
 	try { if (Get-Command Get-SophiaRebootTweakIds -ErrorAction SilentlyContinue) { $rebootIds = @(Get-SophiaRebootTweakIds) } } catch {}
 	$cursor = 0
 	$pageSize = 18
-	try { $pageSize = [Math]::Max(10, [Console]::WindowHeight - 16) } catch {}
 
 	$getFiltered = {
 		$list = @($Catalog)
@@ -4120,6 +4288,7 @@ function Show-SophiaOptimizerUI
 
 	while ($true)
 	{
+		try { $pageSize = [Math]::Max(10, [Console]::WindowHeight - 18) } catch {}
 		$filtered = & $getFiltered
 		if ($filtered.Count -eq 0) { $filtered = @($Catalog); $searchTerm = ""; $filterMode = "All" }
 		if ($cursor -ge $filtered.Count) { $cursor = $filtered.Count - 1 }
@@ -4130,10 +4299,14 @@ function Show-SophiaOptimizerUI
 
 		try
 		{
-			if ($firstFrame) { [Console]::Clear(); $firstFrame = $false }
+			if ($firstFrame) { [Console]::Clear(); $firstFrame = $false; $lastFrameLines = 0 }
 			else { [Console]::SetCursorPosition(0, 0) }
 			[Console]::CursorVisible = $false
-		} catch { Clear-Host }
+		} catch { Clear-Host; $lastFrameLines = 0 }
+		$snapLines = 0
+		if ($Snapshot) { $snapLines = 1; if ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0) { $snapLines++ } }
+		$frameLines = 11 + $snapLines
+		if ($smartRec) { $frameLines++ }
 
 		# Header
 		Write-Host "  ╔══════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
@@ -4164,7 +4337,7 @@ function Show-SophiaOptimizerUI
 		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 		Write-Host "  [↑↓/KJ] Chọn  [SPACE] Tick  [1-6] Mode  [A]ll  [N]one  [/] Tìm  [P] Purge RAM  [E] Boost Giả Lập" -ForegroundColor Gray
 		Write-Host "  [G] Smart Auto (AI khuyên dùng)  [V] Check đã áp dụng (●)  [T] Benchmark  [S] Lưu Profile  [F] Đổi bộ lọc" -ForegroundColor Gray
-		Write-Host "  [L] Nạp Profile  [B] Backup  [H] Báo cáo HTML  [?] Trợ giúp đầy đủ" -ForegroundColor Gray
+		Write-Host "  [L] Nạp Profile  [B] Backup  [H] Báo cáo HTML  [U] Hoàn tác phiên gần nhất  [?] Trợ giúp" -ForegroundColor Gray
 		Write-Host "  [R] Restore Mặc Định  [ENTER] ÁP DỤNG  [Q] Thoát" -ForegroundColor Gray
 		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
 
@@ -4172,9 +4345,11 @@ function Show-SophiaOptimizerUI
 		for ($idx = $pageStart; $idx -le $pageEnd; $idx++)
 		{
 			$t = $filtered[$idx]
+			$frameLines++
 			if ($t.Category -ne $lastCategory)
 			{
 				$lastCategory = $t.Category
+				$frameLines += 2
 				Write-Host ""
 				Write-Host "  $lastCategory" -ForegroundColor Magenta
 			}
@@ -4190,7 +4365,9 @@ function Show-SophiaOptimizerUI
 			if ($idx -eq $cursor)
 			{
 				Write-Host "  ▶ $line" -ForegroundColor White -BackgroundColor DarkBlue
-				foreach ($descLine in (Get-MolikWrappedLines $t.Description ([Math]::Max(40, $uiWidth - 10)) 2)) { Write-Host "      $descLine" -ForegroundColor Cyan }
+				$descUiLines = @(Get-MolikWrappedLines $t.Description ([Math]::Max(40, $uiWidth - 10)) 2)
+				$frameLines += $descUiLines.Count + 1
+				foreach ($descLine in $descUiLines) { Write-Host "      $descLine" -ForegroundColor Cyan }
 				$rebootTag = if ($rebootIds -contains $t.Id) { " | Cần RESTART" } else { "" }
 				Write-Host (Format-MolikTruncate "      Chi tiết: $($t.Detail)$rebootTag" ([Math]::Max(40, $uiWidth - 2))) -ForegroundColor DarkGray
 			}
@@ -4200,8 +4377,19 @@ function Show-SophiaOptimizerUI
 				else { Write-Host "    $line" -ForegroundColor $riskColor }
 			}
 		}
+		$frameLines += 2
 		Write-Host ""
 		Write-Host ("  Trang {0}/{1} — Mục {2}/{3}" -f ([Math]::Floor($pageStart/$pageSize)+1), ([Math]::Ceiling($filtered.Count/$pageSize)), ($cursor+1), $filtered.Count) -ForegroundColor DarkGray
+		# Xoa phan du cua khung hinh truoc (dai hon) de khong con "rac" phia duoi
+		if ($frameLines -lt $lastFrameLines)
+		{
+			$padWidth = 100
+			try { $padWidth = [Console]::WindowWidth } catch {}
+			$padLine = " " * [Math]::Max(10, $padWidth - 1)
+			for ($pad = $frameLines; $pad -lt $lastFrameLines; $pad++) { Write-Host $padLine }
+			try { [Console]::SetCursorPosition(0, 0) } catch {}
+		}
+		$lastFrameLines = $frameLines
 
 		$key = [Console]::ReadKey($true)
 		$ch = $key.KeyChar
@@ -4221,8 +4409,9 @@ function Show-SophiaOptimizerUI
 			"Enter" {
 				try { [Console]::CursorVisible = $true } catch {}
 				$ids = @($selected.Keys | Where-Object { $selected[$_] })
-				Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids
+				Invoke-SophiaSelectedTweaks -Catalog $Catalog -SelectedIds $ids -Snapshot $Snapshot
 				Read-Host "  Nhấn ENTER để quay lại menu"
+				$firstFrame = $true
 				continue
 			}
 			"Escape" { try { [Console]::CursorVisible = $true } catch {}; return }
@@ -4249,16 +4438,19 @@ function Show-SophiaOptimizerUI
 			try { [Console]::CursorVisible = $true } catch {}
 			$searchTerm = Read-Host "  Tìm tweak (ENTER trống = xóa lọc)"
 			$cursor = 0
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'p' -or $ch -eq 'P') {
 			try { [Console]::CursorVisible = $true } catch {}
 			if (Get-Command Invoke-SophiaRamPurge -ErrorAction SilentlyContinue) { Invoke-SophiaRamPurge }
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'e' -or $ch -eq 'E') {
 			try { [Console]::CursorVisible = $true } catch {}
 			Invoke-EmulatorAutoBooster
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'v' -or $ch -eq 'V') {
 			try { [Console]::CursorVisible = $true } catch {}
@@ -4270,12 +4462,14 @@ function Show-SophiaOptimizerUI
 			$appliedCount = @($appliedStatus.Keys | Where-Object { $appliedStatus[$_] }).Count
 			Write-Host "  [✓] Đã áp dụng: $appliedCount/$($filtered.Count) (đánh dấu ● cạnh ô tick). Nhấn phím bất kỳ..." -ForegroundColor Green
 			[Console]::ReadKey($true) | Out-Null
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 't' -or $ch -eq 'T') {
 			try { [Console]::CursorVisible = $true } catch {}
 			if (Get-Command Invoke-SophiaBenchmark -ErrorAction SilentlyContinue) { Invoke-SophiaBenchmark -Label "Manual" | Out-Null }
 			else { Write-Host "  [!] Không tìm thấy module Benchmark." -ForegroundColor Yellow }
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'g' -or $ch -eq 'G') {
 			try { [Console]::CursorVisible = $true } catch {}
@@ -4292,12 +4486,14 @@ function Show-SophiaOptimizerUI
 			}
 			else { Write-Host "  [!] Smart Advisor không khả dụng (thiếu dữ liệu phần cứng)." -ForegroundColor Yellow }
 			Read-Host "  Nhấn ENTER để xem danh sách đã tick"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 's' -or $ch -eq 'S') {
 			try { [Console]::CursorVisible = $true } catch {}
 			$ids = @($selected.Keys | Where-Object { $selected[$_] })
 			Save-SophiaSelectionProfile -ModeKey $currentMode -SelectedIds $ids | Out-Null
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'l' -or $ch -eq 'L') {
 			try { [Console]::CursorVisible = $true } catch {}
@@ -4316,11 +4512,13 @@ function Show-SophiaOptimizerUI
 			}
 			else { Write-Host "  [!] Chưa có Profile nào trong $dir — dùng phím S để lưu." -ForegroundColor Yellow }
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'b' -or $ch -eq 'B') {
 			try { [Console]::CursorVisible = $true } catch {}
 			if (Get-Command New-SophiaSystemBackup -ErrorAction SilentlyContinue) { New-SophiaSystemBackup | Out-Null }
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'f' -or $ch -eq 'F') {
 			$filterModes = @("All", "Selected", "Extreme", "NotApplied")
@@ -4336,7 +4534,7 @@ function Show-SophiaOptimizerUI
 			Write-Host "  F: doi bo loc All -> Selected -> Extreme -> NotApplied (bam V truoc de quyet trang thai)" -ForegroundColor Gray
 			Write-Host "  G: Smart Auto theo phan cung | V: quet tweak da ap dung (●) | T: Benchmark" -ForegroundColor Gray
 			Write-Host "  P: Purge RAM | E: Boost gia lap | S/L: luu/nap Profile | B: Backup" -ForegroundColor Gray
-			Write-Host "  H: xuat bao cao HTML Dashboard | R: Restore mac dinh | Q/Esc: thoat" -ForegroundColor Gray
+			Write-Host "  H: xuat bao cao HTML Dashboard | U: HOAN TAC phien ap dung gan nhat | R: Restore mac dinh | Q/Esc: thoat" -ForegroundColor Gray
 			Write-Host "  Badge: [SAFE] an toan - [MOD ] trung binh - [EXT ] cuc han (doc mo ta truoc khi tick)" -ForegroundColor Yellow
 			Write-Host "  Bam phim bat ky de quay lai..." -ForegroundColor Cyan
 			[Console]::ReadKey($true) | Out-Null
@@ -4347,6 +4545,14 @@ function Show-SophiaOptimizerUI
 			if (Get-Command Export-MolikHtmlReport -ErrorAction SilentlyContinue) { Export-MolikHtmlReport -Snapshot $Snapshot -Catalog $Catalog | Out-Null }
 			else { Write-Host "  [!] Khong tim thay Report Engine." -ForegroundColor Yellow }
 			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
+		}
+		elseif ($ch -eq 'u' -or $ch -eq 'U') {
+			try { [Console]::CursorVisible = $true } catch {}
+			if (Get-Command Restore-MolikLastSession -ErrorAction SilentlyContinue) { Restore-MolikLastSession -Catalog $Catalog | Out-Null }
+			else { Write-Host "  [!] Khong tim thay module Backup/Undo." -ForegroundColor Yellow }
+			Read-Host "  Nhấn ENTER để tiếp tục"
+			$firstFrame = $true
 		}
 		elseif ($ch -eq 'r' -or $ch -eq 'R') {
 			try { [Console]::CursorVisible = $true } catch {}
@@ -4444,6 +4650,40 @@ if ($RestoreBackup)
 {
 	if (-not $Yes) { $c = Read-Host "  Khoi phuc Registry/BCD tu backup moi nhat? (Y/N)"; if ($c -notmatch '^[Yy]') { Write-Host "  Da huy."; return } }
 	if (Get-Command Restore-SophiaLatestBackup -ErrorAction SilentlyContinue) { Restore-SophiaLatestBackup | Out-Null }
+	return
+}
+if ($Doctor)
+{
+	if (Get-Command Show-MolikSystemDoctor -ErrorAction SilentlyContinue) { Show-MolikSystemDoctor -Snapshot $snapshot -Catalog $catalog }
+	return
+}
+if ($UndoLast)
+{
+	if (Get-Command Restore-MolikLastSession -ErrorAction SilentlyContinue) { Restore-MolikLastSession -Catalog $catalog -Force:$Yes | Out-Null }
+	return
+}
+if ($ListBackups)
+{
+	if (Get-Command Show-MolikBackupList -ErrorAction SilentlyContinue) { Show-MolikBackupList }
+	return
+}
+if ($ListProfiles)
+{
+	$profileDir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Profiles"
+	$profiles = Get-ChildItem -Path $profileDir -Filter "*.json" -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+	if (-not $profiles) { Write-Host "  [!] Chưa có Profile nào trong $profileDir (lưu bằng phím S trong giao diện tick-chọn)." -ForegroundColor Yellow }
+	else
+	{
+		Write-Host ""
+		Write-Host "  ══════ PROFILES ĐÃ LƯU ($($profiles.Count)) ══════" -ForegroundColor Cyan
+		foreach ($pf in $profiles)
+		{
+			$info = ""
+			try { $po = Get-Content $pf.FullName -Raw | ConvertFrom-Json; $info = "Mode $($po.Mode), $($po.TweakIds.Count) tweak, $($po.CreatedAt)" } catch {}
+			Write-Host ("  {0}  |  {1}" -f $pf.FullName, $info) -ForegroundColor Gray
+		}
+		Write-Host "  Áp dụng: .\MolikWinlik.ps1 -Profile <duong-dan-file> -Apply -Yes" -ForegroundColor DarkGray
+	}
 	return
 }
 if ($ListModes)
@@ -4615,16 +4855,16 @@ if ($Apply)
 	if ($Smart -and $smartRec) { $ids = @($ids + $smartRec.ExtraIds | Select-Object -Unique) }
 	$modeObj = $modes | Where-Object Key -eq $Mode | Select-Object -First 1
 	Write-Host "  Mode: $($modeObj.Icon) $($modeObj.Name) — sẽ áp dụng $($ids.Count) tweak." -ForegroundColor Yellow
-	if (-not $Yes)
-	{
-		$confirm = Read-Host "  Tiếp tục? (Y/N)"
-		if ($confirm -notmatch '^[Yy]') { Write-Host "  Đã hủy. Chạy không có -Apply để mở giao diện tick-chọn."; return }
-	}
 	if ($DryRun)
 	{
 		Write-Host "  [DRY-RUN] $($ids.Count) tweak sẽ được áp dụng (chưa thực thi):" -ForegroundColor Cyan
 		$catalog | Where-Object { $ids -contains $_.Id } | ForEach-Object { Write-Host ("    [{0}] [{1}] {2}" -f $_.Id, $_.Risk, $_.Name) }
 		return
+	}
+	if (-not $Yes)
+	{
+		$confirm = Read-Host "  Tiếp tục? (Y/N)"
+		if ($confirm -notmatch '^[Yy]') { Write-Host "  Đã hủy. Chạy không có -Apply để mở giao diện tick-chọn."; return }
 	}
 	Invoke-SophiaSelectedTweaks -Catalog $catalog -SelectedIds $ids -SkipBackup:$NoBackup -Force:$Yes -Snapshot $snapshot
 	return

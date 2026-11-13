@@ -14,7 +14,7 @@ function Invoke-SophiaBenchmark
 	param([string]$Label = "After")
 
 	Write-Host ""
-	Write-Host "  ══════════ SOPHIA BENCHMARK [$Label] — đang đo, vui lòng không thao tác... ══════════" -ForegroundColor Cyan
+	Write-Host "  ══════════ MOLIK WINLIK BENCHMARK [$Label] — đang đo, vui lòng không thao tác... ══════════" -ForegroundColor Cyan
 
 	# CPU single-thread: integer/hash loop
 	$swSingle = [System.Diagnostics.Stopwatch]::StartNew()
