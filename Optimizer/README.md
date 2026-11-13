@@ -2,7 +2,7 @@
 
 > **Credit:** Phát triển bởi **@nggkhaiz** (repo [MOLIK_WINLIK](https://github.com/NggKhaiz/MOLIK_WINLIK)) — dựa trên [Sophia Script](https://github.com/farag2/Sophia-Script-for-Windows) của farag2 và tích hợp data [winutil](https://github.com/ChrisTitusTech/winutil) của Chris Titus Tech (đều MIT).
 
-Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **195 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
+Tool tối ưu Windows **sâu & cực mạnh** xây trên nền [Sophia Script for Windows](https://github.com/farag2/Sophia-Script-for-Windows) gốc (`src/`), bổ sung engine riêng trong `Optimizer/` với **197 tweak** chia 9 nhóm, **6 mode chuyên dụng** và giao diện **tick-chọn CLI** `[✓]/[ ]` bằng phím.
 
 ## 📴 OFFLINE 100% — chạy đơn giản: double-click là xong (tự xin Admin)
 
@@ -20,7 +20,7 @@ không cần Internet, không tải thêm code khi chạy.
    tiến trình PowerShell mà .bat khởi chạy).
 
 `MOLIK_WINLIK.bat` tự tìm `MolikWinlik-Portable.ps1` (bản 1 file, chứa toàn bộ engine +
-195 tweak + data 239 app) ngay cạnh nó. Giữ 2 file này cùng thư mục là đủ chạy ở mọi máy.
+197 tweak + data 239 app) ngay cạnh nó. Giữ 2 file này cùng thư mục là đủ chạy ở mọi máy.
 
 ### Chạy bằng PowerShell (khi đã mở sẵn terminal Admin)
 
@@ -59,7 +59,7 @@ online cũ) đã bị xóa hẳn.
 | `3` | 🎬 **WORKSTATION / STREAM** | Render/OBS/compile: mạnh nhưng giữ ổn định & mitigations, ưu tiên GPU encode/foreground |
 | `4` | 🥔 **LOW-SPEC / POTATO PC** | Máy yếu RAM ≤8GB: tắt visual effects, services/background apps/telemetry thừa |
 | `5` | 🛡️ **MOLIK STANDARD** | Privacy + gọn gàng an toàn, không đụng kernel/BCD (tên khóa nội bộ vẫn là `SophiaStandard` để tương thích Profile cũ) |
-| `6` | 👑 **GOD MODE** | Toàn bộ 195 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
+| `6` | 👑 **GOD MODE** | Toàn bộ 197 tweak kể cả nhóm `Extreme` (tắt Spectre/Meltdown mitigations...) — chỉ khi đã backup |
 
 ## ⌨️ Điều khiển trong CLI
 
@@ -83,12 +83,21 @@ online cũ) đã bị xóa hẳn.
 .\MolikWinlik.ps1 -Mode EmulatorFarm -Apply -Yes   # áp dụng thẳng 1 mode
 .\MolikWinlik.ps1 -Mode HardcoreGaming              # mở CLI đã tick sẵn mode Gaming
 .\MolikWinlik.ps1 -ListModes                        # xem 6 mode
-.\MolikWinlik.ps1 -ListTweaks                       # liệt kê 195 tweak
+.\MolikWinlik.ps1 -ListTweaks                       # liệt kê 197 tweak
 .\MolikWinlik.ps1 -PurgeRAM                         # dọn RAM ngay
 .\MolikWinlik.ps1 -BoostEmulators                   # boost process giả lập
 .\MolikWinlik.ps1 -ExportReport                     # xuất JSON báo cáo phần cứng + catalog
 .\MolikWinlik.ps1 -RestoreDefaults -Yes             # khôi phục mặc định
 ```
+
+## 🔬 v3.3 — DEEPER: kiểm chứng sau áp dụng + audit sâu catalog
+
+- **Tự kiểm chứng sau khi áp dụng**: mỗi tweak áp xong được chạy lại CheckScript — kết quả phiên tách rõ `verified` (trạng thái thật đã đạt) và `unverified` (đã chạy nhưng không xác nhận được trạng thái, ví dụ tweak hành động 1 lần). Trước khi áp còn quét nhanh số tweak đã ở trạng thái đích. Hết cảnh "báo OK nhưng registry ghi thất bại bị nuốt lỗi".
+- **Audit sâu toàn catalog**: sửa restore thiếu đối xứng (SYS01/SYS02/EXT14/EXT15/EXT78 khôi phục thiếu service/task đã tắt), RAM04 restore vô nghĩa, NET02 restore thiếu ECN/timestamps; viết lại Check thật cho NET01/NET04/NET05/RAM08/EXT05/EXT06/EXT36/EXT45/EXT69 (trước luôn báo chưa áp).
+- **Sửa lỗi tràn DWORD**: GAM08/RAM09 dùng 4294967295 vượt giới hạn DWord có dấu khiến lệnh ghi bị nuốt lỗi âm thầm — nay dùng -1 (đúng cùng 32 bit 0xFFFFFFFF).
+- **GPU05 viết lại**: chỉ áp DisableDynamicPstate lên adapter NVIDIA thật (quét DriverDesc) thay vì ghi cứng vào adapter `0000` có thể là iGPU.
+- **Tweak sâu mới**: EXT85 tắt Delivery Optimization (DoSvc), EXT86 tắt Diagnostic Policy Service/SRUM — tổng **197 tweak**.
+- SelfTest có thêm kiểm tra xung đột registry (cùng khóa, khác giá trị đích) chạy thật trên Windows.
 
 ## 🎨 v3.2 — TUI tối giản chuyên nghiệp
 
@@ -131,7 +140,7 @@ Chạy automation bằng `-Apply -Yes` / `-Preset ... -Apply -Yes` **không còn
 
 ### 📄 Báo cáo HTML Dashboard (phím `H`)
 
-`-ExportReport` nay sinh **cả JSON lẫn HTML**: dashboard tĩnh (mở bằng trình duyệt, offline) gồm thông số máy, trạng thái chờ restart, bảng 6 Mode + Impact Score, và toàn bộ 195 tweak với trạng thái Đã áp/Chưa. Gửi kèm file này khi cần hỗ trợ kỹ thuật.
+`-ExportReport` nay sinh **cả JSON lẫn HTML**: dashboard tĩnh (mở bằng trình duyệt, offline) gồm thông số máy, trạng thái chờ restart, bảng 6 Mode + Impact Score, và toàn bộ 197 tweak với trạng thái Đã áp/Chưa. Gửi kèm file này khi cần hỗ trợ kỹ thuật.
 
 ### 🖥️ Giao diện tick-chọn nâng cấp
 
@@ -163,7 +172,7 @@ Optimizer/
   Data/WinUtilApps.ps1          # 239 ứng dụng winget/choco
   Core/SophiaBridge.ps1         # Bridge vào Sophia.psm1 gốc theo đúng edition Win10/11/LTSC/ARM/PS7
                                 # (bỏ qua chặn cứng LGPO/UBR của InitialActions.ps1)
-  Catalog/TweaksCatalog.ps1     # 195 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
+  Catalog/TweaksCatalog.ps1     # 197 tweak: ApplyScript / RestoreScript / CheckScript, 9 nhóm, 6 mode
   UI/InteractiveCLI.ps1         # TUI tick-chọn [✓]/[ ], tìm kiếm, thực thi & log
 ```
 

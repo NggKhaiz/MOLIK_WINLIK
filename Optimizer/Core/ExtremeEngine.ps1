@@ -1,4 +1,4 @@
-﻿<#
+<#
 	.SYNOPSIS
 	MOLIK WINLIK - Extreme Engine (MSI interrupts, timer daemon, process affinity, per-exe priority)
 
@@ -218,6 +218,35 @@ function Set-SophiaAmdUlps
 			Set-SophiaRegValue -Path $_.PSPath -Name "EnableUlps" -Value $ulpsValue -Type "DWord"
 		}
 	}
+}
+
+function Set-SophiaNvidiaDynamicPstate
+{
+	# GPU05: chi ap len adapter NVIDIA that (DriverDesc match NVIDIA/GeForce).
+	# Ban cu ghi cung DisableDynamicPstate vao class key \0000 - co the la iGPU.
+	param([switch]$Restore)
+	$classRoot = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
+	if (-not (Test-Path $classRoot)) { return }
+	Get-ChildItem -Path $classRoot -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^\d{4}$' } | ForEach-Object {
+		$desc = (Get-ItemProperty -Path $_.PSPath -Name "DriverDesc" -ErrorAction SilentlyContinue).DriverDesc
+		if ($desc -match "NVIDIA|GeForce")
+		{
+			if ($Restore) { Remove-ItemProperty -Path $_.PSPath -Name "DisableDynamicPstate" -Force -ErrorAction SilentlyContinue }
+			else { Set-SophiaRegValue -Path $_.PSPath -Name "DisableDynamicPstate" -Value 1 -Type "DWord" }
+		}
+	}
+}
+
+function Test-SophiaNvidiaDynamicPstate
+{
+	$classRoot = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
+	if (-not (Test-Path $classRoot)) { return $false }
+	foreach ($key in (Get-ChildItem -Path $classRoot -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^\d{4}$' }))
+	{
+		$desc = (Get-ItemProperty -Path $key.PSPath -Name "DriverDesc" -ErrorAction SilentlyContinue).DriverDesc
+		if ($desc -match "NVIDIA|GeForce" -and (Get-SophiaRegValue -Path $key.PSPath -Name "DisableDynamicPstate") -eq 1) { return $true }
+	}
+	return $false
 }
 
 function Set-SophiaPowerSetting

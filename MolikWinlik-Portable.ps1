@@ -1,5 +1,5 @@
 ﻿<#
-	MOLIK WINLIK by @nggkhaiz v3.2.0 - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)
+	MOLIK WINLIK by @nggkhaiz v3.3.0 - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)
 	Chay: double-click MOLIK_WINLIK.bat (tu xin Admin), hoac powershell -ExecutionPolicy Bypass -File .\MolikWinlik-Portable.ps1
 	File nay duoc sinh tu dong boi Optimizer\Build-Portable.ps1 - dung sua tay, hay sua nguon trong Optimizer/ roi build lai.
 #>
@@ -80,7 +80,7 @@ param(
 
 $ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
-$Global:MolikWinlikVersion = "3.2.0"
+$Global:MolikWinlikVersion = "3.3.0"
 
 # ── Self-elevate to Administrator (chi khi thao tac that su can Admin) ───────
 # Cac lenh chi-doc duoi day chay ngay khong can UAC cho khoi dong nhanh:
@@ -1042,6 +1042,35 @@ function Set-SophiaAmdUlps
 	}
 }
 
+function Set-SophiaNvidiaDynamicPstate
+{
+	# GPU05: chi ap len adapter NVIDIA that (DriverDesc match NVIDIA/GeForce).
+	# Ban cu ghi cung DisableDynamicPstate vao class key \0000 - co the la iGPU.
+	param([switch]$Restore)
+	$classRoot = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
+	if (-not (Test-Path $classRoot)) { return }
+	Get-ChildItem -Path $classRoot -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^\d{4}$' } | ForEach-Object {
+		$desc = (Get-ItemProperty -Path $_.PSPath -Name "DriverDesc" -ErrorAction SilentlyContinue).DriverDesc
+		if ($desc -match "NVIDIA|GeForce")
+		{
+			if ($Restore) { Remove-ItemProperty -Path $_.PSPath -Name "DisableDynamicPstate" -Force -ErrorAction SilentlyContinue }
+			else { Set-SophiaRegValue -Path $_.PSPath -Name "DisableDynamicPstate" -Value 1 -Type "DWord" }
+		}
+	}
+}
+
+function Test-SophiaNvidiaDynamicPstate
+{
+	$classRoot = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
+	if (-not (Test-Path $classRoot)) { return $false }
+	foreach ($key in (Get-ChildItem -Path $classRoot -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^\d{4}$' }))
+	{
+		$desc = (Get-ItemProperty -Path $key.PSPath -Name "DriverDesc" -ErrorAction SilentlyContinue).DriverDesc
+		if ($desc -match "NVIDIA|GeForce" -and (Get-SophiaRegValue -Path $key.PSPath -Name "DisableDynamicPstate") -eq 1) { return $true }
+	}
+	return $false
+}
+
 function Set-SophiaPowerSetting
 {
 	param([string]$SubGroup, [string]$Setting, $Value)
@@ -1553,6 +1582,10 @@ function Get-SophiaOptimizationPlan
 		$ids = @($ids | Where-Object { $_ -ne "EMU13" })
 		$notes += "[Trùng lặp] EXT03 Process Booster Task đã tự boost định kỳ — loại EMU13 (boost thủ công 1 lần)."
 	}
+	if (($ids -contains "EXT51") -and (($ids -contains "GPU03") -or ($ids -contains "GPU04")))
+	{
+		$notes += "[Ghi chú] EXT51 tắt TDR hoàn toàn (TdrLevel=0) nên GPU03/GPU04 (TdrDelay/TdrDdiDelay) không còn tác dụng khi EXT51 bật — vẫn giữ trong kế hoạch để sẵn sàng nếu bạn tắt EXT51."
+	}
 
 	# ── Context warnings ──────────────────────────────────────────────────────
 	$isLaptop = $false
@@ -1862,7 +1895,7 @@ function Export-MolikHtmlReport
 	}
 
 	$enc = { param($v) if ($null -eq $v) { return "" } return [System.Net.WebUtility]::HtmlEncode([string]$v) }
-	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "3.2.0" }
+	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "3.3.0" }
 	$now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 	$status = @{}
@@ -2727,6 +2760,19 @@ function Test-SophiaOptimizerHealth
 	if ($dupes) { Report "FAIL" "ID trùng: $($dupes.Name -join ', ')" } else { Report "PASS" "Không có ID tweak nào trùng" }
 	$incomplete = @($Catalog | Where-Object { -not $_.ApplyScript -or -not $_.RestoreScript -or -not $_.CheckScript -or -not $_.Name })
 	if ($incomplete.Count -gt 0) { Report "FAIL" "Tweak thiếu script/tên: $($incomplete.Id -join ', ')" } else { Report "PASS" "Mọi tweak đủ Apply/Restore/Check/Name" }
+	# Xung dot registry: cung Path\Name (Detail cua Reg tweak) nhung khac gia tri dich
+	$regTargets = @{}
+	$regConflicts = @()
+	foreach ($t in $Catalog)
+	{
+		if ($t.Kind -eq "Registry" -and $t.Detail -match '^(.*) = (.*)$')
+		{
+			$targetKey = $Matches[1]; $targetVal = $Matches[2]
+			if ($regTargets.ContainsKey($targetKey) -and $regTargets[$targetKey] -ne $targetVal) { $regConflicts += "$targetKey [$($t.Id)]" }
+			else { $regTargets[$targetKey] = $targetVal }
+		}
+	}
+	if ($regConflicts.Count -gt 0) { Report "FAIL" "Xung đột registry (cùng khóa, khác giá trị đích): $($regConflicts -join '; ')" } else { Report "PASS" "Không xung đột registry ($($regTargets.Count) khóa đích duy nhất)" }
 
 	# 3) CheckScripts (read-only)
 	$checkErrors = @()
@@ -3461,7 +3507,7 @@ function Get-SophiaTweaksCatalog
 		Set-SophiaRegValue -Path "HKCU:\Control Panel\Keyboard" -Name "KeyboardSpeed" -Value "31" -Type "String"
 	} { return ((Get-SophiaRegValue -Path "HKCU:\Control Panel\Keyboard" -Name "KeyboardDelay") -eq "0") } "KeyboardDelay=0, KeyboardSpeed=31"
 	Add-Reg "GAM07" "SystemResponsiveness = 0 (ưu tiên game hơn background)" $GAM "Mặc định Windows giữ 20% CPU cho background. Đặt 0 -> game/foreground nhận tối đa tài nguyên multimedia scheduler." "Moderate" $FARM_GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "SystemResponsiveness" 0 20
-	Add-Reg "GAM08" "NetworkThrottlingIndex = OFF (không bóp băng thông game)" $GAM "Windows throttle mạng non-multimedia 10pps mặc định. Đặt 0xffffffff để game/voice không bị bóp gói tin." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "NetworkThrottlingIndex" 4294967295 10
+	Add-Reg "GAM08" "NetworkThrottlingIndex = OFF (không bóp băng thông game)" $GAM "Windows throttle mạng non-multimedia 10pps mặc định. Đặt 0xffffffff để game/voice không bị bóp gói tin." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "NetworkThrottlingIndex" -1 10
 	Add-Reg "GAM09" "GPU Priority = 8 cho class 'Games' (MMCSS)" $GAM "GPU Priority=8 cho profile Games của MMCSS (đi cặp EXT16 SchedulingCategory=High và EXT74 Priority=6)." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "GPU Priority" 8 0
 	Add-Reg "GAM10" "Tắt Power Throttling (không giảm xung khi chơi game/treo)" $GAM "PowerThrottlingOff=1 ngăn Windows hạ xung CPU cho process 'eco' — giữ FPS & instance ổn định khi load dài." "Moderate" $ALL_PERF "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling" "PowerThrottlingOff" 1 0
 	Add-Reg "GAM11" "Visual Effects = Performance (tắt animation/shadow)" $GAM "VisualFXSetting=2 (preset 'Adjust for best performance' của Windows): giảm DWM overhead, Alt-Tab nhanh, nhường GPU cho game/giả lập." "Safe" ($GAME+$LOW) "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" 2 0
@@ -3509,7 +3555,7 @@ function Get-SophiaTweaksCatalog
 		Set-SophiaRegValue "HKLM:\SYSTEM\CurrentControlSet\Services\SysMain" "Start" 2 "DWord"
 	} { try { return ((Get-Service SysMain -ErrorAction SilentlyContinue).StartType -eq 'Disabled') } catch { return $false } } "SysMain Disabled"
 	Add-Reg "RAM03" "Tắt NDU (Network Data Usage) — sửa leak RAM nonpaged pool" $RAM "NDU driver gây phình Nonpaged Pool theo thời gian (máy treo 24/7 hay gặp). Start=4 khắc phục leak kinh điển." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\Ndu" "Start" 4 2
-	Add-Reg "RAM04" "ClearPageFileAtShutdown = 0 (shutdown/restart NHANH)" $RAM "Không xóa pagefile khi tắt máy (mặc định đã 0; ép 0 để restart farm nhanh, tránh chờ ghi đè hàng chục GB)." "Safe" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "ClearPageFileAtShutdown" 0 0
+	Add-Reg "RAM04" "ClearPageFileAtShutdown = 0 (shutdown/restart NHANH)" $RAM "Không xóa pagefile khi tắt máy (mặc định đã 0; ép 0 để restart farm nhanh, tránh chờ ghi đè hàng chục GB)." "Safe" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "ClearPageFileAtShutdown" 0 $null
 	Add-Reg "RAM05" "SessionPoolSize = 20MB (ổn định session đồ họa đa instance)" $RAM "Tăng Session Pool cho nhiều phiên đồ họa đồng thời — giảm lỗi driver/session khi mở nhiều giả lập." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "SessionPoolSize" 20 4
 	Add-Reg "RAM06" "PoolUsageMaximum = 60 (cảnh báo pool sớm, chống cạn pool)" $RAM "Đặt ngưỡng trim pool ở 60% để Memory Manager chủ động thu hồi trước khi cạn Nonpaged Pool gây treo máy." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "PoolUsageMaximum" 60 $null
 	Add-Cmd "RAM07" "Tối ưu Prefetch = Application Launch only (PrefetchParameters=2)" $RAM "Chỉ prefetch khi launch app, tắt boot-trace thừa: giảm I/O nền mà vẫn mở giả lập/game nhanh." "Safe" ($LOW+$FARM) {
@@ -3519,8 +3565,8 @@ function Get-SophiaTweaksCatalog
 	} { return ((Get-SophiaRegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" "EnablePrefetcher") -eq 2) } "EnablePrefetcher=2"
 	Add-Cmd "RAM08" "Giảm RAM cho Windows Defender khi farm (Scan AvgCPULoadFactor=10)" $RAM "Giới hạn CPU scan định kỳ của Defender xuống 10% + tắt SampleSubmission — quét nền không giật instance/game." "Moderate" ($FARM+$LOW) {
 		try { Set-MpPreference -ScanAvgCPULoadFactor 10 -ErrorAction SilentlyContinue; Set-MpPreference -SubmitSamplesConsent 2 -ErrorAction SilentlyContinue } catch {}
-	} { try { Set-MpPreference -ScanAvgCPULoadFactor 50 -ErrorAction SilentlyContinue } catch {} } { return $false } "Set-MpPreference ScanAvgCPULoadFactor"
-	Add-Reg "RAM09" "PagedPoolSize = 0xFFFFFFFF (tối đa hóa paged pool)" $RAM "Cho phép Memory Manager dùng paged pool linh hoạt tối đa — ổn định khi hàng chục instance + driver đồ họa chạy dài ngày." "Extreme" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "PagedPoolSize" 4294967295 0
+	} { try { Set-MpPreference -ScanAvgCPULoadFactor 50 -ErrorAction SilentlyContinue } catch {} } { try { return ((Get-MpPreference -ErrorAction SilentlyContinue).ScanAvgCPULoadFactor -eq 10) } catch { return $false } } "Set-MpPreference ScanAvgCPULoadFactor"
+	Add-Reg "RAM09" "PagedPoolSize = 0xFFFFFFFF (tối đa hóa paged pool)" $RAM "Cho phép Memory Manager dùng paged pool linh hoạt tối đa — ổn định khi hàng chục instance + driver đồ họa chạy dài ngày." "Extreme" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "PagedPoolSize" -1 0
 	Add-Reg "RAM10" "NonPagedPoolSize = 0 (tự động theo RAM vật lý)" $RAM "Để Windows tự tính NonPaged Pool theo RAM (tránh giới hạn cứng cũ gây cạn pool trên máy RAM lớn treo farm)." "Safe" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "NonPagedPoolSize" 0 $null
 
 	# ═══════════════ 5. GPU & DISPLAY ═══════════════
@@ -3528,7 +3574,9 @@ function Get-SophiaTweaksCatalog
 	Add-Reg "GPU02" "Tắt Multi-Plane Overlay (MPO) — sửa stutter/đen màn Alt-Tab" $GPU "OverlayTestMode=5 vô hiệu MPO: khắc phục giật/nhấp nháy khi stream, Alt-Tab game & đa cửa sổ giả lập." "Moderate" $ALL_PERF "HKLM:\SOFTWARE\Microsoft\Windows\Dwm" "OverlayTestMode" 5 $null
 	Add-Reg "GPU03" "TdrDelay = 10s (GPU driver không bị kill khi load nặng)" $GPU "Tăng timeout TDR để render/farm nặng không bị 'Display driver stopped responding' reset giữa chừng." "Moderate" ($FARM+$WORK) "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" "TdrDelay" 10 2
 	Add-Reg "GPU04" "TdrDdiDelay = 20s (ổn định encode/render dài)" $GPU "Tăng DDI timeout đồng bộ với TdrDelay cho OBS/render/GPU-compute chạy dài không timeout." "Moderate" $WORK "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" "TdrDdiDelay" 20 5
-	Add-Reg "GPU05" "Tắt GPU Power Saving (DisableDynamicPstate=1 cho NVIDIA)" $GPU "Ngăn GPU hạ xung khi tải nhẹ-thất thường gây FPS drop (áp dụng nếu tìm thấy class NVIDIA 3D). An toàn bỏ qua nếu không có." "Extreme" $GAME "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000" "DisableDynamicPstate" 1 0
+	Add-Cmd "GPU05" "Tắt GPU Power Saving (DisableDynamicPstate=1 cho NVIDIA)" $GPU "Ngăn GPU hạ xung khi tải nhẹ-thất thường gây FPS drop. Chỉ áp lên adapter NVIDIA thật (quét Device Class theo DriverDesc — bản cũ ghi cứng vào adapter 0000 kể cả khi đó là iGPU). Tự bỏ qua nếu không có NVIDIA." "Extreme" $GAME {
+		Set-SophiaNvidiaDynamicPstate
+	} { Set-SophiaNvidiaDynamicPstate -Restore } { try { return (Test-SophiaNvidiaDynamicPstate) } catch { return $false } } "Class\{4d36e968}\NVIDIA DisableDynamicPstate=1"
 	Add-Reg "GPU06" "EnableChildCompletion (giảm DWM composition latency)" $GPU "Tối ưu đường trình bày DWM cho đa cửa sổ — Alt-Tab & kéo thả instance mượt hơn." "Safe" $ALL_PERF "HKLM:\SOFTWARE\Microsoft\Windows\Dwm" "EnableChildCompletion" 1 $null
 	Add-Reg "GPU07" "Tắt Transparency & Acrylic (giải phóng GPU cho game)" $GPU "EnableTransparency=0: bớt hiệu ứng kính mờ ăn GPU/compositor, nhất là máy yếu & farm nhiều cửa sổ." "Safe" ($LOW+$GAME) "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" "EnableTransparency" 0 1
 	Add-Reg "GPU08" "ForceEffectMode = Performance cho DWM Animation" $GPU "Giảm animation DWM ở mức hệ thống — cửa sổ mở/đóng tức thì, giảm frame compositor thừa." "Safe" $LOW "HKCU:\Software\Microsoft\Windows\Dwm" "EnableAeroPeek" 0 1
@@ -3542,23 +3590,23 @@ function Get-SophiaTweaksCatalog
 	} {
 		$base = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
 		if (Test-Path $base) { Get-ChildItem $base | ForEach-Object { Remove-ItemProperty $_.PSPath -Name TcpNoDelay,TCPackFrequency,TcpDelAckTicks -Force -ErrorAction SilentlyContinue } }
-	} { return $false } "Interfaces\* TcpNoDelay/TCPackFrequency"
+	} { try { $b = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"; if (-not (Test-Path $b)) { return $false }; foreach ($k in (Get-ChildItem $b)) { if ((Get-SophiaRegValue $k.PSPath "TcpNoDelay") -eq 1) { return $true } }; return $false } catch { return $false } } "Interfaces\* TcpNoDelay/TCPackFrequency"
 	Add-Cmd "NET02" "netsh Tuning: autotuning=normal, RSS=on, ECN off, timestamps off" $NET "Bộ tuning cân bằng latency/throughput cho game + farm: bật RSS đa lõi, tắt heuristics cũ gây throttle." "Moderate" $ALL_PERF {
 		& netsh interface tcp set global autotuninglevel=normal 2>$null | Out-Null; & netsh interface tcp set global rss=enabled 2>$null | Out-Null; & netsh interface tcp set global ecncapability=disabled 2>$null | Out-Null; & netsh interface tcp set global timestamps=disabled 2>$null | Out-Null; & netsh interface tcp set heuristics disabled 2>$null | Out-Null
 	} {
-		& netsh interface tcp set global autotuninglevel=normal 2>$null | Out-Null; & netsh interface tcp set heuristics enabled 2>$null | Out-Null
+		& netsh interface tcp set global autotuninglevel=normal 2>$null | Out-Null; & netsh interface tcp set heuristics enabled 2>$null | Out-Null; & netsh interface tcp set global ecncapability=disabled 2>$null | Out-Null; & netsh interface tcp set global timestamps=disabled 2>$null | Out-Null
 	} { return $false } "netsh tcp global"
 	Add-Reg "NET03" "QoS: NonBestEffortLimit = 0 (mở khóa 20% băng thông dự trữ)" $NET "Lưu ý trung thực: Windows chỉ dành băng thông khi ứng dụng QoS thật sự đặt chỗ (không phải luôn mất 20%). NonBestEffortLimit=0 bỏ trần giới hạn cho các phiên QoS đó — vô hại và giúp stack nhất quán." "Safe" $GAME "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Psched" "NonBestEffortLimit" 0 $null
 	Add-Cmd "NET04" "DNS Cloudflare 1.1.1.1 / Google 8.8.8.8 cho mọi NIC up" $NET "DNS nhanh & ổn định giảm độ trễ phân giải khi mở game/launcher/giả lập (chỉ đặt trên adapter đang Up)." "Safe" ($GAME+$LOW) {
 		try { Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ServerAddresses ("1.1.1.1","8.8.8.8") -ErrorAction SilentlyContinue } } catch {}
-	} { try { Get-NetAdapter | Where-Object Status -eq 'Up' | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ResetServerAddresses -ErrorAction SilentlyContinue } } catch {} } { return $false } "Set-DnsClientServerAddress 1.1.1.1"
+	} { try { Get-NetAdapter | Where-Object Status -eq 'Up' | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ResetServerAddresses -ErrorAction SilentlyContinue } } catch {} } { try { $nic = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object Status -eq 'Up' | Select-Object -First 1; if (-not $nic) { return $false }; return (((Get-DnsClientServerAddress -InterfaceIndex $nic.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue).ServerAddresses) -contains '1.1.1.1') } catch { return $false } } "Set-DnsClientServerAddress 1.1.1.1"
 	Add-Cmd "NET05" "Tắt Power Saving mọi Network Adapter (NetworkAdaptersSavePower)" $NET "NIC ngủ gây mất gói/delay khi treo farm & ping spike game. Tắt AllowComputerToTurnOff qua registry PnPCapabilities=24." "Moderate" $FARM_GAME {
 		$class = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
 		if (Test-Path $class) { Get-ChildItem $class -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^\d{4}$' } | ForEach-Object { if (Get-ItemProperty $_.PSPath -Name DriverDesc -ErrorAction SilentlyContinue) { Set-SophiaRegValue $_.PSPath "PnPCapabilities" 24 "DWord" } } }
 	} {
 		$class = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
 		if (Test-Path $class) { Get-ChildItem $class -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^\d{4}$' } | ForEach-Object { Remove-ItemProperty $_.PSPath -Name PnPCapabilities -Force -ErrorAction SilentlyContinue } }
-	} { return $false } "PnPCapabilities=24 all NICs"
+	} { try { $c = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"; foreach ($k in (Get-ChildItem $c -ErrorAction SilentlyContinue)) { if ((Get-SophiaRegValue $k.PSPath "PnPCapabilities") -eq 24) { return $true } }; return $false } catch { return $false } } "PnPCapabilities=24 all NICs"
 	Add-Reg "NET06" "TcpAckFrequency mặc định hệ thống (Parameters)" $NET "Đặt tham số TCP toàn cục hỗ trợ low-latency stack (Tcp1323Opts=1 bật Window Scaling/RFC1323)." "Safe" $GAME "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "Tcp1323Opts" 1 0
 	Add-Reg "NET07" "DefaultTTL = 64 (chuẩn hóa TTL gói tin)" $NET "TTL 64 giảm nguy cơ bị middlebox/ISP xử lý bất thường với gói game/voice." "Safe" $GAME "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "DefaultTTL" 64 128
 	Add-Reg "NET08" "MaxUserPort = 65534 (mở rộng ephemeral port cho multi-instance)" $NET "Nhiều instance + launcher dễ cạn ephemeral port gây lỗi connect. Mở MaxUserPort tối đa." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "MaxUserPort" 65534 5000
@@ -3571,11 +3619,13 @@ function Get-SophiaTweaksCatalog
 	Add-Cmd "SYS01" "Tắt services thừa: DiagTrack, dmwappushservice, Fax, RetailDemo..." $SYS "Bộ service telemetry/demo không cần cho farm/game — đặt Disabled giảm tiến trình nền & ghi đĩa." "Moderate" ($FARM_GAME+$LOW) {
 		@("DiagTrack","dmwappushservice","Fax","RetailDemo","RemoteRegistry","MapsBroker","lfsvc","XblGameSave","XboxNetApiSvc") | ForEach-Object { Stop-Service $_ -Force -ErrorAction SilentlyContinue; Set-Service $_ -StartupType Disabled -ErrorAction SilentlyContinue }
 	} {
-		@("DiagTrack","dmwappushservice","MapsBroker") | ForEach-Object { Set-Service $_ -StartupType Manual -ErrorAction SilentlyContinue }
+		@("DiagTrack","dmwappushservice","Fax","RetailDemo","MapsBroker","lfsvc","XblGameSave","XboxNetApiSvc") | ForEach-Object { Set-Service $_ -StartupType Manual -ErrorAction SilentlyContinue }
 	} { try { return ((Get-Service DiagTrack -ErrorAction SilentlyContinue).StartType -eq 'Disabled') } catch { return $false } } "Disable telemetry/demo services"
 	Add-Cmd "SYS02" "Tắt Scheduled Tasks telemetry/quảng cáo (CEIP, Application Experience)" $SYS "Disable task thu thập dữ liệu & compatibility appraisal chạy nền định kỳ gây CPU/disk spike." "Moderate" ($FARM_GAME+$LOW+$STD) {
 		@("\Microsoft\Windows\Customer Experience Improvement Program\Consolidator","\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser","\Microsoft\Windows\Application Experience\ProgramDataUpdater") | ForEach-Object { Disable-ScheduledTask -TaskName (Split-Path $_ -Leaf) -TaskPath ((Split-Path $_) + "\") -ErrorAction SilentlyContinue | Out-Null }
-	} { return } { return $false } "Disable-ScheduledTask CEIP/Appraiser"
+	} {
+		@("\Microsoft\Windows\Customer Experience Improvement Program\Consolidator","\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser","\Microsoft\Windows\Application Experience\ProgramDataUpdater") | ForEach-Object { Enable-ScheduledTask -TaskName (Split-Path $_ -Leaf) -TaskPath ((Split-Path $_) + "\") -ErrorAction SilentlyContinue | Out-Null }
+	} { return $false } "Disable-ScheduledTask CEIP/Appraiser"
 	Add-Reg "SYS03" "Tắt Background Apps toàn cục (BackgroundAccessApplications)" $SYS "Ứng dụng UWP chạy nền ăn RAM/pin/mạng. GlobalUserDisabled=1 — app foreground & giả lập không bị ảnh hưởng." "Safe" ($LOW+$FARM) "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" "GlobalUserDisabled" 1 0
 	Add-Reg "SYS04" "Fast Startup = OFF (khởi động sạch, tránh lỗi driver giả lập)" $SYS "HiberbootEnabled=0: shutdown là tắt thật — tránh driver VT-x/GPU kẹt trạng thái sau 'shutdown' lai." "Safe" $FARM_GAME "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power" "HiberbootEnabled" 0 1
 	Add-Reg "SYS05" "Hiện đuôi file + file ẩn (chuẩn Explorer)" $SYS "HideFileExt=0, Hidden=1 — quản lý file instance/config dễ dàng, tránh nhầm file độc hại đội lốt." "Safe" $STD "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "HideFileExt" 0 1
@@ -3636,10 +3686,10 @@ function Get-SophiaTweaksCatalog
 	} { Set-SophiaExeCpuPriority -Remove } { return (Test-SophiaExeCpuPriority) } "IFEO\<exe>\PerfOptions CpuPriorityClass=3"
 	Add-Cmd "EXT05" "GPU Preference = High Performance cho exe giả lập ĐÃ PHÁT HIỆN" $EXT "Ép Windows Graphics dùng GPU mạnh (dGPU) cho từng exe giả lập tìm thấy trên máy — tránh instance chạy nhầm iGPU yếu gây FPS thảm." "Moderate" $FARM {
 		Set-SophiaExeGpuPreference
-	} { Set-SophiaExeGpuPreference -Remove } { return $false } "UserGpuPreferences GpuPreference=2"
+	} { Set-SophiaExeGpuPreference -Remove } { try { $gp = Get-ItemProperty "HKCU:\Software\Microsoft\DirectX\UserGpuPreferences" -ErrorAction SilentlyContinue; if (-not $gp) { return $false }; foreach ($prop in $gp.PSObject.Properties) { if ([string]$prop.Value -match 'GpuPreference=2') { return $true } }; return $false } catch { return $false } } "UserGpuPreferences GpuPreference=2"
 	Add-Cmd "EXT06" "Tắt Fullscreen Optimizations RIÊNG cho exe giả lập/game đã phát hiện" $EXT "AppCompatFlags Layers '~ DISABLEDXMAXIMIZEDWINDOWEDMODE' theo từng exe: fullscreen thật, giảm input lag & stutter Alt-Tab cho BlueStacks/LDPlayer..." "Moderate" $FARM_GAME {
 		Set-SophiaExeDisableFSO
-	} { Set-SophiaExeDisableFSO -Remove } { return $false } "AppCompatFlags\Layers DISABLEDXMAXIMIZEDWINDOWEDMODE"
+	} { Set-SophiaExeDisableFSO -Remove } { try { $cp = Get-ItemProperty "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" -ErrorAction SilentlyContinue; if (-not $cp) { return $false }; foreach ($prop in $cp.PSObject.Properties) { if ([string]$prop.Value -match 'DISABLEDXMAXIMIZEDWINDOWEDMODE') { return $true } }; return $false } catch { return $false } } "AppCompatFlags\Layers DISABLEDXMAXIMIZEDWINDOWEDMODE"
 	Add-Cmd "EXT07" "Power Profile CỰC HẠN (Ultimate + 10 tinh chỉnh powercfg ẩn)" $EXT "Kích hoạt Ultimate Performance rồi ép: throttle 100/100, unpark 100%, PerfBoost Aggressive, tản nhiệt Active, PERFEPP 0, disk không ngủ, PCIe ASPM off, không standby." "Moderate" $ALL_PERF {
 		Import-SophiaUltimatePowerProfile
 	} { & powercfg /setactive SCHEME_BALANCED 2>$null | Out-Null } { return ((& powercfg /getactivescheme 2>$null) -match 'Ultimate') } "powercfg Ultimate + GUID tuning"
@@ -3672,14 +3722,17 @@ function Get-SophiaTweaksCatalog
 	} {
 		$tasks = @(
 			@{ P = "\Microsoft\Windows\Windows Error Reporting\"; N = "QueueReporting" },
-			@{ P = "\Microsoft\Windows\Feedback\Siuf\"; N = "DmClient" }
+			@{ P = "\Microsoft\Windows\DiskDiagnostic\"; N = "Microsoft-Windows-DiskDiagnosticDataCollector" },
+			@{ P = "\Microsoft\Windows\Power Efficiency Diagnostics\"; N = "AnalyzeSystem" },
+			@{ P = "\Microsoft\Windows\Feedback\Siuf\"; N = "DmClient" },
+			@{ P = "\Microsoft\Windows\Application Experience\"; N = "StartupAppTask" }
 		)
 		foreach ($t in $tasks) { Enable-ScheduledTask -TaskPath $t.P -TaskName $t.N -ErrorAction SilentlyContinue | Out-Null }
 	} { return $false } "Disable-ScheduledTask bundle"
 	Add-Cmd "EXT15" "Tắt gói Services ngoại vi (SmartCard, Phone, Wallet, Sensor, Insider...)" $EXT "Disabled các service ngoại vi/telemetry không liên quan farm-game: SCardSvr, PhoneSvc, WalletService, SensorService, wisvc (Insider), MapsBroker... giải phóng RAM & tiến trình nền." "Moderate" ($FARM_GAME+$LOW) {
 		@("SCardSvr","ScDeviceEnum","PhoneSvc","WalletService","SensorService","SensrSvc","wisvc","MapsBroker","lfsvc","RetailDemo") | ForEach-Object { Stop-Service $_ -Force -ErrorAction SilentlyContinue; Set-Service $_ -StartupType Disabled -ErrorAction SilentlyContinue }
 	} {
-		@("SCardSvr","PhoneSvc","MapsBroker") | ForEach-Object { Set-Service $_ -StartupType Manual -ErrorAction SilentlyContinue }
+		@("SCardSvr","ScDeviceEnum","PhoneSvc","WalletService","SensorService","SensrSvc","wisvc","MapsBroker","lfsvc","RetailDemo") | ForEach-Object { Set-Service $_ -StartupType Manual -ErrorAction SilentlyContinue }
 	} { try { return ((Get-Service SCardSvr -ErrorAction SilentlyContinue).StartType -eq 'Disabled') } catch { return $false } } "Disable peripheral services"
 	Add-Reg "EXT16" "MMCSS 'Games': SchedulingCategory = High" $EXT "Hoàn thiện profile Games của Multimedia Scheduler: SchedulingCategory=High đi cùng GPU Priority (GAM09) — luồng game được dispatcher ưu tiên cao nhất." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "SchedulingCategory" "High" "Medium" "String"
 	Add-Reg "EXT17" "MMCSS NoLazyMode = 1 (scheduler không 'lười' khi có tác vụ multimedia)" $EXT "NoLazyMode ngăn MMCSS trì hoãn nâng priority cho luồng game/audio — phản hồi tức thì ngay từ frame đầu tiên." "Moderate" $GAME "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "NoLazyMode" 1 0
@@ -3724,7 +3777,7 @@ function Get-SophiaTweaksCatalog
 	} {
 		$base = "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces"
 		if (Test-Path $base) { Get-ChildItem $base | ForEach-Object { Set-SophiaRegValue $_.PSPath "TcpipNetbiosOptions" 0 "DWord" } }
-	} { return $false } "NetBT TcpipNetbiosOptions=2"
+	} { try { $b = "HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces"; if (-not (Test-Path $b)) { return $false }; foreach ($k in (Get-ChildItem $b)) { if ((Get-SophiaRegValue $k.PSPath "TcpipNetbiosOptions") -eq 2) { return $true } }; return $false } catch { return $false } } "NetBT TcpipNetbiosOptions=2"
 	Add-Cmd "EXT37" "TCP Supplemental: CUBIC + template Internet tốc độ cao" $EXT "Ép thuật toán điều khiển tắc nghẽn CUBIC và template supplemental cho kết nối Internet — throughput ổn định hơn cho launcher/update/farm tải dữ liệu lớn." "Moderate" $GAME {
 		& netsh interface tcp set supplemental template=internet congestionprovider=cubic 2>$null | Out-Null
 		& netsh interface tcp set global initialRto=1000 2>$null | Out-Null
@@ -3754,7 +3807,7 @@ function Get-SophiaTweaksCatalog
 		& bcdedit /set '{current}' bootmenupolicy Legacy 2>$null | Out-Null
 	} {
 		& bcdedit /set '{current}' bootmenupolicy Standard 2>$null | Out-Null
-	} { return $false } "bcdedit bootmenupolicy Legacy"
+	} { try { return ((& bcdedit /enum '{current}' 2>$null) -match 'bootmenupolicy\s+Legacy') } catch { return $false } } "bcdedit bootmenupolicy Legacy"
 	Add-Cmd "EXT47" "Hiện toàn bộ Power Settings ẩn (Unhide PERF/IDLE/EPP trong Power Options)" $EXT "Attributes=2 cho 7 thiết lập ẩn quan trọng: từ nay bạn tinh chỉnh tay IDLE/PERFBOOST/CPMINCORES... ngay trong Power Options nâng cao mà không cần lệnh." "Safe" $ALL_PERF {
 		Unhide-SophiaPowerSettings
 	} { Unhide-SophiaPowerSettings -Restore } { return $false } "PowerSettings Attributes=2"
@@ -3767,6 +3820,17 @@ function Get-SophiaTweaksCatalog
 	} {
 		Set-Service Spooler -StartupType Manual -ErrorAction SilentlyContinue
 	} { try { return ((Get-Service Spooler -ErrorAction SilentlyContinue).StartType -eq 'Disabled') } catch { return $false } } "Spooler Disabled"
+
+	Add-Cmd "EXT85" "Tắt Delivery Optimization (DoSvc) — không tải/chia sẻ update qua P2P nền" $EXT "DoSvc tải update & app Store qua mạng ngang hàng (kể cả upload cho máy khác) trong nền. Máy farm đã khóa update nền (EXT53/79/80) nên tắt nốt DoSvc để mạng/đĩa không bị chiếm bất chợt. Restore về Manual — Windows vẫn gọi được khi bạn chủ động update." "Moderate" ($FARM+$LOW) {
+		Stop-Service DoSvc -Force -ErrorAction SilentlyContinue; Set-Service DoSvc -StartupType Disabled -ErrorAction SilentlyContinue
+	} {
+		Set-Service DoSvc -StartupType Manual -ErrorAction SilentlyContinue
+	} { try { return ((Get-Service DoSvc -ErrorAction SilentlyContinue).StartType -eq "Disabled") } catch { return $false } } "DoSvc Disabled"
+	Add-Cmd "EXT86" "Tắt Diagnostic Policy Service (DPS/SRUM) — bớt ghi đĩa chẩn đoán nền" $EXT "DPS nuôi SRUM (ghi liên tục mức dùng CPU/mạng/đĩa của từng app) và các trình chẩn đoán tự động. Tắt để giảm ghi đĩa nền khi treo 24/7; đánh đổi: mất Windows Troubleshooters tự sửa lỗi. Máy farm/game ổn định không cần chúng chạy thường trực." "Moderate" $FARM {
+		Stop-Service DPS -Force -ErrorAction SilentlyContinue; Set-Service DPS -StartupType Disabled -ErrorAction SilentlyContinue
+	} {
+		Set-Service DPS -StartupType Automatic -ErrorAction SilentlyContinue; Start-Service DPS -ErrorAction SilentlyContinue
+	} { try { return ((Get-Service DPS -ErrorAction SilentlyContinue).StartType -eq "Disabled") } catch { return $false } } "DPS Disabled"
 
 	# WinUtil integration (vendored offline from ChrisTitusTech/winutil, MIT): append converted tweaks if bridge is loaded
 	if (Get-Command Get-WinUtilConvertedTweaks -ErrorAction SilentlyContinue)
@@ -3822,7 +3886,7 @@ function Get-SophiaTweaksCatalog
 		if (Get-Service ClickToRunSvc -ErrorAction SilentlyContinue) { Set-Service ClickToRunSvc -StartupType Manual -ErrorAction SilentlyContinue }
 	} {
 		if (Get-Service ClickToRunSvc -ErrorAction SilentlyContinue) { Set-Service ClickToRunSvc -StartupType Automatic -ErrorAction SilentlyContinue }
-	} { return $false } "ClickToRunSvc Manual"
+	} { try { $s = Get-Service ClickToRunSvc -ErrorAction SilentlyContinue; return ($null -ne $s -and $s.StartType -eq 'Manual') } catch { return $false } } "ClickToRunSvc Manual"
 	Add-Reg "EXT70" "Tắt Miracast Wireless Display (PlatformSupportMiracast = 0)" $EXT "Máy bàn/farm không chiếu không dây: tắt hỗ trợ Miracast ở GraphicsDrivers để pipeline hiển thị gọn, bớt thành phần driver chạy nền." "Moderate" $FARM_GAME "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" "PlatformSupportMiracast" 0 1
 	Add-Reg "EXT71" "Tắt Online Speech Recognition (HasAccepted = 0)" $EXT "Nhận dạng giọng nói online không kích hoạt nền — giảm kết nối dịch vụ thoại thừa trên máy chuyên dụng." "Safe" $STD "HKCU:\Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy" "HasAccepted" 0 1
 	Add-Reg "EXT72" "DisableWindowsConsumerFeatures = 1 (Policy cứng, chặn app quảng cáo tự cài)" $EXT "Bản Policy của Consumer Features: Windows không tự tải/cài app gợi ý (Candy Crush, TikTok...) sau mỗi lần update — ổ & Start Menu sạch lâu dài." "Safe" ($STD+$FARM+$LOW) "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" "DisableWindowsConsumerFeatures" 1 0
@@ -3842,6 +3906,7 @@ function Get-SophiaTweaksCatalog
 		Disable-ScheduledTask -TaskPath "\Microsoft\Windows\MemoryDiagnostic\" -TaskName "RunFullMemoryDiagnostic" -ErrorAction SilentlyContinue | Out-Null
 	} {
 		Enable-ScheduledTask -TaskPath "\Microsoft\Windows\MemoryDiagnostic\" -TaskName "ProcessMemoryDiagnosticEvents" -ErrorAction SilentlyContinue | Out-Null
+		Enable-ScheduledTask -TaskPath "\Microsoft\Windows\MemoryDiagnostic\" -TaskName "RunFullMemoryDiagnostic" -ErrorAction SilentlyContinue | Out-Null
 	} { return $false } "Disable-ScheduledTask MemoryDiagnostic"
 	Add-Reg "EXT79" "Tắt WaaSMedicSvc (Update không tự kích hoạt lại nền)" $EXT "WaaSMedic là service chuyên tự sửa/kích hoạt lại các thành phần Windows Update bị tắt — nguyên nhân farm hay 'tự nhiên' quét update lại. Start=4 cho máy chuyên dụng đã chủ động quản lý update (đi cặp EXT53). Muốn update Windows bình thường thì Restore trước." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\WaaSMedicSvc" "Start" 4 3
 	Add-Reg "EXT80" "Tắt UsoSvc — Update Orchestrator Service (farm chủ động update)" $EXT "UsoSvc điều phối quét/tải update nền. Start=4 cùng EXT53+EXT79 tạo bộ ba khóa update nền triệt để cho máy treo 24/7: không spike CPU/disk, không tự restart (EXT26). Cập nhật thủ công qua Settings vẫn mở được sau khi Restore." "Moderate" $FARM "HKLM:\SYSTEM\CurrentControlSet\Services\UsoSvc" "Start" 4 2
@@ -3941,15 +4006,35 @@ function Invoke-SophiaSelectedTweaks
 	Write-Host "  Áp dụng $($selected.Count) tweak" -ForegroundColor White
 	"=== MOLIK WINLIK $(Get-Date) - $($selected.Count) tweaks ===" | Set-Content $logFile -Encoding UTF8
 
-	$ok = 0; $fail = 0
+	# Pre-scan (chi doc): bao nhieu tweak da o trang thai dich tu truoc
+	$alreadyApplied = 0
+	foreach ($tweak in $selected) { try { if (& $tweak.CheckScript) { $alreadyApplied++ } } catch {} }
+	if ($alreadyApplied -gt 0) { Write-Host "  $alreadyApplied/$($selected.Count) tweak đã ở trạng thái đích từ trước (vẫn áp lại để đồng bộ)." -ForegroundColor DarkGray }
+
+	$ok = 0; $fail = 0; $verifiedCount = 0; $unverifiedCount = 0
 	foreach ($tweak in $selected)
 	{
 		Write-Host ("  [{0}] {1} ... " -f $tweak.Id, $tweak.Name) -NoNewline
 		try
 		{
 			& $tweak.ApplyScript
-			Write-Host "OK" -ForegroundColor Green
-			"OK   $($tweak.Id) $($tweak.Name)" | Add-Content $logFile -Encoding UTF8
+			# Post-verify: chay lai CheckScript de xac nhan trang thai that,
+			# khong chi dua vao viec Apply khong nem loi (registry ghi that bai
+			# thuong bi nuot am tham boi SilentlyContinue).
+			$isVerified = $false
+			try { $isVerified = [bool](& $tweak.CheckScript) } catch {}
+			if ($isVerified)
+			{
+				Write-Host "OK" -ForegroundColor Green
+				"OK   $($tweak.Id) $($tweak.Name) [verified]" | Add-Content $logFile -Encoding UTF8
+				$verifiedCount++
+			}
+			else
+			{
+				Write-Host "OK (unverified)" -ForegroundColor Yellow
+				"OK   $($tweak.Id) $($tweak.Name) [unverified]" | Add-Content $logFile -Encoding UTF8
+				$unverifiedCount++
+			}
 			$ok++
 		}
 		catch
@@ -3960,7 +4045,7 @@ function Invoke-SophiaSelectedTweaks
 		}
 	}
 	Write-Host ""
-	Write-Host "  Hoàn tất: $ok OK / $fail FAIL — Log: $logFile" -ForegroundColor Cyan
+	Write-Host "  Hoàn tất: $ok OK ($verifiedCount verified, $unverifiedCount unverified) / $fail FAIL — Log: $logFile" -ForegroundColor Cyan
 	Write-Host "  [!] Nhiều tweak (HAGS, VBS, BCD, Pagefile) cần RESTART để có hiệu lực." -ForegroundColor Yellow
 	if (-not $Force -and -not $NoRestartPrompt)
 	{
@@ -4044,7 +4129,7 @@ function Get-SophiaSelectionProfile
 function Get-MolikUiVersion
 {
 	if ($Global:MolikWinlikVersion) { return [string]$Global:MolikWinlikVersion }
-	return "3.2.0"
+	return "3.3.0"
 }
 
 function Format-MolikTruncate

@@ -1,4 +1,4 @@
-﻿<#
+<#
 	.SYNOPSIS
 	MOLIK WINLIK - Self-Test / Debug toàn diện (không thay đổi hệ thống)
 
@@ -58,6 +58,19 @@ function Test-SophiaOptimizerHealth
 	if ($dupes) { Report "FAIL" "ID trùng: $($dupes.Name -join ', ')" } else { Report "PASS" "Không có ID tweak nào trùng" }
 	$incomplete = @($Catalog | Where-Object { -not $_.ApplyScript -or -not $_.RestoreScript -or -not $_.CheckScript -or -not $_.Name })
 	if ($incomplete.Count -gt 0) { Report "FAIL" "Tweak thiếu script/tên: $($incomplete.Id -join ', ')" } else { Report "PASS" "Mọi tweak đủ Apply/Restore/Check/Name" }
+	# Xung dot registry: cung Path\Name (Detail cua Reg tweak) nhung khac gia tri dich
+	$regTargets = @{}
+	$regConflicts = @()
+	foreach ($t in $Catalog)
+	{
+		if ($t.Kind -eq "Registry" -and $t.Detail -match '^(.*) = (.*)$')
+		{
+			$targetKey = $Matches[1]; $targetVal = $Matches[2]
+			if ($regTargets.ContainsKey($targetKey) -and $regTargets[$targetKey] -ne $targetVal) { $regConflicts += "$targetKey [$($t.Id)]" }
+			else { $regTargets[$targetKey] = $targetVal }
+		}
+	}
+	if ($regConflicts.Count -gt 0) { Report "FAIL" "Xung đột registry (cùng khóa, khác giá trị đích): $($regConflicts -join '; ')" } else { Report "PASS" "Không xung đột registry ($($regTargets.Count) khóa đích duy nhất)" }
 
 	# 3) CheckScripts (read-only)
 	$checkErrors = @()

@@ -1,4 +1,4 @@
-﻿<#
+<#
 	.SYNOPSIS
 	MOLIK WINLIK - Optimization Plan Engine (phân tích siêu sâu trước khi áp dụng)
 
@@ -90,6 +90,10 @@ function Get-SophiaOptimizationPlan
 	{
 		$ids = @($ids | Where-Object { $_ -ne "EMU13" })
 		$notes += "[Trùng lặp] EXT03 Process Booster Task đã tự boost định kỳ — loại EMU13 (boost thủ công 1 lần)."
+	}
+	if (($ids -contains "EXT51") -and (($ids -contains "GPU03") -or ($ids -contains "GPU04")))
+	{
+		$notes += "[Ghi chú] EXT51 tắt TDR hoàn toàn (TdrLevel=0) nên GPU03/GPU04 (TdrDelay/TdrDdiDelay) không còn tác dụng khi EXT51 bật — vẫn giữ trong kế hoạch để sẵn sàng nếu bạn tắt EXT51."
 	}
 
 	# ── Context warnings ──────────────────────────────────────────────────────
