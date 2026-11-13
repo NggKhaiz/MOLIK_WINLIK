@@ -1,5 +1,5 @@
 ﻿<#
-	MOLIK WINLIK by @nggkhaiz v3.1.0 - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)
+	MOLIK WINLIK by @nggkhaiz v3.2.0 - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)
 	Chay: double-click MOLIK_WINLIK.bat (tu xin Admin), hoac powershell -ExecutionPolicy Bypass -File .\MolikWinlik-Portable.ps1
 	File nay duoc sinh tu dong boi Optimizer\Build-Portable.ps1 - dung sua tay, hay sua nguon trong Optimizer/ roi build lai.
 #>
@@ -80,7 +80,7 @@ param(
 
 $ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
-$Global:MolikWinlikVersion = "3.1.0"
+$Global:MolikWinlikVersion = "3.2.0"
 
 # ── Self-elevate to Administrator (chi khi thao tac that su can Admin) ───────
 # Cac lenh chi-doc duoi day chay ngay khong can UAC cho khoi dong nhanh:
@@ -1614,9 +1614,7 @@ function Show-SophiaOptimizationPlan
 	param([Parameter(Mandatory)]$Plan, [string]$Title = "KẾ HOẠCH TỐI ƯU SIÊU SÂU")
 
 	Write-Host ""
-	Write-Host "  ╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-	Write-Host "  ║  $Title" -ForegroundColor Magenta
-	Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+	Write-Host "  $Title" -ForegroundColor White
 	Write-Host ("  Tổng: {0} tweak | Impact Score: {1} ({2}) | Cần restart: {3} | Extreme: {4}" -f $Plan.Count, $Plan.ImpactScore, $Plan.Level, $Plan.RebootCount, $Plan.ExtremeCount) -ForegroundColor Cyan
 	$phaseNames = @{ 2 = "Pha 2 - Scheduled Tasks & Services"; 3 = "Pha 3 - Registry / Privacy / System"; 4 = "Pha 4 - GPU / Display / Multimedia"; 5 = "Pha 5 - Power Profile & CPU Power"; 6 = "Pha 6 - Network Stack"; 7 = "Pha 7 - Storage & Pagefile"; 8 = "Pha 8 - Kernel / BCD / Security Mitigations (cuối cùng)" }
 	foreach ($phase in $Plan.Phases)
@@ -1864,7 +1862,7 @@ function Export-MolikHtmlReport
 	}
 
 	$enc = { param($v) if ($null -eq $v) { return "" } return [System.Net.WebUtility]::HtmlEncode([string]$v) }
-	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "3.1.0" }
+	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "3.2.0" }
 	$now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 	$status = @{}
@@ -3940,7 +3938,7 @@ function Invoke-SophiaSelectedTweaks
 	}
 
 	Write-Host ""
-	Write-Host "  ══════════ ĐANG ÁP DỤNG $($selected.Count) TWEAK ══════════" -ForegroundColor Cyan
+	Write-Host "  Áp dụng $($selected.Count) tweak" -ForegroundColor White
 	"=== MOLIK WINLIK $(Get-Date) - $($selected.Count) tweaks ===" | Set-Content $logFile -Encoding UTF8
 
 	$ok = 0; $fail = 0
@@ -3962,7 +3960,7 @@ function Invoke-SophiaSelectedTweaks
 		}
 	}
 	Write-Host ""
-	Write-Host "  ══════════ HOÀN TẤT: $ok OK / $fail FAIL — Log: $logFile ══════════" -ForegroundColor Cyan
+	Write-Host "  Hoàn tất: $ok OK / $fail FAIL — Log: $logFile" -ForegroundColor Cyan
 	Write-Host "  [!] Nhiều tweak (HAGS, VBS, BCD, Pagefile) cần RESTART để có hiệu lực." -ForegroundColor Yellow
 	if (-not $Force -and -not $NoRestartPrompt)
 	{
@@ -4046,7 +4044,7 @@ function Get-SophiaSelectionProfile
 function Get-MolikUiVersion
 {
 	if ($Global:MolikWinlikVersion) { return [string]$Global:MolikWinlikVersion }
-	return "3.1.0"
+	return "3.2.0"
 }
 
 function Format-MolikTruncate
@@ -4063,34 +4061,20 @@ function Get-MolikRiskBadge
 	param([string]$Risk)
 	switch ($Risk)
 	{
-		"Extreme"  { return "[EXT ]" }
-		"Moderate" { return "[MOD ]" }
-		default    { return "[SAFE]" }
+		"Extreme"  { return "EXT" }
+		"Moderate" { return "MOD" }
+		default    { return "" }
 	}
 }
 
-function Get-MolikWrappedLines
+function Format-MolikCategoryName
 {
-	param([string]$Text, [int]$Width = 100, [int]$MaxLines = 2)
-	if ([string]::IsNullOrWhiteSpace($Text)) { return @("") }
-	if ($Width -lt 20) { $Width = 20 }
-	$words = $Text -split '\s+'
-	$lines = @()
-	$current = ""
-	foreach ($w in $words)
-	{
-		if (($current.Length + $w.Length + 1) -le $Width) { $current = if ($current) { "$current $w" } else { $w } }
-		else
-		{
-			if ($current) { $lines += $current }
-			if ($lines.Count -ge $MaxLines) { break }
-			$current = $w
-		}
-	}
-	if ($current -and $lines.Count -lt $MaxLines) { $lines += $current }
-	if ($lines.Count -gt $MaxLines) { $lines = $lines[0..($MaxLines - 1)] }
-	if ($lines.Count -eq $MaxLines -and ($Text.Length -gt (($lines -join " ").Length + 4))) { $lines[-1] = Format-MolikTruncate $lines[-1] ($Width) }
-	return $lines
+	param([string]$Category)
+	if ([string]::IsNullOrWhiteSpace($Category)) { return "" }
+	$name = $Category -replace '^\s*\d+\.\s*', ''
+	$name = $name -replace '[\uD800-\uDBFF][\uDC00-\uDFFF]', ''
+	$name = $name -replace '\uFE0F', ''
+	return ($name -replace '\s+', ' ').Trim()
 }
 
 function Show-SophiaSimpleMenu
@@ -4101,33 +4085,26 @@ function Show-SophiaSimpleMenu
 	while ($true)
 	{
 		Write-Host ""
-		Write-Host "  ╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-		Write-Host "  ║  👑 MOLIK WINLIK v$(Get-MolikUiVersion) by @nggkhaiz - MENU (Offline)  ║" -ForegroundColor Magenta
-		Write-Host "  ╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+		Write-Host " MOLIK WINLIK v$(Get-MolikUiVersion)" -ForegroundColor White
 		if ($Snapshot)
 		{
-			Write-Host ("  {0} | {1} | RAM {2}GB | GPU {3} | Admin: {4}{5}" -f $Snapshot.OSName, $Snapshot.CPUName, $Snapshot.RAMTotalGB, $Snapshot.GPUName, $Snapshot.IsAdmin, $(if ($Snapshot.PendingReboot) { " | [!] DANG CHO RESTART" } else { "" })) -ForegroundColor DarkCyan
-			if ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0) { Write-Host ("  Gia lap: {0}" -f ($Snapshot.InstalledEmulators -join ", ")) -ForegroundColor Green }
+			Write-Host (" {0} · RAM {1} GB · Admin: {2}{3}" -f $Snapshot.OSName, $Snapshot.RAMTotalGB, $Snapshot.IsAdmin, $(if ($Snapshot.PendingReboot) { " · restart pending" } else { "" })) -ForegroundColor DarkGray
+			if ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0) { Write-Host (" Emulators: {0}" -f ($Snapshot.InstalledEmulators -join ", ")) -ForegroundColor DarkGray }
 		}
+		Write-Host ""
 		$modes = Get-SophiaOptimizationModes
 		for ($i = 0; $i -lt $modes.Count; $i++)
 		{
 			$m = $modes[$i]
 			$cnt = (Get-SophiaModeTweakIds -ModeKey $m.Key -Catalog $Catalog).Count
-			Write-Host ("   {0}. {1} {2} ({3} tweak)" -f ($i + 1), $m.Icon, $m.Name, $cnt) -ForegroundColor Cyan
-			Write-Host ("      {0}" -f $m.Description) -ForegroundColor Gray
+			Write-Host ("  {0}  {1} ({2}) — {3}" -f ($i + 1), $m.Name, $cnt, (Format-MolikTruncate $m.Sub 60)) -ForegroundColor Gray
 		}
-		Write-Host "   7. 🎛️  Mở giao diện TICK-CHỌN đầy đủ (phím ↑↓/SPACE)" -ForegroundColor Green
-		Write-Host "   G. 🤖 SMART AUTO — tự chọn Mode + tweak theo phần cứng máy này" -ForegroundColor Green
-		Write-Host "   8. 🧠 Purge RAM ngay          9. 🖥️ Boost giả lập ngay" -ForegroundColor Green
-		Write-Host "   T. 📊 Benchmark (Before/After)   C. 📈 So sánh Benchmark" -ForegroundColor Green
-		Write-Host "   R. ↩️  Restore mặc định        S. 💾 Tạo Shortcut Desktop" -ForegroundColor Green
-		Write-Host "   A. 📦 Cài ứng dụng qua winget (kiểu winutil, 239 app)" -ForegroundColor Green
-		Write-Host "   D. 🩺 SELF-TEST / DEBUG toàn diện (kiểm tra tool, không đổi hệ thống)" -ForegroundColor Green
-		Write-Host "   X. 🎁 PRESETS — gói tối ưu theo kịch bản (Farm/Esports/Privacy...)" -ForegroundColor Green
-		Write-Host "   H. 📄 Báo cáo HTML Dashboard      B. 💾 Tạo Backup ngay" -ForegroundColor Green
-		Write-Host "   U. ↩️  HOÀN TÁC phiên áp dụng gần nhất (khôi phục các tweak vừa áp)" -ForegroundColor Green
-		Write-Host "   0. Thoát" -ForegroundColor Yellow
+		Write-Host ""
+		Write-Host "  7  Tick-select UI     G  Smart Auto       8  Purge RAM" -ForegroundColor Gray
+		Write-Host "  9  Boost emulators  T  Benchmark        C  Compare benchmarks" -ForegroundColor Gray
+		Write-Host "  A  Install apps     X  Presets          H  HTML report" -ForegroundColor Gray
+		Write-Host "  B  Backup           U  Undo session     R  Restore defaults" -ForegroundColor Gray
+		Write-Host "  S  Desktop shortcut D  Self-test        0  Exit" -ForegroundColor Gray
 		$choice = Read-Host "  Chọn (0-9/G/A/T/C/R/S/D/X/H/B/U)"
 		if ($choice -match '^[1-6]$')
 		{
@@ -4253,13 +4230,13 @@ function Show-SophiaOptimizerUI
 
 	$modes = Get-SophiaOptimizationModes
 	$modeKeys = @($modes | ForEach-Object { $_.Key })
+	$tabLabels = @{ EmulatorFarm = "Farm"; HardcoreGaming = "Gaming"; Workstation = "Workstation"; LowSpec = "LowSpec"; SophiaStandard = "Standard"; GodMode = "GodMode" }
 	$currentMode = $InitialMode
 
 	$selected = @{}
 	foreach ($id in (Get-SophiaModeTweakIds -ModeKey $currentMode -Catalog $Catalog)) { $selected[$id] = $true }
 
-	# Trang thai da ap dung (phim V de quet) - PHAI khoi tao truoc khi render,
-	# ban cu thieu dong nay nen TUI vang loi ngay khung hinh dau tien.
+	# Trang thai da ap dung (phim V de quet)
 	$appliedStatus = @{}
 	$smartRec = $null
 	try { if (Get-Command Get-SophiaSmartRecommendation -ErrorAction SilentlyContinue) { $smartRec = Get-SophiaSmartRecommendation -Snapshot $Snapshot -Catalog $Catalog } } catch {}
@@ -4288,7 +4265,10 @@ function Show-SophiaOptimizerUI
 
 	while ($true)
 	{
-		try { $pageSize = [Math]::Max(10, [Console]::WindowHeight - 18) } catch {}
+		$width = 100
+		try { $width = [Console]::WindowWidth } catch {}
+		if ($width -lt 60) { $width = 60 }
+		try { $pageSize = [Math]::Max(8, [Console]::WindowHeight - 9) } catch {}
 		$filtered = & $getFiltered
 		if ($filtered.Count -eq 0) { $filtered = @($Catalog); $searchTerm = ""; $filterMode = "All" }
 		if ($cursor -ge $filtered.Count) { $cursor = $filtered.Count - 1 }
@@ -4296,6 +4276,7 @@ function Show-SophiaOptimizerUI
 		$pageStart = [Math]::Floor($cursor / $pageSize) * $pageSize
 		$pageEnd = [Math]::Min($pageStart + $pageSize - 1, $filtered.Count - 1)
 		$selectedCount = @($selected.Keys | Where-Object { $selected[$_] }).Count
+		$appliedKnown = @($appliedStatus.Keys | Where-Object { $appliedStatus[$_] }).Count
 
 		try
 		{
@@ -4303,89 +4284,113 @@ function Show-SophiaOptimizerUI
 			else { [Console]::SetCursorPosition(0, 0) }
 			[Console]::CursorVisible = $false
 		} catch { Clear-Host; $lastFrameLines = 0 }
-		$snapLines = 0
-		if ($Snapshot) { $snapLines = 1; if ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0) { $snapLines++ } }
-		$frameLines = 11 + $snapLines
-		if ($smartRec) { $frameLines++ }
 
-		# Header
-		Write-Host "  ╔══════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-		Write-Host "  ║  👑 MOLIK WINLIK v$(Get-MolikUiVersion) by @nggkhaiz — OFFLINE OPTIMIZER          ║" -ForegroundColor Magenta
-		Write-Host "  ╚══════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+		# ── Header (3 dong): tieu de / tab Mode + trang thai / gach ngang ──
+		$titleLeft = " MOLIK WINLIK"
+		$titleVer = " v$(Get-MolikUiVersion)"
+		$titleRight = ""
 		if ($Snapshot)
 		{
-			Write-Host ("  {0} | {1} | RAM {2}GB | Admin: {3}" -f $Snapshot.OSName, $Snapshot.CPUName, $Snapshot.RAMTotalGB, $Snapshot.IsAdmin) -ForegroundColor DarkCyan
-			if ($Snapshot.InstalledEmulators -and $Snapshot.InstalledEmulators.Count -gt 0)
-			{
-				Write-Host ("  🖥️ Giả lập phát hiện: {0}" -f ($Snapshot.InstalledEmulators -join ", ")) -ForegroundColor Green
-			}
+			$titleRight = "{0} · RAM {1} GB" -f $Snapshot.OSName, $Snapshot.RAMTotalGB
+			if ($Snapshot.PendingReboot) { $titleRight += " · restart pending" }
+			$titleRight = Format-MolikTruncate $titleRight 44
 		}
-		# Mode bar
-		$modeLine = "  MODE: "
+		Write-Host $titleLeft -ForegroundColor White -NoNewline
+		Write-Host $titleVer -ForegroundColor DarkGray -NoNewline
+		if ($titleRight)
+		{
+			$usedWidth = $titleLeft.Length + $titleVer.Length + $titleRight.Length
+			if ($usedWidth -lt ($width - 2)) { Write-Host (" " * ($width - 2 - $usedWidth)) -NoNewline }
+			Write-Host $titleRight -ForegroundColor DarkGray -NoNewline
+		}
+		Write-Host ""
+
+		$tabsLen = 1
 		for ($i = 0; $i -lt $modes.Count; $i++)
 		{
 			$m = $modes[$i]
-			if ($m.Key -eq $currentMode) { $modeLine += " [$($i+1):$($m.Name)] " }
-			else { $modeLine += "  $($i+1):$($m.Name)  " }
+			$label = $tabLabels[$m.Key]
+			if (-not $label) { $label = $m.Key }
+			$tabText = " $($i + 1) $label "
+			$tabsLen += $tabText.Length + 1
+			if ($m.Key -eq $currentMode) { Write-Host $tabText -ForegroundColor White -BackgroundColor DarkCyan -NoNewline }
+			else { Write-Host $tabText -ForegroundColor DarkGray -NoNewline }
+			Write-Host " " -NoNewline
 		}
-		Write-Host $modeLine -ForegroundColor Yellow
-		$modeObj = $modes | Where-Object Key -eq $currentMode | Select-Object -First 1
-		if ($modeObj) { Write-Host "  $($modeObj.Icon) $($modeObj.Description)" -ForegroundColor DarkYellow }
-		if ($smartRec) { Write-Host "  🤖 Smart Advisor (phím G): khuyên dùng Mode $($smartRec.Mode) + $($smartRec.ExtraIds.Count) tweak theo phần cứng máy này" -ForegroundColor Green }
-		$appliedKnown = @($appliedStatus.Keys | Where-Object { $appliedStatus[$_] }).Count
-		Write-Host ("  Đã tick: {0}/{1} tweak | Đã áp (đã quét): {2} | Hiển thị: {3} | Lọc: {4} | Tìm kiếm: '{5}'" -f $selectedCount, $Catalog.Count, $appliedKnown, $filtered.Count, $filterMode, $searchTerm) -ForegroundColor Cyan
-		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
-		Write-Host "  [↑↓/KJ] Chọn  [SPACE] Tick  [1-6] Mode  [A]ll  [N]one  [/] Tìm  [P] Purge RAM  [E] Boost Giả Lập" -ForegroundColor Gray
-		Write-Host "  [G] Smart Auto (AI khuyên dùng)  [V] Check đã áp dụng (●)  [T] Benchmark  [S] Lưu Profile  [F] Đổi bộ lọc" -ForegroundColor Gray
-		Write-Host "  [L] Nạp Profile  [B] Backup  [H] Báo cáo HTML  [U] Hoàn tác phiên gần nhất  [?] Trợ giúp" -ForegroundColor Gray
-		Write-Host "  [R] Restore Mặc Định  [ENTER] ÁP DỤNG  [Q] Thoát" -ForegroundColor Gray
-		Write-Host "  ──────────────────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
+		$status = " {0}/{1} selected" -f $selectedCount, $Catalog.Count
+		if ($appliedKnown -gt 0) { $status += " · $appliedKnown applied" }
+		if ($smartRec) { $status += " · G Smart: $($tabLabels[$smartRec.Mode])" }
+		if ($filterMode -ne "All") { $status += " · filter: $filterMode" }
+		if ($searchTerm) { $status += " · search: '$searchTerm'" }
+		Write-Host (Format-MolikTruncate $status ([Math]::Max(10, $width - $tabsLen - 1))) -ForegroundColor DarkGray
 
+		$rule = " " + ("─" * ($width - 2))
+		Write-Host $rule -ForegroundColor DarkGray
+
+		# ── Danh sach (1 dong/tweak, cot thang hang) ──
+		$listLines = 0
 		$lastCategory = ""
 		for ($idx = $pageStart; $idx -le $pageEnd; $idx++)
 		{
 			$t = $filtered[$idx]
-			$frameLines++
 			if ($t.Category -ne $lastCategory)
 			{
 				$lastCategory = $t.Category
-				$frameLines += 2
-				Write-Host ""
-				Write-Host "  $lastCategory" -ForegroundColor Magenta
+				Write-Host (" " + (Format-MolikCategoryName $t.Category)) -ForegroundColor DarkCyan
+				$listLines++
 			}
 			$isOn = ($selected.ContainsKey($t.Id) -and $selected[$t.Id])
-			$box = if ($isOn) { "[✓]" } else { "[ ]" }
+			$box = if ($isOn) { "[x]" } else { "[ ]" }
 			if ($appliedStatus.ContainsKey($t.Id) -and $appliedStatus[$t.Id]) { $box += "●" }
-			$riskColor = "Green"
-			if ($t.Risk -eq "Extreme") { $riskColor = "Red" } elseif ($t.Risk -eq "Moderate") { $riskColor = "Yellow" }
-			$uiWidth = 110
-			try { $uiWidth = [Console]::WindowWidth } catch {}
-			$nameMax = [Math]::Max(30, $uiWidth - 32)
-			$line = "{0} {1} {2} {3}" -f $box, $t.Id, (Get-MolikRiskBadge $t.Risk), (Format-MolikTruncate $t.Name $nameMax)
+			$mark = if ($idx -eq $cursor) { ">" } else { " " }
+			$badge = Get-MolikRiskBadge $t.Risk
+			$badgeCol = if ($badge) { " " + $badge } else { "" }
+			$prefix = " $mark $box $($t.Id.PadRight(6)) "
+			$nameMax = [Math]::Max(16, $width - $prefix.Length - $badgeCol.Length - 1)
+			$row = $prefix + (Format-MolikTruncate $t.Name $nameMax).PadRight($nameMax) + $badgeCol
 			if ($idx -eq $cursor)
 			{
-				Write-Host "  ▶ $line" -ForegroundColor White -BackgroundColor DarkBlue
-				$descUiLines = @(Get-MolikWrappedLines $t.Description ([Math]::Max(40, $uiWidth - 10)) 2)
-				$frameLines += $descUiLines.Count + 1
-				foreach ($descLine in $descUiLines) { Write-Host "      $descLine" -ForegroundColor Cyan }
-				$rebootTag = if ($rebootIds -contains $t.Id) { " | Cần RESTART" } else { "" }
-				Write-Host (Format-MolikTruncate "      Chi tiết: $($t.Detail)$rebootTag" ([Math]::Max(40, $uiWidth - 2))) -ForegroundColor DarkGray
+				Write-Host $row.PadRight($width - 1) -ForegroundColor White -BackgroundColor DarkBlue
 			}
-			else
-			{
-				if ($isOn) { Write-Host "    $line" -ForegroundColor Green }
-				else { Write-Host "    $line" -ForegroundColor $riskColor }
-			}
+			elseif ($isOn) { Write-Host $row -ForegroundColor White }
+			else { Write-Host $row -ForegroundColor Gray }
+			$listLines++
 		}
-		$frameLines += 2
-		Write-Host ""
-		Write-Host ("  Trang {0}/{1} — Mục {2}/{3}" -f ([Math]::Floor($pageStart/$pageSize)+1), ([Math]::Ceiling($filtered.Count/$pageSize)), ($cursor+1), $filtered.Count) -ForegroundColor DarkGray
+		if ($filtered.Count -eq 0)
+		{
+			Write-Host " (no tweaks)" -ForegroundColor DarkGray
+			$listLines++
+		}
+
+		# ── Panel chi tiet co dinh (2 dong) + thanh phim tat (1 dong) ──
+		Write-Host $rule -ForegroundColor DarkGray
+		$cur = $null
+		if ($filtered.Count -gt 0) { $cur = $filtered[$cursor] }
+		if ($cur)
+		{
+			Write-Host (" " + (Format-MolikTruncate $cur.Description ($width - 3))) -ForegroundColor Gray
+			$detailLine = $cur.Detail
+			if ($rebootIds -contains $cur.Id) { $detailLine += " · Restart required" }
+			Write-Host (" " + (Format-MolikTruncate $detailLine ($width - 3))) -ForegroundColor DarkGray
+		}
+		else
+		{
+			Write-Host " " -ForegroundColor Gray
+			Write-Host " " -ForegroundColor DarkGray
+		}
+		$keys = " Enter apply · Space toggle · ↑↓ move · 1-6 mode · / search · F filter · ? help · Q quit"
+		$pageInfo = "{0}/{1} · page {2}/{3} " -f ($cursor + 1), $filtered.Count, ([Math]::Floor($pageStart / $pageSize) + 1), ([Math]::Ceiling($filtered.Count / $pageSize))
+		$footer = $keys
+		$padFooter = $width - 1 - $keys.Length - $pageInfo.Length
+		if ($padFooter -ge 2) { $footer = $keys + (" " * $padFooter) + $pageInfo }
+		else { $footer = (Format-MolikTruncate $keys ([Math]::Max(20, $width - 1 - $pageInfo.Length))) + $pageInfo }
+		Write-Host (Format-MolikTruncate $footer ($width - 1)) -ForegroundColor DarkGray
+
 		# Xoa phan du cua khung hinh truoc (dai hon) de khong con "rac" phia duoi
+		$frameLines = 7 + $listLines
 		if ($frameLines -lt $lastFrameLines)
 		{
-			$padWidth = 100
-			try { $padWidth = [Console]::WindowWidth } catch {}
-			$padLine = " " * [Math]::Max(10, $padWidth - 1)
+			$padLine = " " * [Math]::Max(10, $width - 1)
 			for ($pad = $frameLines; $pad -lt $lastFrameLines; $pad++) { Write-Host $padLine }
 			try { [Console]::SetCursorPosition(0, 0) } catch {}
 		}
@@ -4480,7 +4485,7 @@ function Show-SophiaOptimizerUI
 				foreach ($id in (Get-SophiaModeTweakIds -ModeKey $currentMode -Catalog $Catalog)) { $selected[$id] = $true }
 				foreach ($id in $smartRec.ExtraIds) { $selected[$id] = $true }
 				$cursor = 0
-				Write-Host "  🤖 Smart Advisor đã tự tick Mode $currentMode + tweak riêng cho máy này:" -ForegroundColor Green
+				Write-Host "  Smart Advisor đã tự tick Mode $currentMode + tweak riêng cho máy này:" -ForegroundColor Green
 				$smartRec.Reasons | ForEach-Object { Write-Host "      - $_" -ForegroundColor Cyan }
 				$smartRec.Warnings | ForEach-Object { Write-Host "      [!] $_" -ForegroundColor Yellow }
 			}
@@ -4528,15 +4533,18 @@ function Show-SophiaOptimizerUI
 		elseif ($ch -eq '?') {
 			try { [Console]::CursorVisible = $true; [Console]::Clear() } catch {}
 			Write-Host ""
-			Write-Host "  ══════ MOLIK WINLIK - TRO GIUP PHIM TAT ══════" -ForegroundColor Magenta
-			Write-Host "  ↑/↓ hoac K/J: di chuyen | SPACE: tick/bo tick | ENTER: AP DUNG cac tweak da tick" -ForegroundColor Gray
-			Write-Host "  1-6/M: doi Mode | A: tick tat ca (dang loc) | N: bo tick tat ca | /: tim kiem" -ForegroundColor Gray
-			Write-Host "  F: doi bo loc All -> Selected -> Extreme -> NotApplied (bam V truoc de quyet trang thai)" -ForegroundColor Gray
-			Write-Host "  G: Smart Auto theo phan cung | V: quet tweak da ap dung (●) | T: Benchmark" -ForegroundColor Gray
-			Write-Host "  P: Purge RAM | E: Boost gia lap | S/L: luu/nap Profile | B: Backup" -ForegroundColor Gray
-			Write-Host "  H: xuat bao cao HTML Dashboard | U: HOAN TAC phien ap dung gan nhat | R: Restore mac dinh | Q/Esc: thoat" -ForegroundColor Gray
-			Write-Host "  Badge: [SAFE] an toan - [MOD ] trung binh - [EXT ] cuc han (doc mo ta truoc khi tick)" -ForegroundColor Yellow
-			Write-Host "  Bam phim bat ky de quay lai..." -ForegroundColor Cyan
+			Write-Host "  Keyboard" -ForegroundColor White
+			Write-Host "  ↑/↓, K/J    Move              Space       Toggle tweak" -ForegroundColor Gray
+			Write-Host "  Enter       Apply selected    1-6, M      Switch mode" -ForegroundColor Gray
+			Write-Host "  A / N       Select all/none   /           Search" -ForegroundColor Gray
+			Write-Host "  F           Cycle filter      V           Scan applied (●)" -ForegroundColor Gray
+			Write-Host "  G           Smart Advisor     P / E       Purge RAM / Boost emulators" -ForegroundColor Gray
+			Write-Host "  T           Benchmark         S / L       Save / Load profile" -ForegroundColor Gray
+			Write-Host "  B           Backup            H           HTML report" -ForegroundColor Gray
+			Write-Host "  U           Undo last session R           Restore defaults" -ForegroundColor Gray
+			Write-Host "  Q, Esc      Quit" -ForegroundColor Gray
+			Write-Host ""
+			Write-Host "  EXT = Extreme risk (read the description first). Press any key to return." -ForegroundColor DarkGray
 			[Console]::ReadKey($true) | Out-Null
 			$firstFrame = $true
 		}
@@ -4558,6 +4566,7 @@ function Show-SophiaOptimizerUI
 			try { [Console]::CursorVisible = $true } catch {}
 			$confirm = Read-Host "  Khôi phục MẶC ĐỊNH toàn bộ tweak? (yes/no)"
 			if ($confirm -eq 'yes') { Invoke-SophiaRestoreTweaks -Catalog $Catalog }
+			$firstFrame = $true
 		}
 		if ($cursor -lt 0) { $cursor = 0 }
 		if ($cursor -ge $filtered.Count) { $cursor = $filtered.Count - 1 }

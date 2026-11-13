@@ -90,6 +90,10 @@ online cũ) đã bị xóa hẳn.
 .\MolikWinlik.ps1 -RestoreDefaults -Yes             # khôi phục mặc định
 ```
 
+## 🎨 v3.2 — TUI tối giản chuyên nghiệp
+
+Viết lại khung hiển thị của giao diện tick-chọn theo chuẩn công cụ terminal gọn: **3 dòng header** (tiêu đề + tab Mode + trạng thái), danh sách **1 dòng/tweak** cột thẳng hàng (`[x] ID  Tên ... EXT/MOD`), **panel chi tiết cố định 2 dòng ở đáy** (danh sách không còn nhảy layout khi di chuyển), **1 dòng phím tắt duy nhất** — toàn bộ phím đầy đủ nằm trong màn hình `?`. Bỏ hộp viền, emoji và các dải hướng dẫn chiếm chỗ; Menu đơn giản và header Plan cũng gọn theo cùng phong cách. Mọi phím tắt/chức năng giữ nguyên.
+
 ## 🩺 v3.1 — Hoàn thiện & An toàn (đợt CONTINUE)
 
 - **Hoàn tác phiên gần nhất `-UndoLast`** (phím `U` trong cả 2 giao diện): đọc log phiên áp dụng mới nhất, chạy khôi phục mặc định cho đúng các tweak đã áp thành công theo thứ tự ngược — sai một phiên là lùi lại được ngay.
