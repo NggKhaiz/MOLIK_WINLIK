@@ -152,9 +152,7 @@ function Show-SophiaOptimizationPlan
 	param([Parameter(Mandatory)]$Plan, [string]$Title = "KẾ HOẠCH TỐI ƯU SIÊU SÂU")
 
 	Write-Host ""
-	Write-Host "  ╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Magenta
-	Write-Host "  ║  $Title" -ForegroundColor Magenta
-	Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Magenta
+	Write-Host "  $Title" -ForegroundColor White
 	Write-Host ("  Tổng: {0} tweak | Impact Score: {1} ({2}) | Cần restart: {3} | Extreme: {4}" -f $Plan.Count, $Plan.ImpactScore, $Plan.Level, $Plan.RebootCount, $Plan.ExtremeCount) -ForegroundColor Cyan
 	$phaseNames = @{ 2 = "Pha 2 - Scheduled Tasks & Services"; 3 = "Pha 3 - Registry / Privacy / System"; 4 = "Pha 4 - GPU / Display / Multimedia"; 5 = "Pha 5 - Power Profile & CPU Power"; 6 = "Pha 6 - Network Stack"; 7 = "Pha 7 - Storage & Pagefile"; 8 = "Pha 8 - Kernel / BCD / Security Mitigations (cuối cùng)" }
 	foreach ($phase in $Plan.Phases)
