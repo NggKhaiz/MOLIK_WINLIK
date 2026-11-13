@@ -73,15 +73,35 @@ function Invoke-SophiaSelectedTweaks
 	Write-Host "  Áp dụng $($selected.Count) tweak" -ForegroundColor White
 	"=== MOLIK WINLIK $(Get-Date) - $($selected.Count) tweaks ===" | Set-Content $logFile -Encoding UTF8
 
-	$ok = 0; $fail = 0
+	# Pre-scan (chi doc): bao nhieu tweak da o trang thai dich tu truoc
+	$alreadyApplied = 0
+	foreach ($tweak in $selected) { try { if (& $tweak.CheckScript) { $alreadyApplied++ } } catch {} }
+	if ($alreadyApplied -gt 0) { Write-Host "  $alreadyApplied/$($selected.Count) tweak đã ở trạng thái đích từ trước (vẫn áp lại để đồng bộ)." -ForegroundColor DarkGray }
+
+	$ok = 0; $fail = 0; $verifiedCount = 0; $unverifiedCount = 0
 	foreach ($tweak in $selected)
 	{
 		Write-Host ("  [{0}] {1} ... " -f $tweak.Id, $tweak.Name) -NoNewline
 		try
 		{
 			& $tweak.ApplyScript
-			Write-Host "OK" -ForegroundColor Green
-			"OK   $($tweak.Id) $($tweak.Name)" | Add-Content $logFile -Encoding UTF8
+			# Post-verify: chay lai CheckScript de xac nhan trang thai that,
+			# khong chi dua vao viec Apply khong nem loi (registry ghi that bai
+			# thuong bi nuot am tham boi SilentlyContinue).
+			$isVerified = $false
+			try { $isVerified = [bool](& $tweak.CheckScript) } catch {}
+			if ($isVerified)
+			{
+				Write-Host "OK" -ForegroundColor Green
+				"OK   $($tweak.Id) $($tweak.Name) [verified]" | Add-Content $logFile -Encoding UTF8
+				$verifiedCount++
+			}
+			else
+			{
+				Write-Host "OK (unverified)" -ForegroundColor Yellow
+				"OK   $($tweak.Id) $($tweak.Name) [unverified]" | Add-Content $logFile -Encoding UTF8
+				$unverifiedCount++
+			}
 			$ok++
 		}
 		catch
@@ -92,7 +112,7 @@ function Invoke-SophiaSelectedTweaks
 		}
 	}
 	Write-Host ""
-	Write-Host "  Hoàn tất: $ok OK / $fail FAIL — Log: $logFile" -ForegroundColor Cyan
+	Write-Host "  Hoàn tất: $ok OK ($verifiedCount verified, $unverifiedCount unverified) / $fail FAIL — Log: $logFile" -ForegroundColor Cyan
 	Write-Host "  [!] Nhiều tweak (HAGS, VBS, BCD, Pagefile) cần RESTART để có hiệu lực." -ForegroundColor Yellow
 	if (-not $Force -and -not $NoRestartPrompt)
 	{
@@ -176,7 +196,7 @@ function Get-SophiaSelectionProfile
 function Get-MolikUiVersion
 {
 	if ($Global:MolikWinlikVersion) { return [string]$Global:MolikWinlikVersion }
-	return "3.2.0"
+	return "3.3.0"
 }
 
 function Format-MolikTruncate
