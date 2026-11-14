@@ -48,5 +48,18 @@ NEU GAP LOI
     hoac restart vao System Restore Point ma tool da tao truoc khi ap dung.
   - Backup cua tool nam o: C:\MOLIK_WINLIK_Backups\
 
-Chi tiet day du: Optimizer\README.md
+--------------------------------------------------------------------
+TINH NANG NHANH (ban 4.0)
+--------------------------------------------------------------------
+  Trong giao dien tick-chon:
+    SPACE tick tweak | 1-6 doi Mode | ENTER ap dung | F loc nhanh
+    V xem tweak nao da ap | ? xem tat ca phim tat | Q thoat
+  Ap dung xong tool tu kiem chung tung tweak (verified/unverified).
+  Ap sai? Bam U de hoan tac dung phien vua ap.
+  Kiem tra may sau toi uu: MOLIK_WINLIK.bat -Doctor
+  Xuat bao cao HTML: MOLIK_WINLIK.bat -ExportReport
+    (file nam o C:\MOLIK_WINLIK_Backups\Reports\)
+  Xem danh sach Backup/Profile: -ListBackups / -ListProfiles
+
+Chi tiet day du: Optimizer\README.md | Nhat ky: CHANGELOG-MOLIK.md
 ====================================================================

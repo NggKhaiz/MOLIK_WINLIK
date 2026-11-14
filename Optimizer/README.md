@@ -90,6 +90,12 @@ online cũ) đã bị xóa hẳn.
 .\MolikWinlik.ps1 -RestoreDefaults -Yes             # khôi phục mặc định
 ```
 
+## 🏁 v4.0 — Bản hoàn thiện
+
+Bản chốt của chuỗi 3.x: 197 tweak đã audit toàn diện (0 xung đột registry, Restore đối xứng, Check kiểm chứng được), engine áp dụng tự xác minh trạng thái thật, TUI tối giản 7 dòng khung cố định. v4.0 đồng bộ nốt các chi tiết vận hành: version nhất quán kể cả khi build lại Portable, `-ExportReport` ghi vào `C:\MOLIK_WINLIK_Backups\Reports`, `-RestoreDefaults -Yes` không dừng chờ phím, Menu có thêm phím `K` (Doctor), metadata backup ghi phiên bản tool. Nhật ký thay đổi đầy đủ: `CHANGELOG-MOLIK.md` ở thư mục gốc.
+
+Số tweak theo Mode hiện tại: Farm 109 · Gaming 77 · Workstation 21 · LowSpec 47 · Standard 29 · GodMode 197.
+
 ## 🔬 v3.3 — DEEPER: kiểm chứng sau áp dụng + audit sâu catalog
 
 - **Tự kiểm chứng sau khi áp dụng**: mỗi tweak áp xong được chạy lại CheckScript — kết quả phiên tách rõ `verified` (trạng thái thật đã đạt) và `unverified` (đã chạy nhưng không xác nhận được trạng thái, ví dụ tweak hành động 1 lần). Trước khi áp còn quét nhanh số tweak đã ở trạng thái đích. Hết cảnh "báo OK nhưng registry ghi thất bại bị nuốt lỗi".

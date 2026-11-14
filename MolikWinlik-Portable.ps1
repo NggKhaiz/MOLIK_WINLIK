@@ -1,5 +1,5 @@
 ﻿<#
-	MOLIK WINLIK by @nggkhaiz v3.3.0 - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)
+	MOLIK WINLIK by @nggkhaiz v4.0.0 - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)
 	Chay: double-click MOLIK_WINLIK.bat (tu xin Admin), hoac powershell -ExecutionPolicy Bypass -File .\MolikWinlik-Portable.ps1
 	File nay duoc sinh tu dong boi Optimizer\Build-Portable.ps1 - dung sua tay, hay sua nguon trong Optimizer/ roi build lai.
 #>
@@ -80,7 +80,7 @@ param(
 
 $ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
-$Global:MolikWinlikVersion = "3.3.0"
+$Global:MolikWinlikVersion = "4.0.0"
 
 # ── Self-elevate to Administrator (chi khi thao tac that su can Admin) ───────
 # Cac lenh chi-doc duoi day chay ngay khong can UAC cho khoi dong nhanh:
@@ -1895,7 +1895,7 @@ function Export-MolikHtmlReport
 	}
 
 	$enc = { param($v) if ($null -eq $v) { return "" } return [System.Net.WebUtility]::HtmlEncode([string]$v) }
-	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "3.3.0" }
+	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "4.0.0" }
 	$now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 	$status = @{}
@@ -2820,6 +2820,20 @@ function Test-SophiaOptimizerHealth
 				else { Report "PASS" "Encoding guard: $coreFile an toan cho PowerShell 5.1 (BOM UTF-8 hoac ASCII thuan)" }
 			}
 		}
+		# Mo rong: MOi file engine .ps1 chua tieng Viet deu phai co BOM (dot-source
+		# bang PS 5.1 ma thieu BOM la vo tieng Viet giong loi encoding ngay xua)
+		$engineFilesEnc = Get-ChildItem -Path (Join-Path $RepoRoot "Optimizer") -Filter "*.ps1" -Recurse -File -ErrorAction SilentlyContinue
+		$badEnc = @()
+		foreach ($ef2 in $engineFilesEnc)
+		{
+			$eb = [System.IO.File]::ReadAllBytes($ef2.FullName)
+			$hasBom2 = ($eb.Length -ge 3 -and $eb[0] -eq 0xEF -and $eb[1] -eq 0xBB -and $eb[2] -eq 0xBF)
+			$hasNonAscii2 = $false
+			foreach ($bb in $eb) { if ($bb -gt 127) { $hasNonAscii2 = $true; break } }
+			if ($hasNonAscii2 -and -not $hasBom2) { $badEnc += $ef2.Name }
+		}
+		if ($badEnc.Count -eq 0) { Report "PASS" "Encoding guard: toàn bộ $($engineFilesEnc.Count) file engine đều an toàn PS 5.1 (BOM UTF-8/ASCII)" }
+		else { Report "FAIL" "Encoding guard: file thiếu BOM UTF-8: $($badEnc -join ', ')" }
 		$bat = Join-Path $RepoRoot "MOLIK_WINLIK.bat"
 		if (Test-Path $bat)
 		{
@@ -2841,7 +2855,7 @@ function Test-SophiaOptimizerHealth
 		{
 			$content = Get-Content $portable -Raw
 			$markers = ([regex]::Matches($content, "PORTABLE-INLINE")).Count
-			if ($markers -ge 10 -and $content -match "Get-WinUtilConvertedTweaks" -and $content -match "EXT84") { Report "PASS" "Portable: $markers module inline, du WinUtil + EXT84 (offline)" }
+			if ($markers -ge 10 -and $content -match "Get-WinUtilConvertedTweaks" -and $content -match "EXT86") { Report "PASS" "Portable: $markers module inline, du WinUtil + EXT86 (offline)" }
 			else { Report "WARN" "Portable co ve thieu module (markers=$markers) - chay Optimizer\\Build-Portable.ps1 de sinh lai" }
 			$scanText = (($content -split "`n") | Where-Object { $_ -notmatch "OFFLINE guard|-match|-notmatch" }) -join "`n"
 			if ($scanText -match "Invoke-RestMethod|Invoke-WebRequest|DownloadString") { Report "FAIL" "OFFLINE guard: Portable chua cmdlet tai code tu Internet!" }
@@ -2983,6 +2997,7 @@ function New-SophiaSystemBackup
 
 	# 4. Save Metadata JSON
 	$Meta = [ordered]@{
+		ToolVersion = $(if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "unknown" })
 		CreatedAt   = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 		Label       = $Label
 		BackupPath  = $BackupRoot
@@ -4060,7 +4075,7 @@ function Invoke-SophiaSelectedTweaks
 
 function Invoke-SophiaRestoreTweaks
 {
-	param($Catalog)
+	param($Catalog, [switch]$NoPause)
 	Write-Host "  Đang khôi phục mặc định cho toàn bộ catalog..." -ForegroundColor Cyan
 	foreach ($tweak in $Catalog)
 	{
@@ -4071,7 +4086,7 @@ function Invoke-SophiaRestoreTweaks
 		try { Restore-SophiaLatestBackup | Out-Null } catch {}
 	}
 	Write-Host "  [✓] Đã khôi phục. Hãy RESTART máy." -ForegroundColor Green
-	Read-Host "  Nhấn ENTER để quay lại menu"
+	if (-not $NoPause) { Read-Host "  Nhấn ENTER để quay lại menu" }
 }
 
 function Invoke-EmulatorAutoBooster
@@ -4129,7 +4144,7 @@ function Get-SophiaSelectionProfile
 function Get-MolikUiVersion
 {
 	if ($Global:MolikWinlikVersion) { return [string]$Global:MolikWinlikVersion }
-	return "3.3.0"
+	return "4.0.0"
 }
 
 function Format-MolikTruncate
@@ -4189,8 +4204,8 @@ function Show-SophiaSimpleMenu
 		Write-Host "  9  Boost emulators  T  Benchmark        C  Compare benchmarks" -ForegroundColor Gray
 		Write-Host "  A  Install apps     X  Presets          H  HTML report" -ForegroundColor Gray
 		Write-Host "  B  Backup           U  Undo session     R  Restore defaults" -ForegroundColor Gray
-		Write-Host "  S  Desktop shortcut D  Self-test        0  Exit" -ForegroundColor Gray
-		$choice = Read-Host "  Chọn (0-9/G/A/T/C/R/S/D/X/H/B/U)"
+		Write-Host "  S  Desktop shortcut D  Self-test        K  Doctor           0  Exit" -ForegroundColor Gray
+		$choice = Read-Host "  Chọn (0-9/G/A/T/C/R/S/D/X/H/B/U/K)"
 		if ($choice -match '^[1-6]$')
 		{
 			$m = $modes[[int]::Parse($choice) - 1]
@@ -4299,6 +4314,10 @@ function Show-SophiaSimpleMenu
 		elseif ($choice -eq 'B' -or $choice -eq 'b')
 		{
 			if (Get-Command New-SophiaSystemBackup -ErrorAction SilentlyContinue) { New-SophiaSystemBackup | Out-Null; Read-Host '  Nhấn ENTER để quay lại menu' }
+		}
+		elseif ($choice -eq 'K' -or $choice -eq 'k')
+		{
+			if (Get-Command Show-MolikSystemDoctor -ErrorAction SilentlyContinue) { Show-MolikSystemDoctor -Snapshot $Snapshot -Catalog $Catalog; Read-Host '  Nhấn ENTER để quay lại menu' }
 		}
 		elseif ($choice -eq 'U' -or $choice -eq 'u')
 		{
@@ -4798,7 +4817,9 @@ if ($ListTweaks)
 }
 if ($ExportReport)
 {
-	$reportPath = Join-Path $RepoRoot ("MolikWinlik-System-Report-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
+	$reportDir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Reports"
+	New-Item -Path $reportDir -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
+	$reportPath = Join-Path $reportDir ("MolikWinlik-System-Report-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
 	$reportObj = @{ Snapshot = $snapshot; Modes = $modes; TweakCount = $catalog.Count; Catalog = @($catalog | Select-Object Id, Name, Category, Risk, Modes, Detail) }
 	$reportObj | ConvertTo-Json -Depth 6 | Set-Content $reportPath -Encoding UTF8
 	Write-Host "  [✓] Đã xuất báo cáo JSON: $reportPath" -ForegroundColor Green
@@ -4855,7 +4876,7 @@ if ($RestoreDefaults)
 		$confirm = Read-Host "  Khôi phục MẶC ĐỊNH toàn bộ $($catalog.Count) tweak? Gõ 'yes' để xác nhận"
 		if ($confirm -ne 'yes') { Write-Host "  Đã hủy."; return }
 	}
-	Invoke-SophiaRestoreTweaks -Catalog $catalog
+	Invoke-SophiaRestoreTweaks -Catalog $catalog -NoPause:$Yes
 	return
 }
 if ($Profile)
