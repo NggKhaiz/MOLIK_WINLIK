@@ -43,7 +43,7 @@ function Export-MolikHtmlReport
 	}
 
 	$enc = { param($v) if ($null -eq $v) { return "" } return [System.Net.WebUtility]::HtmlEncode([string]$v) }
-	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "4.0.0" }
+	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "4.1.0" }
 	$now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 	$status = @{}
@@ -163,6 +163,11 @@ function Show-MolikSystemDoctor
 	}
 
 	DoctorLine (-not $Snapshot.PendingReboot) "Không có cập nhật/file nào đang chờ restart." "Đang CHỜ RESTART (CBS/Windows Update/PendingFileRename) — hãy restart trước khi tối ưu tiếp."
+	$sessionMarkerPath = "$env:SystemDrive\MOLIK_WINLIK_Backups\Logs\session_in_progress.json"
+	if (Test-Path $sessionMarkerPath)
+	{
+		Write-Host "  [!] Một phiên áp dụng trước có dấu hiệu bị ngắt giữa chừng (mất điện/tắt máy giữa lúc áp). Xem thư mục Logs và cân nhắc chạy -UndoLast để hoàn tác phiên gần nhất." -ForegroundColor Red
+	}
 	DoctorLine ($Snapshot.VTxEnabled) "VT-x/AMD-V đã bật trong BIOS (giả lập chạy được full tốc)." "VT-x CHƯA bật trong BIOS — giả lập sẽ rất chậm dù đã tweak Windows."
 	DoctorLine (-not $Snapshot.VBSRunning -and -not $Snapshot.HVCIEnabled) "VBS/HVCI đang tắt — VT-x không bị tranh (tốt cho farm/giả lập)." "VBS/HVCI đang BẬT: tranh VT-x với giả lập (dùng EMU01/EMU04 nếu là máy farm chuyên dụng)."
 	DoctorLine ($Snapshot.HAGSEnabled) "HAGS (GPU01) đã bật — GPU tự lập lịch, giảm latency." "HAGS chưa bật — tick GPU01 nếu GPU hỗ trợ (WDDM >= 2.7)."

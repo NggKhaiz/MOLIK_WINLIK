@@ -3,6 +3,23 @@
 Tool tối ưu Windows offline của fork này (nằm ngoài module upstream `src/`).
 Chạy: double-click `MOLIK_WINLIK.bat`. Chi tiết kỹ thuật: `Optimizer/README.md`.
 
+## v4.1.0 — Debug sâu & hoàn thiện cực hạn
+
+- **Audit engine cực hạn** (ExtremeEngine/RAM Daemon/WinUtil): Restore của
+  Unhide Power Settings nay xóa giá trị đúng trạng thái gốc; fsutil 8dot3
+  khôi phục về mặc định hệ thống (2); dừng Timer Daemon chỉ khớp đúng
+  tiến trình `MolikTimer.ps1`.
+- **Không còn nhân bản Power Plan**: GAM01/EXT07 chỉ tạo Ultimate
+  Performance khi chưa tồn tại (trước đây mỗi lần áp lại nhân thêm 1 bản).
+- **Restore đối xứng nốt**: EMU03 bật lại đủ 3 tính năng Hyper-V đã tắt;
+  EMU05 gỡ đủ exclusion đường dẫn + tiến trình đã thêm.
+- **Phát hiện giả lập toàn diện**: các tweak theo exe (EXT05/EXT06) dùng
+  luôn kết quả quét toàn ổ đĩa + registry của HardwareDetector.
+- **Marker phiên đang chạy**: nếu mất điện/tắt máy giữa lúc áp dụng,
+  Doctor lần sau cảnh báo ngay và hướng dẫn `-UndoLast`.
+- Danh sách tweak cần restart đầy đủ hơn (RAM03/EXT25/EXT79/EXT80/EXT83);
+  SelfTest kiểm tra thêm ID cần-restart tồn tại + khóa Mode hợp lệ.
+
 ## v4.0.0 — Bản hoàn thiện
 
 - Đồng bộ version 4.0.0 toàn hệ thống; bản Portable khi build lại tự lấy

@@ -74,7 +74,7 @@ if ($scanText -match "Invoke-RestMethod|Invoke-WebRequest|DownloadString")
 	throw "Portable chua cmdlet tai mang - MOLIK WINLIK phai offline 100%."
 }
 
-$molikVersion = "4.0.0"
+$molikVersion = "4.1.0"
 if ($launcher -match 'MolikWinlikVersion = "([0-9.]+)"') { $molikVersion = $Matches[1] }
 $banner = "<#`n`tMOLIK WINLIK by @nggkhaiz v$molikVersion - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)`n`tChay: double-click MOLIK_WINLIK.bat (tu xin Admin), hoac powershell -ExecutionPolicy Bypass -File .\\MolikWinlik-Portable.ps1`n`tFile nay duoc sinh tu dong boi Optimizer\\Build-Portable.ps1 - dung sua tay, hay sua nguon trong Optimizer/ roi build lai.`n#>`n"
 $portable = $banner + $portable

@@ -73,6 +73,11 @@ function Invoke-SophiaSelectedTweaks
 	Write-Host "  Áp dụng $($selected.Count) tweak" -ForegroundColor White
 	"=== MOLIK WINLIK $(Get-Date) - $($selected.Count) tweaks ===" | Set-Content $logFile -Encoding UTF8
 
+	# Danh dau "phien dang chay": neu tien trinh bi tat giua chung (mat dien,
+	# treo may), marker con lai de Doctor canh bao + huong dan Undo o lan mo sau.
+	$sessionMarker = Join-Path $logDir "session_in_progress.json"
+	try { (@{ StartedAt = (Get-Date -Format "yyyy-MM-dd HH:mm:ss"); TweakCount = $selected.Count; LogFile = $logFile } | ConvertTo-Json) | Set-Content $sessionMarker -Encoding UTF8 -Force } catch {}
+
 	# Pre-scan (chi doc): bao nhieu tweak da o trang thai dich tu truoc
 	$alreadyApplied = 0
 	foreach ($tweak in $selected) { try { if (& $tweak.CheckScript) { $alreadyApplied++ } } catch {} }
@@ -113,6 +118,7 @@ function Invoke-SophiaSelectedTweaks
 	}
 	Write-Host ""
 	Write-Host "  Hoàn tất: $ok OK ($verifiedCount verified, $unverifiedCount unverified) / $fail FAIL — Log: $logFile" -ForegroundColor Cyan
+	try { Remove-Item $sessionMarker -Force -ErrorAction SilentlyContinue } catch {}
 	Write-Host "  [!] Nhiều tweak (HAGS, VBS, BCD, Pagefile) cần RESTART để có hiệu lực." -ForegroundColor Yellow
 	if (-not $Force -and -not $NoRestartPrompt)
 	{
@@ -196,7 +202,7 @@ function Get-SophiaSelectionProfile
 function Get-MolikUiVersion
 {
 	if ($Global:MolikWinlikVersion) { return [string]$Global:MolikWinlikVersion }
-	return "4.0.0"
+	return "4.1.0"
 }
 
 function Format-MolikTruncate

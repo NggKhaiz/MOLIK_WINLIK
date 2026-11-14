@@ -90,6 +90,10 @@ online cũ) đã bị xóa hẳn.
 .\MolikWinlik.ps1 -RestoreDefaults -Yes             # khôi phục mặc định
 ```
 
+## 🔧 v4.1 — Debug sâu & hoàn thiện cực hạn
+
+Đợt rà soát cấp engine: sửa Restore chưa đúng trạng thái gốc (Unhide Power Settings, fsutil 8dot3), chống nhân bản Ultimate Performance mỗi lần áp (GAM01/EXT07), EMU03/EMU05 khôi phục đối xứng tuyệt đối, phát hiện giả lập dùng chung bản quét toàn ổ đĩa, thêm **marker phiên đang chạy** để Doctor cảnh báo khi phiên áp dụng trước bị ngắt giữa chừng (mất điện) và hướng dẫn hoàn tác. SelfTest kiểm tra thêm tính hợp lệ của danh sách cần-restart và khóa Mode. Chi tiết: `CHANGELOG-MOLIK.md`.
+
 ## 🏁 v4.0 — Bản hoàn thiện
 
 Bản chốt của chuỗi 3.x: 197 tweak đã audit toàn diện (0 xung đột registry, Restore đối xứng, Check kiểm chứng được), engine áp dụng tự xác minh trạng thái thật, TUI tối giản 7 dòng khung cố định. v4.0 đồng bộ nốt các chi tiết vận hành: version nhất quán kể cả khi build lại Portable, `-ExportReport` ghi vào `C:\MOLIK_WINLIK_Backups\Reports`, `-RestoreDefaults -Yes` không dừng chờ phím, Menu có thêm phím `K` (Doctor), metadata backup ghi phiên bản tool. Nhật ký thay đổi đầy đủ: `CHANGELOG-MOLIK.md` ở thư mục gốc.
