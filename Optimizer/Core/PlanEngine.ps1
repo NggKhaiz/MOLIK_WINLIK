@@ -15,7 +15,7 @@ function Get-SophiaRebootTweakIds
 {
 	return @(
 		"EMU01","EMU02","EMU03","EMU04","EMU06","CPU01","CPU04","CPU05","RAM01","RAM02","RAM03","RAM09",
-		"GPU01","GPU03","GPU04","GPU05","NET01","NET08","NET09","SYS04","EXT01","EXT21","EXT22","EXT38","EXT39","EXT51","EXT54"
+		"GPU01","GPU03","GPU04","GPU05","NET01","NET08","NET09","SYS04","EXT01","EXT21","EXT22","EXT38","EXT39","EXT51","EXT54","RAM03","EXT25","EXT79","EXT80","EXT83"
 	)
 }
 
@@ -25,7 +25,7 @@ function Get-SophiaTweakPhase
 	$id = $Tweak.Id
 	if ($id -in @("EMU07","SYS02","SYS01","EXT14","EXT15","EXT27","EXT77","EXT79","EXT80")) { return 2 }
 	if ($id -match '^EXT3[89]$|^EMU06$') { return 7 }
-	if ($id -match '^CPU0[145]$|^EMU0[1234]$|^EXT(01|22|23|46|48)$|^RAM09$') { return 8 }
+	if ($id -match '^CPU0[145]$|^EMU0[1234]$|^EXT(01|22|23|48)$|^RAM09$') { return 8 }
 	if ($Tweak.Category -match 'PRIVACY|SYSTEM') { return 3 }
 	if ($Tweak.Category -match 'GPU') { return 4 }
 	if ($id -match '^GAM01$|^EXT0[789]$|^CPU0[2368]$|^EMU09$|^EXT(33|47)$') { return 5 }

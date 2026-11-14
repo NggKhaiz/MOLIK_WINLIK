@@ -1,5 +1,5 @@
 ﻿<#
-	MOLIK WINLIK by @nggkhaiz v4.0.0 - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)
+	MOLIK WINLIK by @nggkhaiz v4.1.0 - BAN OFFLINE 1 FILE (MolikWinlik-Portable.ps1)
 	Chay: double-click MOLIK_WINLIK.bat (tu xin Admin), hoac powershell -ExecutionPolicy Bypass -File .\MolikWinlik-Portable.ps1
 	File nay duoc sinh tu dong boi Optimizer\Build-Portable.ps1 - dung sua tay, hay sua nguon trong Optimizer/ roi build lai.
 #>
@@ -80,7 +80,7 @@ param(
 
 $ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
-$Global:MolikWinlikVersion = "4.0.0"
+$Global:MolikWinlikVersion = "4.1.0"
 
 # ── Self-elevate to Administrator (chi khi thao tac that su can Admin) ───────
 # Cac lenh chi-doc duoi day chay ngay khong can UAC cho khoi dong nhanh:
@@ -885,6 +885,14 @@ function Get-SophiaDiscoveredEmulatorPaths
 		"${env:ProgramFiles}\MuMuPlayer-12.0\shell\MuMuPlayer.exe", "${env:ProgramFiles(x86)}\Microvirt\MEmu\MEmu.exe"
 	)
 	foreach ($c in $candidates) { if ($c -and (Test-Path $c)) { $paths += $c } }
+	# Bo sung tu ban quet toan o dia + registry (HardwareDetector) neu co
+	try
+	{
+		if (Get-Command Find-InstalledEmulators -ErrorAction SilentlyContinue)
+		{
+			foreach ($foundExe in (Find-InstalledEmulators).ExePaths) { if ($foundExe -and ($paths -notcontains $foundExe)) { $paths += $foundExe } }
+		}
+	} catch {}
 	foreach ($name in (Get-SophiaEmulatorProcessNames))
 	{
 		Get-Process -Name $name -ErrorAction SilentlyContinue | ForEach-Object {
@@ -1006,7 +1014,7 @@ function Set-SophiaStorageExtreme
 	if ($Restore)
 	{
 		& fsutil behavior set disablelastaccess 2 2>$null | Out-Null
-		& fsutil behavior set disable8dot3 0 2>$null | Out-Null
+		& fsutil behavior set disable8dot3 2 2>$null | Out-Null
 		& fsutil behavior set memoryusage 1 2>$null | Out-Null
 	}
 	else
@@ -1079,7 +1087,8 @@ function Set-SophiaPowerSetting
 
 function Import-SophiaUltimatePowerProfile
 {
-	& powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null | Out-Null
+	$existingUltimate = & powercfg /list 2>$null | Select-String "Ultimate Performance" | Select-Object -First 1
+	if (-not $existingUltimate) { & powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null | Out-Null }
 	$lineMatch = & powercfg /list 2>$null | Select-String "Ultimate Performance" | Select-Object -First 1
 	$line = if ($lineMatch) { $lineMatch.ToString() } else { "" }
 	if ($line -match '([0-9a-f]{8}-[0-9a-f-]+)') { & powercfg /setactive $Matches[1] 2>$null | Out-Null }
@@ -1184,7 +1193,7 @@ function Stop-MolikTimerDaemon
 	try
 	{
 		Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
-			Where-Object { $_.CommandLine -match 'MolikTimer' } |
+			Where-Object { $_.CommandLine -match 'MolikTimer\.ps1' } |
 			ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 	} catch {}
 }
@@ -1297,8 +1306,7 @@ function Set-SophiaExeIoPriority
 function Unhide-SophiaPowerSettings
 {
 	param([switch]$Restore)
-	$attrValue = 0
-	if (-not $Restore) { $attrValue = 2 }
+	$attrValue = 2
 	$settings = @(
 		"54533251-82be-4824-96c1-47b60b740d00\5d76a2ca-e8c0-402f-a133-2158492d58ad",
 		"54533251-82be-4824-96c1-47b60b740d00\36687f9e-e3a5-4dbf-b1dc-15eb381c6863",
@@ -1310,7 +1318,9 @@ function Unhide-SophiaPowerSettings
 	)
 	foreach ($s in $settings)
 	{
-		Set-SophiaRegValue -Path ("HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\" + $s) -Name "Attributes" -Value $attrValue -Type "DWord"
+		$settingPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\" + $s
+		if ($Restore) { Remove-ItemProperty -Path $settingPath -Name "Attributes" -Force -ErrorAction SilentlyContinue }
+		else { Set-SophiaRegValue -Path $settingPath -Name "Attributes" -Value $attrValue -Type "DWord" }
 	}
 }
 
@@ -1506,7 +1516,7 @@ function Get-SophiaRebootTweakIds
 {
 	return @(
 		"EMU01","EMU02","EMU03","EMU04","EMU06","CPU01","CPU04","CPU05","RAM01","RAM02","RAM03","RAM09",
-		"GPU01","GPU03","GPU04","GPU05","NET01","NET08","NET09","SYS04","EXT01","EXT21","EXT22","EXT38","EXT39","EXT51","EXT54"
+		"GPU01","GPU03","GPU04","GPU05","NET01","NET08","NET09","SYS04","EXT01","EXT21","EXT22","EXT38","EXT39","EXT51","EXT54","RAM03","EXT25","EXT79","EXT80","EXT83"
 	)
 }
 
@@ -1516,7 +1526,7 @@ function Get-SophiaTweakPhase
 	$id = $Tweak.Id
 	if ($id -in @("EMU07","SYS02","SYS01","EXT14","EXT15","EXT27","EXT77","EXT79","EXT80")) { return 2 }
 	if ($id -match '^EXT3[89]$|^EMU06$') { return 7 }
-	if ($id -match '^CPU0[145]$|^EMU0[1234]$|^EXT(01|22|23|46|48)$|^RAM09$') { return 8 }
+	if ($id -match '^CPU0[145]$|^EMU0[1234]$|^EXT(01|22|23|48)$|^RAM09$') { return 8 }
 	if ($Tweak.Category -match 'PRIVACY|SYSTEM') { return 3 }
 	if ($Tweak.Category -match 'GPU') { return 4 }
 	if ($id -match '^GAM01$|^EXT0[789]$|^CPU0[2368]$|^EMU09$|^EXT(33|47)$') { return 5 }
@@ -1895,7 +1905,7 @@ function Export-MolikHtmlReport
 	}
 
 	$enc = { param($v) if ($null -eq $v) { return "" } return [System.Net.WebUtility]::HtmlEncode([string]$v) }
-	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "4.0.0" }
+	$ver = if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "4.1.0" }
 	$now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 	$status = @{}
@@ -2015,6 +2025,11 @@ function Show-MolikSystemDoctor
 	}
 
 	DoctorLine (-not $Snapshot.PendingReboot) "Không có cập nhật/file nào đang chờ restart." "Đang CHỜ RESTART (CBS/Windows Update/PendingFileRename) — hãy restart trước khi tối ưu tiếp."
+	$sessionMarkerPath = "$env:SystemDrive\MOLIK_WINLIK_Backups\Logs\session_in_progress.json"
+	if (Test-Path $sessionMarkerPath)
+	{
+		Write-Host "  [!] Một phiên áp dụng trước có dấu hiệu bị ngắt giữa chừng (mất điện/tắt máy giữa lúc áp). Xem thư mục Logs và cân nhắc chạy -UndoLast để hoàn tác phiên gần nhất." -ForegroundColor Red
+	}
 	DoctorLine ($Snapshot.VTxEnabled) "VT-x/AMD-V đã bật trong BIOS (giả lập chạy được full tốc)." "VT-x CHƯA bật trong BIOS — giả lập sẽ rất chậm dù đã tweak Windows."
 	DoctorLine (-not $Snapshot.VBSRunning -and -not $Snapshot.HVCIEnabled) "VBS/HVCI đang tắt — VT-x không bị tranh (tốt cho farm/giả lập)." "VBS/HVCI đang BẬT: tranh VT-x với giả lập (dùng EMU01/EMU04 nếu là máy farm chuyên dụng)."
 	DoctorLine ($Snapshot.HAGSEnabled) "HAGS (GPU01) đã bật — GPU tự lập lịch, giảm latency." "HAGS chưa bật — tick GPU01 nếu GPU hỗ trợ (WDDM >= 2.7)."
@@ -2202,9 +2217,7 @@ function Show-SophiaAppInstallerMenu
 {
 	$apps = Get-SophiaAppsCatalog
 	Write-Host ""
-	Write-Host "  ╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-	Write-Host "  ║  📦 CÀI ỨNG DỤNG (winutil-style, qua winget) — $($apps.Count) app có sẵn dữ liệu  ║" -ForegroundColor Cyan
-	Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+	Write-Host " Install apps (winutil-style, winget) — $($apps.Count) apps" -ForegroundColor White
 	$apps | Group-Object Category | Sort-Object Name | ForEach-Object {
 		Write-Host ""
 		Write-Host "  [$($_.Name)]" -ForegroundColor Magenta
@@ -2773,6 +2786,17 @@ function Test-SophiaOptimizerHealth
 		}
 	}
 	if ($regConflicts.Count -gt 0) { Report "FAIL" "Xung đột registry (cùng khóa, khác giá trị đích): $($regConflicts -join '; ')" } else { Report "PASS" "Không xung đột registry ($($regTargets.Count) khóa đích duy nhất)" }
+
+	try
+	{
+		$rebootMissing = @(Get-SophiaRebootTweakIds | Where-Object { $Catalog.Id -notcontains $_ })
+		if ($rebootMissing.Count -gt 0) { Report "FAIL" "Reboot-list chứa ID không tồn tại: $($rebootMissing -join ', ')" }
+		else { Report "PASS" "Reboot-list: mọi ID cần-restart đều tồn tại trong catalog" }
+	} catch { Report "WARN" "Không kiểm tra được reboot-list: $($_.Exception.Message)" }
+	$validModeKeys = @((Get-SophiaOptimizationModes).Key)
+	$badModes = @()
+	foreach ($t in $Catalog) { foreach ($mk in @($t.Modes)) { if ($validModeKeys -notcontains $mk) { $badModes += "$($t.Id):$mk" } } }
+	if ($badModes.Count -gt 0) { Report "FAIL" "Tweak dùng khóa Mode không hợp lệ: $($badModes -join ', ')" } else { Report "PASS" "Mọi tweak dùng khóa Mode hợp lệ ($($validModeKeys.Count) mode)" }
 
 	# 3) CheckScripts (read-only)
 	$checkErrors = @()
@@ -3437,6 +3461,8 @@ function Get-SophiaTweaksCatalog
 		& bcdedit /set hypervisorlaunchtype off 2>$null | Out-Null
 	} {
 		Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -NoRestart -ErrorAction SilentlyContinue | Out-Null
+		Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -NoRestart -ErrorAction SilentlyContinue | Out-Null
+		Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -NoRestart -ErrorAction SilentlyContinue | Out-Null
 		& bcdedit /set hypervisorlaunchtype auto 2>$null | Out-Null
 	} { try { return ((& bcdedit /enum '{current}' 2>$null) -match 'hypervisorlaunchtype\s+Off') } catch { return $false } } "bcdedit hypervisorlaunchtype + DISM features"
 	Add-Reg "EMU04" "Tắt Memory Integrity (HVCI) cho driver giả lập" $EMU "HVCI chặn driver cũ của Nox/MEmu/LDPlayer (vd: lỗi load driver, BSOD). Tắt để driver giả lập nạp bình thường." "Extreme" $FARM "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" "Enabled" 0 1
@@ -3445,8 +3471,9 @@ function Get-SophiaTweaksCatalog
 		foreach ($d in $dirs) { if (Test-Path $d) { try { Add-MpPreference -ExclusionPath $d -ErrorAction SilentlyContinue } catch {} } }
 		@("LdVBoxHeadless.exe","HD-Player.exe","Nox.exe","MuMuPlayer.exe","NemuHeadless.exe") | ForEach-Object { try { Add-MpPreference -ExclusionProcess $_ -ErrorAction SilentlyContinue } catch {} }
 	} {
-		$dirs = @("$env:SystemDrive\LDPlayer","$env:SystemDrive\Program Files\LDPlayer","$env:SystemDrive\Program Files\MuMuPlayer-12.0","$env:SystemDrive\Program Files\Netease","$env:SystemDrive\Program Files (x86)\Nox","$env:SystemDrive\Program Files\BlueStacks_nxt")
+		$dirs = @("$env:SystemDrive\LDPlayer","$env:SystemDrive\Program Files\LDPlayer","$env:SystemDrive\Program Files\MuMuPlayer-12.0","$env:SystemDrive\Program Files\Netease","$env:SystemDrive\Program Files (x86)\Nox","$env:SystemDrive\Program Files\BlueStacks_nxt","$env:SystemDrive\Program Files (x86)\Microvirt")
 		foreach ($d in $dirs) { try { Remove-MpPreference -ExclusionPath $d -ErrorAction SilentlyContinue } catch {} }
+		@("LdVBoxHeadless.exe","HD-Player.exe","Nox.exe","MuMuPlayer.exe","NemuHeadless.exe") | ForEach-Object { try { Remove-MpPreference -ExclusionProcess $_ -ErrorAction SilentlyContinue } catch {} }
 	} { try { return ((Get-MpPreference -ErrorAction SilentlyContinue).ExclusionPath -match 'LDPlayer|MuMu|Nox|BlueStacks') } catch { return $false } } "Add-MpPreference -ExclusionPath/Process"
 	Add-Cmd "EMU06" "Pagefile CỐ ĐỊNH lớn (min=max, chống phình/thu gây stutter farm)" $EMU "Treo nhiều instance: pagefile động (system-managed) phình-thu liên tục gây stutter. Cố định = RAM vật lý x1.5 (tối thiểu 16GB) trên ổ nhanh nhất." "Moderate" $FARM {
 		try {
@@ -3492,7 +3519,7 @@ function Get-SophiaTweaksCatalog
 
 	# ═══════════════ 2. GAMING ═══════════════
 	Add-Cmd "GAM01" "Ultimate Performance Power Plan (bỏ giới hạn tiết kiệm điện)" $GAM "Kích hoạt plan Ultimate Performance (duplicated từ GUID e9a42b02...) — CPU/GPU luôn sẵn sàng, giảm latency do power-state transition." "Safe" ($FARM_GAME+$WORK) {
-		& powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null | Out-Null
+		if (-not ((& powercfg /list 2>$null) -match 'Ultimate Performance')) { & powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null | Out-Null }
 		$ultimate = (& powercfg /list 2>$null | Select-String "Ultimate Performance" | Select-Object -First 1).ToString()
 		if ($ultimate -match '([0-9a-f]{8}-[0-9a-f-]+)') { & powercfg /setactive $Matches[1] 2>$null | Out-Null }
 	} { & powercfg /setactive SCHEME_BALANCED 2>$null | Out-Null } { return ((& powercfg /getactivescheme 2>$null) -match 'Ultimate') } "powercfg Ultimate Performance"
@@ -4021,6 +4048,11 @@ function Invoke-SophiaSelectedTweaks
 	Write-Host "  Áp dụng $($selected.Count) tweak" -ForegroundColor White
 	"=== MOLIK WINLIK $(Get-Date) - $($selected.Count) tweaks ===" | Set-Content $logFile -Encoding UTF8
 
+	# Danh dau "phien dang chay": neu tien trinh bi tat giua chung (mat dien,
+	# treo may), marker con lai de Doctor canh bao + huong dan Undo o lan mo sau.
+	$sessionMarker = Join-Path $logDir "session_in_progress.json"
+	try { (@{ StartedAt = (Get-Date -Format "yyyy-MM-dd HH:mm:ss"); TweakCount = $selected.Count; LogFile = $logFile } | ConvertTo-Json) | Set-Content $sessionMarker -Encoding UTF8 -Force } catch {}
+
 	# Pre-scan (chi doc): bao nhieu tweak da o trang thai dich tu truoc
 	$alreadyApplied = 0
 	foreach ($tweak in $selected) { try { if (& $tweak.CheckScript) { $alreadyApplied++ } } catch {} }
@@ -4061,6 +4093,7 @@ function Invoke-SophiaSelectedTweaks
 	}
 	Write-Host ""
 	Write-Host "  Hoàn tất: $ok OK ($verifiedCount verified, $unverifiedCount unverified) / $fail FAIL — Log: $logFile" -ForegroundColor Cyan
+	try { Remove-Item $sessionMarker -Force -ErrorAction SilentlyContinue } catch {}
 	Write-Host "  [!] Nhiều tweak (HAGS, VBS, BCD, Pagefile) cần RESTART để có hiệu lực." -ForegroundColor Yellow
 	if (-not $Force -and -not $NoRestartPrompt)
 	{
@@ -4144,7 +4177,7 @@ function Get-SophiaSelectionProfile
 function Get-MolikUiVersion
 {
 	if ($Global:MolikWinlikVersion) { return [string]$Global:MolikWinlikVersion }
-	return "4.0.0"
+	return "4.1.0"
 }
 
 function Format-MolikTruncate

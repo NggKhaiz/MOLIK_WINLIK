@@ -63,6 +63,14 @@ function Get-SophiaDiscoveredEmulatorPaths
 		"${env:ProgramFiles}\MuMuPlayer-12.0\shell\MuMuPlayer.exe", "${env:ProgramFiles(x86)}\Microvirt\MEmu\MEmu.exe"
 	)
 	foreach ($c in $candidates) { if ($c -and (Test-Path $c)) { $paths += $c } }
+	# Bo sung tu ban quet toan o dia + registry (HardwareDetector) neu co
+	try
+	{
+		if (Get-Command Find-InstalledEmulators -ErrorAction SilentlyContinue)
+		{
+			foreach ($foundExe in (Find-InstalledEmulators).ExePaths) { if ($foundExe -and ($paths -notcontains $foundExe)) { $paths += $foundExe } }
+		}
+	} catch {}
 	foreach ($name in (Get-SophiaEmulatorProcessNames))
 	{
 		Get-Process -Name $name -ErrorAction SilentlyContinue | ForEach-Object {
@@ -184,7 +192,7 @@ function Set-SophiaStorageExtreme
 	if ($Restore)
 	{
 		& fsutil behavior set disablelastaccess 2 2>$null | Out-Null
-		& fsutil behavior set disable8dot3 0 2>$null | Out-Null
+		& fsutil behavior set disable8dot3 2 2>$null | Out-Null
 		& fsutil behavior set memoryusage 1 2>$null | Out-Null
 	}
 	else
@@ -257,7 +265,8 @@ function Set-SophiaPowerSetting
 
 function Import-SophiaUltimatePowerProfile
 {
-	& powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null | Out-Null
+	$existingUltimate = & powercfg /list 2>$null | Select-String "Ultimate Performance" | Select-Object -First 1
+	if (-not $existingUltimate) { & powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null | Out-Null }
 	$lineMatch = & powercfg /list 2>$null | Select-String "Ultimate Performance" | Select-Object -First 1
 	$line = if ($lineMatch) { $lineMatch.ToString() } else { "" }
 	if ($line -match '([0-9a-f]{8}-[0-9a-f-]+)') { & powercfg /setactive $Matches[1] 2>$null | Out-Null }
@@ -362,7 +371,7 @@ function Stop-MolikTimerDaemon
 	try
 	{
 		Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
-			Where-Object { $_.CommandLine -match 'MolikTimer' } |
+			Where-Object { $_.CommandLine -match 'MolikTimer\.ps1' } |
 			ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 	} catch {}
 }
@@ -475,8 +484,7 @@ function Set-SophiaExeIoPriority
 function Unhide-SophiaPowerSettings
 {
 	param([switch]$Restore)
-	$attrValue = 0
-	if (-not $Restore) { $attrValue = 2 }
+	$attrValue = 2
 	$settings = @(
 		"54533251-82be-4824-96c1-47b60b740d00\5d76a2ca-e8c0-402f-a133-2158492d58ad",
 		"54533251-82be-4824-96c1-47b60b740d00\36687f9e-e3a5-4dbf-b1dc-15eb381c6863",
@@ -488,7 +496,9 @@ function Unhide-SophiaPowerSettings
 	)
 	foreach ($s in $settings)
 	{
-		Set-SophiaRegValue -Path ("HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\" + $s) -Name "Attributes" -Value $attrValue -Type "DWord"
+		$settingPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\" + $s
+		if ($Restore) { Remove-ItemProperty -Path $settingPath -Name "Attributes" -Force -ErrorAction SilentlyContinue }
+		else { Set-SophiaRegValue -Path $settingPath -Name "Attributes" -Value $attrValue -Type "DWord" }
 	}
 }
 

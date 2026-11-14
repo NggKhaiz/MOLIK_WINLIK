@@ -59,9 +59,7 @@ function Show-SophiaAppInstallerMenu
 {
 	$apps = Get-SophiaAppsCatalog
 	Write-Host ""
-	Write-Host "  ╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-	Write-Host "  ║  📦 CÀI ỨNG DỤNG (winutil-style, qua winget) — $($apps.Count) app có sẵn dữ liệu  ║" -ForegroundColor Cyan
-	Write-Host "  ╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+	Write-Host " Install apps (winutil-style, winget) — $($apps.Count) apps" -ForegroundColor White
 	$apps | Group-Object Category | Sort-Object Name | ForEach-Object {
 		Write-Host ""
 		Write-Host "  [$($_.Name)]" -ForegroundColor Magenta

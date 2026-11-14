@@ -49,7 +49,7 @@ NEU GAP LOI
   - Backup cua tool nam o: C:\MOLIK_WINLIK_Backups\
 
 --------------------------------------------------------------------
-TINH NANG NHANH (ban 4.0)
+TINH NANG NHANH (ban 4.1)
 --------------------------------------------------------------------
   Trong giao dien tick-chon:
     SPACE tick tweak | 1-6 doi Mode | ENTER ap dung | F loc nhanh

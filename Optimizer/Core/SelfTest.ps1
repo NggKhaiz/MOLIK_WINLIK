@@ -72,6 +72,17 @@ function Test-SophiaOptimizerHealth
 	}
 	if ($regConflicts.Count -gt 0) { Report "FAIL" "Xung đột registry (cùng khóa, khác giá trị đích): $($regConflicts -join '; ')" } else { Report "PASS" "Không xung đột registry ($($regTargets.Count) khóa đích duy nhất)" }
 
+	try
+	{
+		$rebootMissing = @(Get-SophiaRebootTweakIds | Where-Object { $Catalog.Id -notcontains $_ })
+		if ($rebootMissing.Count -gt 0) { Report "FAIL" "Reboot-list chứa ID không tồn tại: $($rebootMissing -join ', ')" }
+		else { Report "PASS" "Reboot-list: mọi ID cần-restart đều tồn tại trong catalog" }
+	} catch { Report "WARN" "Không kiểm tra được reboot-list: $($_.Exception.Message)" }
+	$validModeKeys = @((Get-SophiaOptimizationModes).Key)
+	$badModes = @()
+	foreach ($t in $Catalog) { foreach ($mk in @($t.Modes)) { if ($validModeKeys -notcontains $mk) { $badModes += "$($t.Id):$mk" } } }
+	if ($badModes.Count -gt 0) { Report "FAIL" "Tweak dùng khóa Mode không hợp lệ: $($badModes -join ', ')" } else { Report "PASS" "Mọi tweak dùng khóa Mode hợp lệ ($($validModeKeys.Count) mode)" }
+
 	# 3) CheckScripts (read-only)
 	$checkErrors = @()
 	foreach ($t in $Catalog)
