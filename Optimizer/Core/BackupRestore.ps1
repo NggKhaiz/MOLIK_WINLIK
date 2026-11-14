@@ -78,6 +78,7 @@ function New-SophiaSystemBackup
 
 	# 4. Save Metadata JSON
 	$Meta = [ordered]@{
+		ToolVersion = $(if ($Global:MolikWinlikVersion) { $Global:MolikWinlikVersion } else { "unknown" })
 		CreatedAt   = (Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 		Label       = $Label
 		BackupPath  = $BackupRoot

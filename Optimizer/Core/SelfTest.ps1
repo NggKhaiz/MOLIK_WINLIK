@@ -1,4 +1,4 @@
-<#
+﻿<#
 	.SYNOPSIS
 	MOLIK WINLIK - Self-Test / Debug toàn diện (không thay đổi hệ thống)
 
@@ -118,6 +118,20 @@ function Test-SophiaOptimizerHealth
 				else { Report "PASS" "Encoding guard: $coreFile an toan cho PowerShell 5.1 (BOM UTF-8 hoac ASCII thuan)" }
 			}
 		}
+		# Mo rong: MOi file engine .ps1 chua tieng Viet deu phai co BOM (dot-source
+		# bang PS 5.1 ma thieu BOM la vo tieng Viet giong loi encoding ngay xua)
+		$engineFilesEnc = Get-ChildItem -Path (Join-Path $RepoRoot "Optimizer") -Filter "*.ps1" -Recurse -File -ErrorAction SilentlyContinue
+		$badEnc = @()
+		foreach ($ef2 in $engineFilesEnc)
+		{
+			$eb = [System.IO.File]::ReadAllBytes($ef2.FullName)
+			$hasBom2 = ($eb.Length -ge 3 -and $eb[0] -eq 0xEF -and $eb[1] -eq 0xBB -and $eb[2] -eq 0xBF)
+			$hasNonAscii2 = $false
+			foreach ($bb in $eb) { if ($bb -gt 127) { $hasNonAscii2 = $true; break } }
+			if ($hasNonAscii2 -and -not $hasBom2) { $badEnc += $ef2.Name }
+		}
+		if ($badEnc.Count -eq 0) { Report "PASS" "Encoding guard: toàn bộ $($engineFilesEnc.Count) file engine đều an toàn PS 5.1 (BOM UTF-8/ASCII)" }
+		else { Report "FAIL" "Encoding guard: file thiếu BOM UTF-8: $($badEnc -join ', ')" }
 		$bat = Join-Path $RepoRoot "MOLIK_WINLIK.bat"
 		if (Test-Path $bat)
 		{
@@ -139,7 +153,7 @@ function Test-SophiaOptimizerHealth
 		{
 			$content = Get-Content $portable -Raw
 			$markers = ([regex]::Matches($content, "PORTABLE-INLINE")).Count
-			if ($markers -ge 10 -and $content -match "Get-WinUtilConvertedTweaks" -and $content -match "EXT84") { Report "PASS" "Portable: $markers module inline, du WinUtil + EXT84 (offline)" }
+			if ($markers -ge 10 -and $content -match "Get-WinUtilConvertedTweaks" -and $content -match "EXT86") { Report "PASS" "Portable: $markers module inline, du WinUtil + EXT86 (offline)" }
 			else { Report "WARN" "Portable co ve thieu module (markers=$markers) - chay Optimizer\\Build-Portable.ps1 de sinh lai" }
 			$scanText = (($content -split "`n") | Where-Object { $_ -notmatch "OFFLINE guard|-match|-notmatch" }) -join "`n"
 			if ($scanText -match "Invoke-RestMethod|Invoke-WebRequest|DownloadString") { Report "FAIL" "OFFLINE guard: Portable chua cmdlet tai code tu Internet!" }

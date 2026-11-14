@@ -1,4 +1,4 @@
-<#
+﻿<#
 	.SYNOPSIS
 	MOLIK WINLIK - Optimization Plan Engine (phân tích siêu sâu trước khi áp dụng)
 

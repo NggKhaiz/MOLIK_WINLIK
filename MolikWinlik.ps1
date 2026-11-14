@@ -75,7 +75,7 @@ param(
 
 $ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
-$Global:MolikWinlikVersion = "3.3.0"
+$Global:MolikWinlikVersion = "4.0.0"
 
 # ── Self-elevate to Administrator (chi khi thao tac that su can Admin) ───────
 # Cac lenh chi-doc duoi day chay ngay khong can UAC cho khoi dong nhanh:
@@ -295,7 +295,9 @@ if ($ListTweaks)
 }
 if ($ExportReport)
 {
-	$reportPath = Join-Path $RepoRoot ("MolikWinlik-System-Report-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
+	$reportDir = "$env:SystemDrive\MOLIK_WINLIK_Backups\Reports"
+	New-Item -Path $reportDir -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
+	$reportPath = Join-Path $reportDir ("MolikWinlik-System-Report-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
 	$reportObj = @{ Snapshot = $snapshot; Modes = $modes; TweakCount = $catalog.Count; Catalog = @($catalog | Select-Object Id, Name, Category, Risk, Modes, Detail) }
 	$reportObj | ConvertTo-Json -Depth 6 | Set-Content $reportPath -Encoding UTF8
 	Write-Host "  [✓] Đã xuất báo cáo JSON: $reportPath" -ForegroundColor Green
@@ -352,7 +354,7 @@ if ($RestoreDefaults)
 		$confirm = Read-Host "  Khôi phục MẶC ĐỊNH toàn bộ $($catalog.Count) tweak? Gõ 'yes' để xác nhận"
 		if ($confirm -ne 'yes') { Write-Host "  Đã hủy."; return }
 	}
-	Invoke-SophiaRestoreTweaks -Catalog $catalog
+	Invoke-SophiaRestoreTweaks -Catalog $catalog -NoPause:$Yes
 	return
 }
 if ($Profile)

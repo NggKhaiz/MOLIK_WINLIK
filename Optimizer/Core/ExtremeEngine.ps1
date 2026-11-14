@@ -1,4 +1,4 @@
-<#
+﻿<#
 	.SYNOPSIS
 	MOLIK WINLIK - Extreme Engine (MSI interrupts, timer daemon, process affinity, per-exe priority)
 
